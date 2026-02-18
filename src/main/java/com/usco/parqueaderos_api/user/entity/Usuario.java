@@ -40,4 +40,20 @@ public class Usuario {
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
+
+    // --- Auth fields ---
+    @Column(nullable = false)
+    private Boolean confirmado = false;
+
+    @Column(name = "pin_codigo", length = 6)
+    private String pinCodigo;
+
+    @Column(name = "pin_expiracion")
+    private LocalDateTime pinExpiracion;
+
+    @Column(name = "intentos_fallidos", nullable = false)
+    private Integer intentosFallidos = 0;
+
+    @Column(name = "bloqueado_hasta")
+    private LocalDateTime bloqueadoHasta;
 }

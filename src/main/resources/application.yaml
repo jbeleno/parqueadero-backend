@@ -3,9 +3,9 @@ spring:
     name: parqueaderos-api
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/parqueaderos}
+    url: ${DB_URL:jdbc:postgresql://parqueaderos-db.c5qc4qo884xb.us-east-2.rds.amazonaws.com:5432/parqueaderos}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD:Usco2026*}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -27,11 +27,20 @@ spring:
 server:
   port: ${PORT:8080}
 
-# JWT
+# Auth config
 app:
   jwt:
     secret: ${JWT_SECRET:c2VjcmV0S2V5UGFycXVlYWRlcm9zQXBpMjAyNVN1cGVyU2VjcmV0S2V5TG9uZ0Vub3VnaA==}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 horas
+    access-expiration-ms: ${JWT_ACCESS_EXP:3600000}      # 1 hora
+    refresh-expiration-ms: ${JWT_REFRESH_EXP:604800000}  # 7 días
+  resend:
+    api-key: ${RESEND_API_KEY:re_xxxxxxxxxxxx}
+    from-email: ${RESEND_FROM:noreply@parqueaderos.app}
+  pin:
+    expiration-minutes: ${PIN_EXPIRATION:15}
+  security:
+    max-intentos-fallidos: 5
+    bloqueo-minutos: 30
 
 # Springdoc OpenAPI / Swagger UI
 springdoc:

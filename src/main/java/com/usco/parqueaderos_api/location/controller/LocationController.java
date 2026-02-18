@@ -58,7 +58,7 @@ public class LocationController {
 
     @GetMapping("/api/departamentos/pais/{paisId}")
     public ResponseEntity<ApiResponse<List<Departamento>>> getDepartamentosByPais(@PathVariable Long paisId) {
-        return ResponseEntity.ok(ApiResponse.ok(locationService.findDepartamentosByPaisId(paisId)));
+        return ResponseEntity.ok(ApiResponse.ok(locationService.findDepartamentosByPais(paisId)));
     }
 
     @PostMapping("/api/departamentos")
@@ -90,7 +90,7 @@ public class LocationController {
 
     @GetMapping("/api/ciudades/departamento/{departamentoId}")
     public ResponseEntity<ApiResponse<List<Ciudad>>> getCiudadesByDepartamento(@PathVariable Long departamentoId) {
-        return ResponseEntity.ok(ApiResponse.ok(locationService.findCiudadesByDepartamentoId(departamentoId)));
+        return ResponseEntity.ok(ApiResponse.ok(locationService.findCiudadesByDepartamento(departamentoId)));
     }
 
     @PostMapping("/api/ciudades")

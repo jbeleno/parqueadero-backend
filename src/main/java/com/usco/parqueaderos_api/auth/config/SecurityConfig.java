@@ -1,7 +1,7 @@
 package com.usco.parqueaderos_api.auth.config;
 
 import com.usco.parqueaderos_api.auth.filter.JwtAuthenticationFilter;
-import com.usco.parqueaderos_api.user.repository.UsuarioRepository;
+import com.usco.parqueaderos_api.auth.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,9 +14,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -29,23 +26,34 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
-    private final UsuarioRepository usuarioRepository;
+    private final UserDetailsServiceImpl userDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                // Rutas públicas
+                // ── Rutas públicas (sin JWT) ──────────────────────────────────
                 .requestMatchers(
-                    "/api/auth/**",
+                    "/api/auth/registro",
+                    "/api/auth/login",
+                    "/api/auth/refresh",
+                    "/api/auth/confirmar-cuenta",
+                    "/api/auth/reenviar-confirmacion",
+                    "/api/auth/olvide-password",
+                    "/api/auth/verificar-pin",
+                    "/api/auth/resetear-password"
+                ).permitAll()
+                .requestMatchers(
                     "/api/health",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/api-docs/**",
                     "/ws/**"
                 ).permitAll()
-                // Todo lo demás requiere autenticación
+                // ── Rutas exclusivas de administración ─────────────────────────
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                // ── Todo lo demás requiere autenticación ───────────────────────
                 .anyRequest().authenticated()
             )
             .sessionManagement(session ->
@@ -58,22 +66,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> {
-            var usuario = usuarioRepository.findByCorreo(username)
-                    .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
-            return User.builder()
-                    .username(usuario.getCorreo())
-                    .password(usuario.getPassword())
-                    .roles("USER")
-                    .build();
-        };
-    }
-
-    @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService());
+        provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
@@ -88,3 +83,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+
