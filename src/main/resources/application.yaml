@@ -34,8 +34,8 @@ app:
     access-expiration-ms: ${JWT_ACCESS_EXP:3600000}      # 1 hora
     refresh-expiration-ms: ${JWT_REFRESH_EXP:604800000}  # 7 días
   resend:
-    api-key: ${RESEND_API_KEY:re_xxxxxxxxxxxx}
-    from-email: ${RESEND_FROM:noreply@parqueaderos.app}
+    api-key: ${RESEND_API_KEY:re_fhTccJmR_GnMkmNXk9TKUftkuXdW7nXTZ}
+    from-email: ${RESEND_FROM:onboarding@resend.dev}
   pin:
     expiration-minutes: ${PIN_EXPIRATION:15}
   security:
