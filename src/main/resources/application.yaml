@@ -1,22 +1,42 @@
 spring:
   application:
     name: parqueaderos-api
-  
+
   datasource:
-    url: jdbc:postgresql://database-1.c5qc4qo884xb.us-east-2.rds.amazonaws.com:5432/parqueaderos?ssl=true&sslmode=require
-    username: postgres
-    password: 'jesusADOLFO2355'
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/parqueaderos}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
-  
+
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
+  security:
+    # Spring Security auto-config deshabilitado para rutas públicas via SecurityConfig
+    user:
+      name: ${SECURITY_USER:admin}
+      password: ${SECURITY_PASSWORD:admin}
+
 server:
-  port: 8080
+  port: ${PORT:8080}
+
+# JWT
+app:
+  jwt:
+    secret: ${JWT_SECRET:c2VjcmV0S2V5UGFycXVlYWRlcm9zQXBpMjAyNVN1cGVyU2VjcmV0S2V5TG9uZ0Vub3VnaA==}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 horas
+
+# Springdoc OpenAPI / Swagger UI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
