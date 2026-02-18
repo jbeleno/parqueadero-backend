@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface NivelRepository extends JpaRepository<Nivel, Long> {
     List<Nivel> findByParqueaderoId(Long parqueaderoId);
+    List<Nivel> findByParqueaderoIdAndEstadoNombreNot(Long parqueaderoId, String estadoNombre);
 }

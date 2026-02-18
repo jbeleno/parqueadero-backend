@@ -756,38 +756,49 @@ GET http://localhost:8080/api/paises
 ## 9. Empresas
 
 ### GET /api/empresas
-**Descripción:** Obtener todas las empresas
+**Descripción:** Obtener todas las empresas (excluye archivadas)
 
 **Response (200 OK):**
 ```json
-[
-  {
-    "id": 1,
-    "nombre": "Parqueaderos USCO S.A.S",
-    "nit": "900123456-1",
-    "direccion": "Calle 21 # 21-21",
-    "telefono": "3001234567",
-    "email": "info@parqueaderos.com",
-    "ciudad": {
+{
+  "success": true,
+  "data": [
+    {
       "id": 1,
-      "nombre": "Neiva"
+      "nombre": "Parqueaderos USCO S.A.S",
+      "descripcion": "Empresa de parqueaderos",
+      "estadoId": 1,
+      "estadoNombre": "ACTIVO"
     }
-  }
-]
+  ]
+}
 ```
+
+### GET /api/empresas/{id}
+**Descripción:** Obtener empresa por ID
 
 ### POST /api/empresas
 **Request Body:**
 ```json
 {
   "nombre": "Parqueaderos USCO S.A.S",
-  "nit": "900123456-1",
-  "direccion": "Calle 21 # 21-21",
-  "telefono": "3001234567",
-  "email": "info@parqueaderos.com",
-  "ciudad": {
-    "id": 1
-  }
+  "descripcion": "Empresa de parqueaderos",
+  "estadoId": 1
+}
+```
+
+### PUT /api/empresas/{id}
+**Descripción:** Actualizar empresa
+
+### PATCH /api/empresas/{id}/archivar
+**Descripción:** Soft-delete — archiva la empresa (solo ADMIN/SUPER_ADMIN)
+**Headers:** `Authorization: Bearer <token>`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": "Empresa archivada correctamente"
 }
 ```
 
@@ -1496,33 +1507,175 @@ GET http://localhost:8080/api/paises
 
 ---
 
+## �️ Configuración de Parqueaderos (Diseño / Canvas)
+
+### POST /api/parqueaderos/configuracion
+**Descripción:** Guardar la configuración completa de un parqueadero (pisos, secciones, subsecciones, puntos, caminos). Crea el parqueadero si no existe.
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "parkingLot": {
+    "id": null,
+    "name": "Central Universidad Surcolombiana",
+    "empresaId": 1,
+    "ciudadId": 1,
+    "tipoParqueaderoId": 1,
+    "latitud": 2.9273,
+    "longitud": -75.2819,
+    "direccion": "Calle 9 # 15 - 00",
+    "telefono": "3001234567",
+    "horaInicio": "06:00",
+    "horaFin": "22:00",
+    "numeroPuntosParqueo": 50,
+    "zonaHoraria": "America/Bogota",
+    "tiempoGraciaMinutos": 15,
+    "modoCobro": "POR_HORA"
+  },
+  "floors": [
+    {
+      "id": null,
+      "name": "Piso 1",
+      "sections": [
+        {
+          "id": "section-uuid-1",
+          "name": "Sección A",
+          "description": "Zona norte",
+          "acronym": "SA",
+          "coordinates": [{"x": 69, "y": 32}, {"x": 200, "y": 32}, {"x": 200, "y": 180}, {"x": 69, "y": 180}]
+        }
+      ],
+      "subsections": [
+        {
+          "id": "subsection-uuid-1",
+          "name": "Subsección A1",
+          "description": "Primera fila",
+          "acronym": "SA-SS1",
+          "parentSectionId": "section-uuid-1",
+          "coordinates": [{"x": 110, "y": 53}, {"x": 180, "y": 53}, {"x": 180, "y": 120}, {"x": 110, "y": 120}],
+          "parkingSpots": 2
+        }
+      ],
+      "parkingSpots": [
+        {
+          "id": "spot-uuid-1",
+          "subsectionId": "subsection-uuid-1",
+          "coordinates": {
+            "topLeft": {"x": 111, "y": 54},
+            "topRight": {"x": 136, "y": 54},
+            "bottomLeft": {"x": 111, "y": 79},
+            "bottomRight": {"x": 136, "y": 79}
+          },
+          "acronym": "SA-SS1-P1",
+          "description": "Puesto 1",
+          "type": "normal"
+        }
+      ],
+      "paths": [
+        {
+          "id": "path-uuid-1",
+          "type": "polyline",
+          "coordinates": [{"x": 473, "y": 45}, {"x": 473, "y": 250}]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Response (201 Created):**  
+Devuelve la misma estructura pero con IDs de base de datos (Long como String).
+
+### PUT /api/parqueaderos/{id}/configuracion
+**Descripción:** Actualizar la configuración de un parqueadero existente
+
+### GET /api/parqueaderos/{id}/configuracion
+**Descripción:** Obtener la configuración completa del parqueadero para que el frontend lo dibuje
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "parkingLot": {
+      "id": 1,
+      "name": "Central Universidad Surcolombiana",
+      "empresaId": 1,
+      "empresaNombre": "USCO Parking",
+      "ciudadId": 1,
+      "ciudadNombre": "Neiva",
+      "tipoParqueaderoId": 1,
+      "tipoParqueaderoNombre": "Privado",
+      "estadoId": 1,
+      "estadoNombre": "ACTIVO",
+      "numeroPisos": 1,
+      "numeroPuntosParqueo": 50
+    },
+    "floors": [
+      {
+        "id": "1",
+        "name": "Piso 1",
+        "sections": [...],
+        "subsections": [...],
+        "parkingSpots": [...],
+        "paths": [...]
+      }
+    ]
+  }
+}
+```
+
+### PATCH /api/parqueaderos/{id}/archivar
+**Descripción:** Soft-delete — archiva el parqueadero y TODA su configuración en cascada (solo ADMIN/SUPER_ADMIN)
+**Headers:** `Authorization: Bearer <token>`
+
+### PATCH /api/parqueaderos/niveles/{nivelId}/archivar
+**Descripción:** Archiva un nivel y todas sus secciones/subsecciones/puntos/caminos (solo ADMIN/SUPER_ADMIN)
+
+---
+
+## 🗑️ Archivar (Soft-delete)
+
+Todos los endpoints de eliminación usan `PATCH .../archivar` en vez de `DELETE`.  
+Solo roles **ADMIN** y **SUPER_ADMIN** pueden archivar.
+
+| Recurso | Endpoint |
+|---------|----------|
+| Empresa | `PATCH /api/empresas/{id}/archivar` |
+| Parqueadero (cascada) | `PATCH /api/parqueaderos/{id}/archivar` |
+| Nivel (cascada) | `PATCH /api/parqueaderos/niveles/{nivelId}/archivar` |
+| Sección | `PATCH /api/secciones/{id}/archivar` |
+| SubSección | `PATCH /api/sub-secciones/{id}/archivar` |
+| Punto Parqueo | `PATCH /api/puntos-parqueo/{id}/archivar` |
+
+---
+
 ## 📌 Resumen de Endpoints Implementados
 
 | Módulo | Endpoint Base | Total Endpoints | Descripción |
 |--------|--------------|-----------------|-------------|
 | Health | `/api/health` | 1 | Verificación de estado |
+| Auth | `/api/auth/*` | 11 | Registro, login, PIN, refresh, password |
+| Admin | `/api/admin/*` | 5 | Gestión de usuarios/roles (ADMIN) |
 | Estados | `/api/estados` | 5 | CRUD de estados |
-| Parqueaderos | `/api/parqueaderos` | 5 | CRUD de parqueaderos |
+| Parqueaderos | `/api/parqueaderos` | 4 | CRUD de parqueaderos (sin DELETE) |
+| Config Parqueadero | `/api/parqueaderos/*/configuracion` | 3 | Guardar/obtener diseño completo |
+| Archivar Parqueadero | `/api/parqueaderos/*/archivar` | 2 | Soft-delete parqueadero/nivel |
 | Tarifas | `/api/tarifas` | 5 | CRUD de tarifas |
-| Niveles | `/api/niveles` | 5 | CRUD de niveles |
-| Países | `/api/paises` | 5 | CRUD de países |
-| Departamentos | `/api/departamentos` | 5 | CRUD de departamentos |
-| Ciudades | `/api/ciudades` | 5 | CRUD de ciudades |
-| Empresas | `/api/empresas` | 5 | CRUD de empresas |
-| Tipos Parqueadero | `/api/tipos-parqueadero` | 5 | CRUD tipos de parqueadero |
-| Tipos Vehículo | `/api/tipos-vehiculo` | 5 | CRUD tipos de vehículo |
-| Tipos Punto Parqueo | `/api/tipos-punto-parqueo` | 5 | CRUD tipos de punto |
-| Secciones | `/api/secciones` | 5 | CRUD de secciones |
-| Sub-Secciones | `/api/sub-secciones` | 5 | CRUD de sub-secciones |
-| Puntos Parqueo | `/api/puntos-parqueo` | 5 | CRUD de puntos (PostGIS) |
-| Roles | `/api/roles` | 5 | CRUD de roles |
-| Tipos Dispositivo | `/api/tipos-dispositivo` | 5 | CRUD tipos de dispositivo |
-| Personas | `/api/personas` | 5 | CRUD de personas |
-| Usuarios | `/api/usuarios` | 5 | CRUD de usuarios |
+| Niveles | `/api/niveles` | 6 | CRUD + archivar niveles |
+| Empresas | `/api/empresas` | 5 | CRUD + archivar empresas |
+| Secciones | `/api/secciones` | 5 | CRUD + archivar secciones |
+| Sub-Secciones | `/api/sub-secciones` | 5 | CRUD + archivar subsecciones |
+| Puntos Parqueo | `/api/puntos-parqueo` | 5 | CRUD + archivar puntos |
+| Personas | `/api/personas` | 4 | CRUD personas (sin DELETE) |
+| Usuarios | `/api/usuarios` | 4 | CRUD usuarios (sin DELETE) |
 | Vehículos | `/api/vehiculos` | 5 | CRUD de vehículos |
 | Tickets | `/api/tickets` | 5 | CRUD entrada/salida |
 | Reservas | `/api/reservas` | 5 | CRUD de reservas |
 | Facturas | `/api/facturas` | 5 | CRUD de facturas |
 | Pagos | `/api/pagos` | 5 | CRUD de pagos |
 | Dispositivos | `/api/dispositivos` | 5 | CRUD de dispositivos |
-| **TOTAL** | | **121** | **Endpoints activos** |
+| Catálogo | `/api/tipos-*`, `/api/roles` | 20 | Catálogos (tipos, roles) |
+| Ubicación | `/api/paises`, `/api/departamentos`, `/api/ciudades` | 15 | Países, departamentos, ciudades |
+| **TOTAL** | | **~138** | **Endpoints activos** |

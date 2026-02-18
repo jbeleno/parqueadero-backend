@@ -74,11 +74,15 @@ public class ParqueaderoService {
         return toDTO(parqueaderoRepository.save(existing));
     }
 
+    /** Soft-delete: cambia el estado a ARCHIVADO */
     @Transactional
-    public void delete(Long id) {
-        parqueaderoRepository.findById(id)
+    public void archivar(Long id) {
+        Parqueadero existing = parqueaderoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", id));
-        parqueaderoRepository.deleteById(id);
+        Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
+                .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
+        existing.setEstado(archivado);
+        parqueaderoRepository.save(existing);
     }
 
     public ParqueaderoDTO toDTO(Parqueadero e) {

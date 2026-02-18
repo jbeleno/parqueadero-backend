@@ -41,4 +41,12 @@ public class SubSeccion {
 
     @Column(name = "coordenada_centro", columnDefinition = "geometry(Point,4326)")
     private Point coordenadaCentro;
+
+    /** Coordenadas del canvas/frontend en formato JSON: [{"x":110,"y":53}, ...] */
+    @Column(name = "coordenadas", columnDefinition = "TEXT")
+    private String coordenadas;
+
+    /** Cantidad de puntos de parqueo que caben en esta subsección (dato del diseñador) */
+    @Column(name = "cantidad_puntos")
+    private Integer cantidadPuntos;
 }

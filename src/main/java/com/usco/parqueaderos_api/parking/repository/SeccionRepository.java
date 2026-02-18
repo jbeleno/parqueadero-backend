@@ -10,4 +10,5 @@ import java.util.List;
 public interface SeccionRepository extends JpaRepository<Seccion, Long> {
     List<Seccion> findByParqueaderoId(Long parqueaderoId);
     List<Seccion> findByNivelId(Long nivelId);
+    List<Seccion> findByNivelIdAndEstadoNombreNot(Long nivelId, String estadoNombre);
 }

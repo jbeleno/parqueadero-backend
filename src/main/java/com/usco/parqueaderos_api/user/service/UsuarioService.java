@@ -60,10 +60,15 @@ public class UsuarioService {
         return toDTO(usuarioRepository.save(existing));
     }
 
+    /** Soft-delete: cambia el estado a ARCHIVADO */
     @Transactional
-    public void delete(Long id) {
-        usuarioRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuario", id));
-        usuarioRepository.deleteById(id);
+    public void archivar(Long id) {
+        Usuario existing = usuarioRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", id));
+        Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
+                .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
+        existing.setEstado(archivado);
+        usuarioRepository.save(existing);
     }
 
     private UsuarioDTO toDTO(Usuario e) {

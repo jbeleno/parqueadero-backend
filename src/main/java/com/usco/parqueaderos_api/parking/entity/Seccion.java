@@ -45,4 +45,8 @@ public class Seccion {
 
     @Column(columnDefinition = "TEXT")
     private String descripcion;
+
+    /** Coordenadas del canvas/frontend en formato JSON: [{"x":69,"y":32}, ...] */
+    @Column(name = "coordenadas", columnDefinition = "TEXT")
+    private String coordenadas;
 }

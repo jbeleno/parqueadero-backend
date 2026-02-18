@@ -55,10 +55,15 @@ public class PuntoParqueoService {
         return toDTO(puntoParqueoRepository.save(existing));
     }
 
+    /** Soft-delete: cambia el estado a ARCHIVADO */
     @Transactional
-    public void delete(Long id) {
-        puntoParqueoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", id));
-        puntoParqueoRepository.deleteById(id);
+    public void archivar(Long id) {
+        PuntoParqueo existing = puntoParqueoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", id));
+        Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
+                .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
+        existing.setEstado(archivado);
+        puntoParqueoRepository.save(existing);
     }
 
     private PuntoParqueoDTO toDTO(PuntoParqueo e) {

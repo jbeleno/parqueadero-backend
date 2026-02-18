@@ -1,8 +1,8 @@
 package com.usco.parqueaderos_api.user.controller;
 
 import com.usco.parqueaderos_api.common.dto.ApiResponse;
+import com.usco.parqueaderos_api.user.dto.PersonaDTO;
 import com.usco.parqueaderos_api.user.dto.UsuarioDTO;
-import com.usco.parqueaderos_api.user.entity.Persona;
 import com.usco.parqueaderos_api.user.service.PersonaService;
 import com.usco.parqueaderos_api.user.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -22,29 +22,23 @@ public class UserController {
 
     // ---- Personas ----
     @GetMapping("/api/personas")
-    public ResponseEntity<ApiResponse<List<Persona>>> getAllPersonas() {
+    public ResponseEntity<ApiResponse<List<PersonaDTO>>> getAllPersonas() {
         return ResponseEntity.ok(ApiResponse.ok(personaService.findAll()));
     }
 
     @GetMapping("/api/personas/{id}")
-    public ResponseEntity<ApiResponse<Persona>> getPersonaById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<PersonaDTO>> getPersonaById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(personaService.findById(id)));
     }
 
     @PostMapping("/api/personas")
-    public ResponseEntity<ApiResponse<Persona>> createPersona(@RequestBody Persona persona) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(personaService.save(persona)));
+    public ResponseEntity<ApiResponse<PersonaDTO>> createPersona(@Valid @RequestBody PersonaDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(personaService.save(dto)));
     }
 
     @PutMapping("/api/personas/{id}")
-    public ResponseEntity<ApiResponse<Persona>> updatePersona(@PathVariable Long id, @RequestBody Persona persona) {
-        return ResponseEntity.ok(ApiResponse.ok(personaService.update(id, persona)));
-    }
-
-    @DeleteMapping("/api/personas/{id}")
-    public ResponseEntity<Void> deletePersona(@PathVariable Long id) {
-        personaService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponse<PersonaDTO>> updatePersona(@PathVariable Long id, @Valid @RequestBody PersonaDTO dto) {
+        return ResponseEntity.ok(ApiResponse.ok(personaService.update(id, dto)));
     }
 
     // ---- Usuarios ----
@@ -66,11 +60,5 @@ public class UserController {
     @PutMapping("/api/usuarios/{id}")
     public ResponseEntity<ApiResponse<UsuarioDTO>> updateUsuario(@PathVariable Long id, @Valid @RequestBody UsuarioDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(usuarioService.update(id, dto)));
-    }
-
-    @DeleteMapping("/api/usuarios/{id}")
-    public ResponseEntity<Void> deleteUsuario(@PathVariable Long id) {
-        usuarioService.delete(id);
-        return ResponseEntity.noContent().build();
     }
 }

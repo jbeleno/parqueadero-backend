@@ -46,4 +46,8 @@ public class PuntoParqueo {
 
     @Column(columnDefinition = "geometry(Point,4326)")
     private Point coordenada;
+
+    /** Coordenadas del canvas/frontend en JSON: {"topLeft":{"x":111,"y":54},"topRight":...} */
+    @Column(name = "coordenadas", columnDefinition = "TEXT")
+    private String coordenadas;
 }

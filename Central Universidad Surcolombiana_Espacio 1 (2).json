@@ -1,0 +1,702 @@
+{
+  "parkingLot": {
+    "espacio_id": 1,
+    "name": "Central Universidad Surcolombiana",
+    "empresa_id":1,
+    "user_autor":"",
+    "tipo_porqueadero":"Privado",
+    "longitud":123.123,
+    "latitud":12.12,
+    "fecha_hora_cracion":"25-02-2025T18:25.15465031",
+    "fecha_hora_actualizacion":"25-10-2025T18:25.15465031",
+    "numero_pisos":1
+
+  },
+  "floors":[
+    {
+    "id": 0,
+    "name": "Espacio 1",
+
+  "sections": [
+    {
+      "id": "8f4ddbf2-dbe8-40a0-b475-d4e86291d88c",
+      "name": "Sección 1",
+      "description": "Sección del Espacio",
+      "acronym": "S1",
+      "coordinates": [
+        {
+          "x": 69,
+          "y": 32
+        },
+        {
+          "x": 289,
+          "y": 32
+        },
+        {
+          "x": 289,
+          "y": 172
+        },
+        {
+          "x": 69,
+          "y": 172
+        }
+      ]
+    },
+    {
+      "id": "3eb4ec58-57bd-441a-969a-3b35219da540",
+      "name": "Sección 3",
+      "description": "Sección del Espacio",
+      "acronym": "S2",
+      "coordinates": [
+        {
+          "x": 867,
+          "y": 271
+        },
+        {
+          "x": 1325,
+          "y": 271
+        },
+        {
+          "x": 1325,
+          "y": 478
+        },
+        {
+          "x": 867,
+          "y": 478
+        }
+      ]
+    },
+    {
+      "id": "1b5478ff-5180-4eee-bebd-9a167534cb79",
+      "name": "Sección 4",
+      "description": "Sección del Espacio",
+      "acronym": "S3",
+      "coordinates": [
+        {
+          "x": 884,
+          "y": 14
+        },
+        {
+          "x": 1104,
+          "y": 14
+        },
+        {
+          "x": 1104,
+          "y": 154
+        },
+        {
+          "x": 884,
+          "y": 154
+        }
+      ]
+    }
+  ],
+  "subsections": [
+    {
+      "id": "05e041e8-134a-47d0-984a-240a4e1d5042",
+      "name": "Subsección 1",
+      "description": "Subsección de Sección 1",
+      "acronym": "S1-SS1",
+      "parentSectionId": "8f4ddbf2-dbe8-40a0-b475-d4e86291d88c",
+      "coordinates": [
+        {
+          "x": 110,
+          "y": 53
+        },
+        {
+          "x": 166,
+          "y": 53
+        },
+        {
+          "x": 166,
+          "y": 128
+        },
+        {
+          "x": 110,
+          "y": 128
+        }
+      ],
+      "parkingSpots": 2
+    },
+    {
+      "id": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "name": "Subsección 1",
+      "description": "Subsección de Sección 3",
+      "acronym": "S2-SS1",
+      "parentSectionId": "3eb4ec58-57bd-441a-969a-3b35219da540",
+      "coordinates": [
+        {
+          "x": 946,
+          "y": 345
+        },
+        {
+          "x": 1310,
+          "y": 345
+        },
+        {
+          "x": 1310,
+          "y": 386
+        },
+        {
+          "x": 946,
+          "y": 386
+        }
+      ],
+      "parkingSpots": 12
+    },
+    {
+      "id": "b5d18a9c-c957-427c-88c7-8eac434bfec8",
+      "name": "Subsección 1",
+      "description": "Subsección de Sección 4",
+      "acronym": "S3-SS1",
+      "parentSectionId": "1b5478ff-5180-4eee-bebd-9a167534cb79",
+      "coordinates": [
+        {
+          "x": 903,
+          "y": 37
+        },
+        {
+          "x": 1013,
+          "y": 37
+        },
+        {
+          "x": 1013,
+          "y": 107
+        },
+        {
+          "x": 903,
+          "y": 107
+        }
+      ],
+      "parkingSpots": 0
+    }
+  ],
+  "parkingSpots": [
+    {
+      "id": "f84a57e2-87fc-4ce0-aa69-81fd616672cd",
+      "subsectionId": "05e041e8-134a-47d0-984a-240a4e1d5042",
+      "coordinates": {
+        "topLeft": {
+          "x": 111,
+          "y": 54
+        },
+        "topRight": {
+          "x": 136,
+          "y": 54
+        },
+        "bottomLeft": {
+          "x": 111,
+          "y": 79
+        },
+        "bottomRight": {
+          "x": 136,
+          "y": 79
+        }
+      },
+      "acronym": "S1-SS1-P1",
+      "description": "Punto 1 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "f4ed6b9a-be3a-44e2-ad7b-a3a014c13bf9",
+      "subsectionId": "05e041e8-134a-47d0-984a-240a4e1d5042",
+      "coordinates": {
+        "topLeft": {
+          "x": 111,
+          "y": 88
+        },
+        "topRight": {
+          "x": 136,
+          "y": 88
+        },
+        "bottomLeft": {
+          "x": 111,
+          "y": 113
+        },
+        "bottomRight": {
+          "x": 136,
+          "y": 113
+        }
+      },
+      "acronym": "S1-SS1-P2",
+      "description": "Punto 2 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "43adcefd-7458-497d-b246-ea93cc90b2a9",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 947,
+          "y": 346
+        },
+        "topRight": {
+          "x": 972,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 947,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 972,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P1",
+      "description": "Punto 1 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "f7bec5bc-fc93-4558-be45-331495a3df8d",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 976,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1001,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 976,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1001,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P2",
+      "description": "Punto 2 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "3c676498-9870-4151-82ac-f10d9dc3ccbd",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1005,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1030,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1005,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1030,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P3",
+      "description": "Punto 3 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "0ae2e6f8-3f02-493b-ab9e-707ed3ba1fb2",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1034,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1059,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1034,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1059,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P4",
+      "description": "Punto 4 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "04313658-6469-40cd-aac2-6ce74ad059cc",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1063,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1088,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1063,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1088,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P5",
+      "description": "Punto 5 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "af10a63b-a986-448d-99ea-fdc437b90471",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1092,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1117,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1092,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1117,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P6",
+      "description": "Punto 6 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "7af10dbd-dde6-4fa5-bee0-cafdd583c1e3",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1121,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1146,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1121,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1146,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P7",
+      "description": "Punto 7 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "21d32670-6c4f-4210-977d-0e9bb997d6f0",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1150,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1175,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1150,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1175,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P8",
+      "description": "Punto 8 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "7276d4a3-557d-4955-bb58-1d89af543429",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1179,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1204,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1179,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1204,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P9",
+      "description": "Punto 9 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "b0f90f53-de90-4912-9574-0772460c06dc",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1208,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1233,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1208,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1233,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P10",
+      "description": "Punto 10 de Subsección 1",
+      "type": "administrativo"
+    },
+    {
+      "id": "94af707b-6fb7-45f8-9bec-46a7f1a99d33",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1237,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1262,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1237,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1262,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P11",
+      "description": "Punto 11 de Subsección 1",      
+      "type": "discapacitado"
+    },
+    {
+      "id": "824bde80-0fd1-47e2-9099-61f14f8277d5",
+      "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+      "coordinates": {
+        "topLeft": {
+          "x": 1266,
+          "y": 346
+        },
+        "topRight": {
+          "x": 1291,
+          "y": 346
+        },
+        "bottomLeft": {
+          "x": 1266,
+          "y": 371
+        },
+        "bottomRight": {
+          "x": 1291,
+          "y": 371
+        }
+      },
+      "acronym": "S2-SS1-P12",
+      "description": "Punto 12 de Subsección 1",
+      "type": "administrativo"
+    }
+  ],
+  "paths": [
+    {
+      "id": "02b5b4b0-1b72-4c3d-a338-52e437704b36",
+      "type": "polyline",
+      "coordinates": [
+        {
+          "x": 473,
+          "y": 45
+        },
+        {
+          "x": 466,
+          "y": 200
+        },
+        {
+          "x": 142,
+          "y": 229
+        }
+      ]
+    }
+  ]
+}
+
+//Crear un endpoint que retorne la configuracion del espacio de parqueo Path param id
+
+//
+
+{
+  "parkingLot": {
+    "espacio_id": 1,
+    "name": "Central Universidad Surcolombiana",
+    "empresa_id":1,
+    "user_autor":"",
+    "tipo_porqueadero":"Privado",
+    "longitud":123.123,
+    "latitud":12.12,
+    "fecha_hora_cracion":"25-02-2025T18:25.15465031",
+    "fecha_hora_actualizacion":"25-10-2025T18:25.15465031",
+    "numero_pisos":1
+
+  },
+  "floors":[
+    {
+    "id": 0,
+    "name": "Espacio 1",
+
+"camaras":[
+  {
+    "id": "824bde80-0fd1-47e2-9099-61f14f8277d5",
+    "subsectionId": "120e820b-d458-4ebc-ab64-2a170cb0c859",
+    "coordinates": {        
+        "x": 1291,
+        "y": 371
+      },
+      "acronym": "S2-SS1-P12",
+      "description": "Punto 12 de Subsección 1",
+      "status": "disponible",
+      "type": "Placas",
+      "parkingSpots":[
+        {
+          "parkingSpotsId":"824bde80-0fd1-47e2-9099-61f14f8277d5",
+          "coordenadas":[
+            {
+              "x":12312,
+              "y":31231
+            },
+            {
+              "x":12412,
+              "y":31231
+            },
+            {
+              "x":12313,
+              "y":31231
+            },
+            {
+              "x":12312,
+              "y":31231
+            },
+          ]
+
+        },
+                {
+          "parkingSpotsId":"824bde80-0fd1-47e2-9999-61f14f8277d5",
+
+        },
+                {
+          "parkingSpotsId":"824bde80-0fd1-47e2-9111-61f14f8277d5",
+
+        },
+
+      ]
+    }
+  ]
+
+
+{
+    "parkingLot": {
+    "espacio_id": 1,
+    "name": "Central Universidad Surcolombiana",
+    "empresa_id":1,
+    "user_autor":"",
+    "tipo_porqueadero":"Privado",
+    "longitud":123.123,
+    "latitud":12.12,
+    "fecha_hora_cracion":"25-02-2025T18:25.15465031",
+    "fecha_hora_actualizacion":"25-10-2025T18:25.15465031",
+    "numero_pisos":1,
+    "cantidad_ocupados":1,
+    "cantidad_libres":1,
+    "cantidad_reservados":1,
+    ""
+
+
+  },
+  "floors":[
+    {
+    "id": 0,
+    "name": "Espacio 1",
+
+"parkinSlotOcupation":[
+  {
+    "parkingSpot": "af10a63b-a986-448d-99ea-fdc437b90471",
+    "status":"Ocupado"    
+  },
+  {
+    "parkingSpot": "af10a63b-a986-448d-9e1a-fdc437b90471",
+    "status":"Reservado"  
+  },
+    {
+    "parkingSpot": "af10a63b-a986-448d-9e13-fdc437b90471",
+    "status":"Disponible"  
+  },
+]
+
+}
+
+
+
+{
+    "parkingLot": {
+    "espacio_id": 1,
+    "name": "Central Universidad Surcolombiana",
+    "empresa_id":1,
+    "user_autor":"",
+    "tipo_porqueadero":"Privado",
+    "longitud":123.123,
+    "latitud":12.12,
+    "fecha_hora_cracion":"25-02-2025T18:25.15465031",
+    "fecha_hora_actualizacion":"25-10-2025T18:25.15465031",
+    "numero_pisos":1
+
+  },
+  "floors":[
+    {
+    "id": 0,
+    "name": "Espacio 1",
+
+"parkinSlotReservas":[
+  {
+    "parkingSpot": "af10a63b-a986-448d-99ea-fdc437b90471",
+    "reservado_a":"Sergio",
+    "description":"",
+    "fecha_hora_inicio":"25-02-2025T17:25.15465031",
+    "fecha_hora_fin":"25-02-2025T18:25.15465031",
+    "status":"Activo"
+  
+  },
+  {
+    "parkingSpot": "af10a63b-a986-448d-9e1a-fdc437b90471",
+    "status":"Reservado"  
+  },
+    {
+    "parkingSpot": "af10a63b-a986-448d-9e13-fdc437b90471",
+    "status":"Disponible"  
+  },
+]
+
+}

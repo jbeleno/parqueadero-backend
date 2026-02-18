@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface PuntoParqueoRepository extends JpaRepository<PuntoParqueo, Long> {
     List<PuntoParqueo> findBySubSeccionId(Long subSeccionId);
+    List<PuntoParqueo> findBySubSeccionIdIn(List<Long> subSeccionIds);
+    List<PuntoParqueo> findBySubSeccionIdInAndEstadoNombreNot(List<Long> subSeccionIds, String estadoNombre);
 }

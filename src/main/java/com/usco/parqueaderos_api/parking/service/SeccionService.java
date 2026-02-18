@@ -55,10 +55,15 @@ public class SeccionService {
         return toDTO(seccionRepository.save(existing));
     }
 
+    /** Soft-delete: cambia el estado a ARCHIVADO */
     @Transactional
-    public void delete(Long id) {
-        seccionRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Seccion", id));
-        seccionRepository.deleteById(id);
+    public void archivar(Long id) {
+        Seccion existing = seccionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Seccion", id));
+        Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
+                .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
+        existing.setEstado(archivado);
+        seccionRepository.save(existing);
     }
 
     private SeccionDTO toDTO(Seccion e) {
