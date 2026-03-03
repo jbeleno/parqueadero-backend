@@ -1,0 +1,55 @@
+services:
+
+  # ── PostgreSQL + PostGIS ────────────────────────────────
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: parqueaderos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-parqueaderos}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Usco2026*}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-parqueaderos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Spring Boot API ─────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parqueaderos-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-parqueaderos}
+      DB_USERNAME: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-Usco2026*}
+      # JPA
+      JPA_DDL_AUTO: update
+      JPA_SHOW_SQL: "false"
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-c2VjcmV0S2V5UGFycXVlYWRlcm9zQXBpMjAyNVN1cGVyU2VjcmV0S2V5TG9uZ0Vub3VnaA==}
+      JWT_ACCESS_EXP: ${JWT_ACCESS_EXP:-3600000}
+      JWT_REFRESH_EXP: ${JWT_REFRESH_EXP:-604800000}
+      # Resend email
+      RESEND_API_KEY: ${RESEND_API_KEY:-re_fhTccJmR_GnMkmNXk9TKUftkuXdW7nXTZ}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+      # Security
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+volumes:
+  pgdata:
+    driver: local

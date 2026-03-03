@@ -34,3 +34,6 @@ build/
 
 ### Deploy notes (private) ###
 DEPLOY.md
+
+### Docker secrets ###
+.env
