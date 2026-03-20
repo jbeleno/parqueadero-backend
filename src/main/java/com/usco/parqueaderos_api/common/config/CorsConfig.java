@@ -19,14 +19,9 @@ public class CorsConfig {
         
         // Permite credenciales (cookies, headers de autorización)
         config.setAllowCredentials(true);
-        
-        // orígenes permitidos
-        config.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://localhost:5173", // Vite default
-                "*" // TODO: En producción, reemplazar con el dominio real si no se usa wildcard
-        ));
+
+        // Cualquier origen (fase de desarrollo)
+        config.setAllowedOriginPatterns(List.of("*"));
         
         // Headers permitidos
         config.setAllowedHeaders(List.of(
