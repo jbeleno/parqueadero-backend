@@ -22,6 +22,7 @@ services:
 
   # ── Spring Boot API ─────────────────────────────────────
   api:
+    image: ghcr.io/jbeleno/parqueaderos-api:latest
     build:
       context: .
       dockerfile: Dockerfile
