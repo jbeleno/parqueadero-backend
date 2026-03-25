@@ -1,5 +1,9 @@
 package com.usco.parqueaderos_api.catalog.controller;
 
+import com.usco.parqueaderos_api.catalog.dto.RolDTO;
+import com.usco.parqueaderos_api.catalog.dto.TipoDispositivoDTO;
+import com.usco.parqueaderos_api.catalog.dto.TipoParqueaderoDTO;
+import com.usco.parqueaderos_api.catalog.dto.TipoPuntoParqueoDTO;
 import com.usco.parqueaderos_api.catalog.entity.*;
 import com.usco.parqueaderos_api.catalog.service.CatalogService;
 import com.usco.parqueaderos_api.common.dto.ApiResponse;
@@ -16,7 +20,7 @@ public class CatalogController {
 
     private final CatalogService catalogService;
 
-    // ---- Estados ----
+    // ---- Estados (sin lazy, devuelve entidad directo) ----
     @GetMapping("/api/estados")
     public ResponseEntity<ApiResponse<List<Estado>>> getAllEstados() {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findAllEstados()));
@@ -45,22 +49,22 @@ public class CatalogController {
 
     // ---- Tipos de Parqueadero ----
     @GetMapping("/api/tipos-parqueadero")
-    public ResponseEntity<ApiResponse<List<TipoParqueadero>>> getAllTiposParqueadero() {
+    public ResponseEntity<ApiResponse<List<TipoParqueaderoDTO>>> getAllTiposParqueadero() {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findAllTiposParqueadero()));
     }
 
     @GetMapping("/api/tipos-parqueadero/{id}")
-    public ResponseEntity<ApiResponse<TipoParqueadero>> getTipoParqueaderoById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TipoParqueaderoDTO>> getTipoParqueaderoById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoParqueaderoById(id)));
     }
 
     @PostMapping("/api/tipos-parqueadero")
-    public ResponseEntity<ApiResponse<TipoParqueadero>> createTipoParqueadero(@RequestBody TipoParqueadero tp) {
+    public ResponseEntity<ApiResponse<TipoParqueaderoDTO>> createTipoParqueadero(@RequestBody TipoParqueadero tp) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoParqueadero(tp)));
     }
 
     @PutMapping("/api/tipos-parqueadero/{id}")
-    public ResponseEntity<ApiResponse<TipoParqueadero>> updateTipoParqueadero(@PathVariable Long id, @RequestBody TipoParqueadero tp) {
+    public ResponseEntity<ApiResponse<TipoParqueaderoDTO>> updateTipoParqueadero(@PathVariable Long id, @RequestBody TipoParqueadero tp) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoParqueadero(id, tp)));
     }
 
@@ -72,22 +76,22 @@ public class CatalogController {
 
     // ---- Tipos de Punto de Parqueo ----
     @GetMapping("/api/tipos-punto-parqueo")
-    public ResponseEntity<ApiResponse<List<TipoPuntoParqueo>>> getAllTiposPuntoParqueo() {
+    public ResponseEntity<ApiResponse<List<TipoPuntoParqueoDTO>>> getAllTiposPuntoParqueo() {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findAllTiposPuntoParqueo()));
     }
 
     @GetMapping("/api/tipos-punto-parqueo/{id}")
-    public ResponseEntity<ApiResponse<TipoPuntoParqueo>> getTipoPuntoParqueoById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TipoPuntoParqueoDTO>> getTipoPuntoParqueoById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoPuntoParqueoById(id)));
     }
 
     @PostMapping("/api/tipos-punto-parqueo")
-    public ResponseEntity<ApiResponse<TipoPuntoParqueo>> createTipoPuntoParqueo(@RequestBody TipoPuntoParqueo tp) {
+    public ResponseEntity<ApiResponse<TipoPuntoParqueoDTO>> createTipoPuntoParqueo(@RequestBody TipoPuntoParqueo tp) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoPuntoParqueo(tp)));
     }
 
     @PutMapping("/api/tipos-punto-parqueo/{id}")
-    public ResponseEntity<ApiResponse<TipoPuntoParqueo>> updateTipoPuntoParqueo(@PathVariable Long id, @RequestBody TipoPuntoParqueo tp) {
+    public ResponseEntity<ApiResponse<TipoPuntoParqueoDTO>> updateTipoPuntoParqueo(@PathVariable Long id, @RequestBody TipoPuntoParqueo tp) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoPuntoParqueo(id, tp)));
     }
 
@@ -97,7 +101,7 @@ public class CatalogController {
         return ResponseEntity.noContent().build();
     }
 
-    // ---- Tipos de Vehículo ----
+    // ---- Tipos de Vehículo (sin lazy, devuelve entidad directo) ----
     @GetMapping("/api/tipos-vehiculo")
     public ResponseEntity<ApiResponse<List<TipoVehiculo>>> getAllTiposVehiculo() {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findAllTiposVehiculo()));
@@ -126,22 +130,22 @@ public class CatalogController {
 
     // ---- Tipos de Dispositivo ----
     @GetMapping("/api/tipos-dispositivo")
-    public ResponseEntity<ApiResponse<List<TipoDispositivo>>> getAllTiposDispositivo() {
+    public ResponseEntity<ApiResponse<List<TipoDispositivoDTO>>> getAllTiposDispositivo() {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findAllTiposDispositivo()));
     }
 
     @GetMapping("/api/tipos-dispositivo/{id}")
-    public ResponseEntity<ApiResponse<TipoDispositivo>> getTipoDispositivoById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TipoDispositivoDTO>> getTipoDispositivoById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoDispositivoById(id)));
     }
 
     @PostMapping("/api/tipos-dispositivo")
-    public ResponseEntity<ApiResponse<TipoDispositivo>> createTipoDispositivo(@RequestBody TipoDispositivo td) {
+    public ResponseEntity<ApiResponse<TipoDispositivoDTO>> createTipoDispositivo(@RequestBody TipoDispositivo td) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoDispositivo(td)));
     }
 
     @PutMapping("/api/tipos-dispositivo/{id}")
-    public ResponseEntity<ApiResponse<TipoDispositivo>> updateTipoDispositivo(@PathVariable Long id, @RequestBody TipoDispositivo td) {
+    public ResponseEntity<ApiResponse<TipoDispositivoDTO>> updateTipoDispositivo(@PathVariable Long id, @RequestBody TipoDispositivo td) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoDispositivo(id, td)));
     }
 
@@ -153,22 +157,22 @@ public class CatalogController {
 
     // ---- Roles ----
     @GetMapping("/api/roles")
-    public ResponseEntity<ApiResponse<List<Rol>>> getAllRoles() {
+    public ResponseEntity<ApiResponse<List<RolDTO>>> getAllRoles() {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findAllRoles()));
     }
 
     @GetMapping("/api/roles/{id}")
-    public ResponseEntity<ApiResponse<Rol>> getRolById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<RolDTO>> getRolById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findRolById(id)));
     }
 
     @PostMapping("/api/roles")
-    public ResponseEntity<ApiResponse<Rol>> createRol(@RequestBody Rol rol) {
+    public ResponseEntity<ApiResponse<RolDTO>> createRol(@RequestBody Rol rol) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveRol(rol)));
     }
 
     @PutMapping("/api/roles/{id}")
-    public ResponseEntity<ApiResponse<Rol>> updateRol(@PathVariable Long id, @RequestBody Rol rol) {
+    public ResponseEntity<ApiResponse<RolDTO>> updateRol(@PathVariable Long id, @RequestBody Rol rol) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateRol(id, rol)));
     }
 

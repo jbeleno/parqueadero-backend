@@ -1,5 +1,9 @@
 package com.usco.parqueaderos_api.catalog.service;
 
+import com.usco.parqueaderos_api.catalog.dto.RolDTO;
+import com.usco.parqueaderos_api.catalog.dto.TipoDispositivoDTO;
+import com.usco.parqueaderos_api.catalog.dto.TipoParqueaderoDTO;
+import com.usco.parqueaderos_api.catalog.dto.TipoPuntoParqueoDTO;
 import com.usco.parqueaderos_api.catalog.entity.*;
 import com.usco.parqueaderos_api.catalog.repository.*;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
@@ -20,7 +24,57 @@ public class CatalogService {
     private final TipoDispositivoRepository tipoDispositivoRepository;
     private final RolRepository rolRepository;
 
-    // ---- Estado ----
+    // ---- Mappers ----
+
+    private RolDTO toRolDTO(Rol r) {
+        RolDTO dto = new RolDTO();
+        dto.setId(r.getId());
+        dto.setNombre(r.getNombre());
+        dto.setDescripcion(r.getDescripcion());
+        if (r.getEstado() != null) {
+            dto.setEstadoId(r.getEstado().getId());
+            dto.setEstadoNombre(r.getEstado().getNombre());
+        }
+        return dto;
+    }
+
+    private TipoParqueaderoDTO toTipoParqueaderoDTO(TipoParqueadero tp) {
+        TipoParqueaderoDTO dto = new TipoParqueaderoDTO();
+        dto.setId(tp.getId());
+        dto.setNombre(tp.getNombre());
+        dto.setDescripcion(tp.getDescripcion());
+        if (tp.getEstado() != null) {
+            dto.setEstadoId(tp.getEstado().getId());
+            dto.setEstadoNombre(tp.getEstado().getNombre());
+        }
+        return dto;
+    }
+
+    private TipoPuntoParqueoDTO toTipoPuntoParqueoDTO(TipoPuntoParqueo tp) {
+        TipoPuntoParqueoDTO dto = new TipoPuntoParqueoDTO();
+        dto.setId(tp.getId());
+        dto.setNombre(tp.getNombre());
+        dto.setDescripcion(tp.getDescripcion());
+        if (tp.getEstado() != null) {
+            dto.setEstadoId(tp.getEstado().getId());
+            dto.setEstadoNombre(tp.getEstado().getNombre());
+        }
+        return dto;
+    }
+
+    private TipoDispositivoDTO toTipoDispositivoDTO(TipoDispositivo td) {
+        TipoDispositivoDTO dto = new TipoDispositivoDTO();
+        dto.setId(td.getId());
+        dto.setNombre(td.getNombre());
+        dto.setDescripcion(td.getDescripcion());
+        if (td.getEstado() != null) {
+            dto.setEstadoId(td.getEstado().getId());
+            dto.setEstadoNombre(td.getEstado().getNombre());
+        }
+        return dto;
+    }
+
+    // ---- Estado (sin lazy, se devuelve directo) ----
     @Transactional(readOnly = true)
     public List<Estado> findAllEstados() { return estadoRepository.findAll(); }
 
@@ -49,75 +103,91 @@ public class CatalogService {
 
     // ---- TipoParqueadero ----
     @Transactional(readOnly = true)
-    public List<TipoParqueadero> findAllTiposParqueadero() { return tipoParqueaderoRepository.findAll(); }
+    public List<TipoParqueaderoDTO> findAllTiposParqueadero() {
+        return tipoParqueaderoRepository.findAll().stream()
+                .map(this::toTipoParqueaderoDTO)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
-    public TipoParqueadero findTipoParqueaderoById(Long id) {
-        return tipoParqueaderoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TipoParqueadero", id));
+    public TipoParqueaderoDTO findTipoParqueaderoById(Long id) {
+        return toTipoParqueaderoDTO(findTipoParqueaderoEntity(id));
     }
 
     @Transactional
-    public TipoParqueadero saveTipoParqueadero(TipoParqueadero tp) {
+    public TipoParqueaderoDTO saveTipoParqueadero(TipoParqueadero tp) {
         if (tp.getEstado() != null && tp.getEstado().getId() != null) {
             tp.setEstado(findEstadoById(tp.getEstado().getId()));
         }
-        return tipoParqueaderoRepository.save(tp);
+        return toTipoParqueaderoDTO(tipoParqueaderoRepository.save(tp));
     }
 
     @Transactional
-    public TipoParqueadero updateTipoParqueadero(Long id, TipoParqueadero tp) {
-        TipoParqueadero existing = findTipoParqueaderoById(id);
+    public TipoParqueaderoDTO updateTipoParqueadero(Long id, TipoParqueadero tp) {
+        TipoParqueadero existing = findTipoParqueaderoEntity(id);
         existing.setNombre(tp.getNombre());
         existing.setDescripcion(tp.getDescripcion());
         if (tp.getEstado() != null && tp.getEstado().getId() != null) {
             existing.setEstado(findEstadoById(tp.getEstado().getId()));
         }
-        return tipoParqueaderoRepository.save(existing);
+        return toTipoParqueaderoDTO(tipoParqueaderoRepository.save(existing));
     }
 
     @Transactional
     public void deleteTipoParqueadero(Long id) {
-        findTipoParqueaderoById(id);
+        findTipoParqueaderoEntity(id);
         tipoParqueaderoRepository.deleteById(id);
+    }
+
+    private TipoParqueadero findTipoParqueaderoEntity(Long id) {
+        return tipoParqueaderoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TipoParqueadero", id));
     }
 
     // ---- TipoPuntoParqueo ----
     @Transactional(readOnly = true)
-    public List<TipoPuntoParqueo> findAllTiposPuntoParqueo() { return tipoPuntoParqueoRepository.findAll(); }
+    public List<TipoPuntoParqueoDTO> findAllTiposPuntoParqueo() {
+        return tipoPuntoParqueoRepository.findAll().stream()
+                .map(this::toTipoPuntoParqueoDTO)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
-    public TipoPuntoParqueo findTipoPuntoParqueoById(Long id) {
-        return tipoPuntoParqueoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TipoPuntoParqueo", id));
+    public TipoPuntoParqueoDTO findTipoPuntoParqueoById(Long id) {
+        return toTipoPuntoParqueoDTO(findTipoPuntoParqueoEntity(id));
     }
 
     @Transactional
-    public TipoPuntoParqueo saveTipoPuntoParqueo(TipoPuntoParqueo tp) {
+    public TipoPuntoParqueoDTO saveTipoPuntoParqueo(TipoPuntoParqueo tp) {
         if (tp.getEstado() != null && tp.getEstado().getId() != null) {
             tp.setEstado(findEstadoById(tp.getEstado().getId()));
         }
-        return tipoPuntoParqueoRepository.save(tp);
+        return toTipoPuntoParqueoDTO(tipoPuntoParqueoRepository.save(tp));
     }
 
     @Transactional
-    public TipoPuntoParqueo updateTipoPuntoParqueo(Long id, TipoPuntoParqueo tp) {
-        TipoPuntoParqueo existing = findTipoPuntoParqueoById(id);
+    public TipoPuntoParqueoDTO updateTipoPuntoParqueo(Long id, TipoPuntoParqueo tp) {
+        TipoPuntoParqueo existing = findTipoPuntoParqueoEntity(id);
         existing.setNombre(tp.getNombre());
         existing.setDescripcion(tp.getDescripcion());
         if (tp.getEstado() != null && tp.getEstado().getId() != null) {
             existing.setEstado(findEstadoById(tp.getEstado().getId()));
         }
-        return tipoPuntoParqueoRepository.save(existing);
+        return toTipoPuntoParqueoDTO(tipoPuntoParqueoRepository.save(existing));
     }
 
     @Transactional
     public void deleteTipoPuntoParqueo(Long id) {
-        findTipoPuntoParqueoById(id);
+        findTipoPuntoParqueoEntity(id);
         tipoPuntoParqueoRepository.deleteById(id);
     }
 
-    // ---- TipoVehiculo ----
+    private TipoPuntoParqueo findTipoPuntoParqueoEntity(Long id) {
+        return tipoPuntoParqueoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TipoPuntoParqueo", id));
+    }
+
+    // ---- TipoVehiculo (sin lazy, se devuelve directo) ----
     @Transactional(readOnly = true)
     public List<TipoVehiculo> findAllTiposVehiculo() { return tipoVehiculoRepository.findAll(); }
 
@@ -146,71 +216,87 @@ public class CatalogService {
 
     // ---- TipoDispositivo ----
     @Transactional(readOnly = true)
-    public List<TipoDispositivo> findAllTiposDispositivo() { return tipoDispositivoRepository.findAll(); }
+    public List<TipoDispositivoDTO> findAllTiposDispositivo() {
+        return tipoDispositivoRepository.findAll().stream()
+                .map(this::toTipoDispositivoDTO)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
-    public TipoDispositivo findTipoDispositivoById(Long id) {
-        return tipoDispositivoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TipoDispositivo", id));
+    public TipoDispositivoDTO findTipoDispositivoById(Long id) {
+        return toTipoDispositivoDTO(findTipoDispositivoEntity(id));
     }
 
     @Transactional
-    public TipoDispositivo saveTipoDispositivo(TipoDispositivo td) {
+    public TipoDispositivoDTO saveTipoDispositivo(TipoDispositivo td) {
         if (td.getEstado() != null && td.getEstado().getId() != null) {
             td.setEstado(findEstadoById(td.getEstado().getId()));
         }
-        return tipoDispositivoRepository.save(td);
+        return toTipoDispositivoDTO(tipoDispositivoRepository.save(td));
     }
 
     @Transactional
-    public TipoDispositivo updateTipoDispositivo(Long id, TipoDispositivo td) {
-        TipoDispositivo existing = findTipoDispositivoById(id);
+    public TipoDispositivoDTO updateTipoDispositivo(Long id, TipoDispositivo td) {
+        TipoDispositivo existing = findTipoDispositivoEntity(id);
         existing.setNombre(td.getNombre());
         existing.setDescripcion(td.getDescripcion());
         if (td.getEstado() != null && td.getEstado().getId() != null) {
             existing.setEstado(findEstadoById(td.getEstado().getId()));
         }
-        return tipoDispositivoRepository.save(existing);
+        return toTipoDispositivoDTO(tipoDispositivoRepository.save(existing));
     }
 
     @Transactional
     public void deleteTipoDispositivo(Long id) {
-        findTipoDispositivoById(id);
+        findTipoDispositivoEntity(id);
         tipoDispositivoRepository.deleteById(id);
+    }
+
+    private TipoDispositivo findTipoDispositivoEntity(Long id) {
+        return tipoDispositivoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TipoDispositivo", id));
     }
 
     // ---- Rol ----
     @Transactional(readOnly = true)
-    public List<Rol> findAllRoles() { return rolRepository.findAll(); }
+    public List<RolDTO> findAllRoles() {
+        return rolRepository.findAll().stream()
+                .map(this::toRolDTO)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
-    public Rol findRolById(Long id) {
-        return rolRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Rol", id));
+    public RolDTO findRolById(Long id) {
+        return toRolDTO(findRolEntity(id));
     }
 
     @Transactional
-    public Rol saveRol(Rol rol) {
+    public RolDTO saveRol(Rol rol) {
         if (rol.getEstado() != null && rol.getEstado().getId() != null) {
             rol.setEstado(findEstadoById(rol.getEstado().getId()));
         }
-        return rolRepository.save(rol);
+        return toRolDTO(rolRepository.save(rol));
     }
 
     @Transactional
-    public Rol updateRol(Long id, Rol rol) {
-        Rol existing = findRolById(id);
+    public RolDTO updateRol(Long id, Rol rol) {
+        Rol existing = findRolEntity(id);
         existing.setNombre(rol.getNombre());
         existing.setDescripcion(rol.getDescripcion());
         if (rol.getEstado() != null && rol.getEstado().getId() != null) {
             existing.setEstado(findEstadoById(rol.getEstado().getId()));
         }
-        return rolRepository.save(existing);
+        return toRolDTO(rolRepository.save(existing));
     }
 
     @Transactional
     public void deleteRol(Long id) {
-        findRolById(id);
+        findRolEntity(id);
         rolRepository.deleteById(id);
+    }
+
+    private Rol findRolEntity(Long id) {
+        return rolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Rol", id));
     }
 }

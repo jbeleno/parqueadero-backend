@@ -1,6 +1,8 @@
 package com.usco.parqueaderos_api.location.controller;
 
 import com.usco.parqueaderos_api.common.dto.ApiResponse;
+import com.usco.parqueaderos_api.location.dto.CiudadDTO;
+import com.usco.parqueaderos_api.location.dto.DepartamentoDTO;
 import com.usco.parqueaderos_api.location.entity.Ciudad;
 import com.usco.parqueaderos_api.location.entity.Departamento;
 import com.usco.parqueaderos_api.location.entity.Pais;
@@ -47,27 +49,27 @@ public class LocationController {
 
     // ---- Departamentos ----
     @GetMapping("/api/departamentos")
-    public ResponseEntity<ApiResponse<List<Departamento>>> getAllDepartamentos() {
+    public ResponseEntity<ApiResponse<List<DepartamentoDTO>>> getAllDepartamentos() {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findAllDepartamentos()));
     }
 
     @GetMapping("/api/departamentos/{id}")
-    public ResponseEntity<ApiResponse<Departamento>> getDepartamentoById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<DepartamentoDTO>> getDepartamentoById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findDepartamentoById(id)));
     }
 
     @GetMapping("/api/departamentos/pais/{paisId}")
-    public ResponseEntity<ApiResponse<List<Departamento>>> getDepartamentosByPais(@PathVariable Long paisId) {
+    public ResponseEntity<ApiResponse<List<DepartamentoDTO>>> getDepartamentosByPais(@PathVariable Long paisId) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findDepartamentosByPais(paisId)));
     }
 
     @PostMapping("/api/departamentos")
-    public ResponseEntity<ApiResponse<Departamento>> createDepartamento(@RequestBody Departamento departamento) {
+    public ResponseEntity<ApiResponse<DepartamentoDTO>> createDepartamento(@RequestBody Departamento departamento) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(locationService.saveDepartamento(departamento)));
     }
 
     @PutMapping("/api/departamentos/{id}")
-    public ResponseEntity<ApiResponse<Departamento>> updateDepartamento(@PathVariable Long id, @RequestBody Departamento departamento) {
+    public ResponseEntity<ApiResponse<DepartamentoDTO>> updateDepartamento(@PathVariable Long id, @RequestBody Departamento departamento) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.updateDepartamento(id, departamento)));
     }
 
@@ -79,27 +81,27 @@ public class LocationController {
 
     // ---- Ciudades ----
     @GetMapping("/api/ciudades")
-    public ResponseEntity<ApiResponse<List<Ciudad>>> getAllCiudades() {
+    public ResponseEntity<ApiResponse<List<CiudadDTO>>> getAllCiudades() {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findAllCiudades()));
     }
 
     @GetMapping("/api/ciudades/{id}")
-    public ResponseEntity<ApiResponse<Ciudad>> getCiudadById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<CiudadDTO>> getCiudadById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findCiudadById(id)));
     }
 
     @GetMapping("/api/ciudades/departamento/{departamentoId}")
-    public ResponseEntity<ApiResponse<List<Ciudad>>> getCiudadesByDepartamento(@PathVariable Long departamentoId) {
+    public ResponseEntity<ApiResponse<List<CiudadDTO>>> getCiudadesByDepartamento(@PathVariable Long departamentoId) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findCiudadesByDepartamento(departamentoId)));
     }
 
     @PostMapping("/api/ciudades")
-    public ResponseEntity<ApiResponse<Ciudad>> createCiudad(@RequestBody Ciudad ciudad) {
+    public ResponseEntity<ApiResponse<CiudadDTO>> createCiudad(@RequestBody Ciudad ciudad) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(locationService.saveCiudad(ciudad)));
     }
 
     @PutMapping("/api/ciudades/{id}")
-    public ResponseEntity<ApiResponse<Ciudad>> updateCiudad(@PathVariable Long id, @RequestBody Ciudad ciudad) {
+    public ResponseEntity<ApiResponse<CiudadDTO>> updateCiudad(@PathVariable Long id, @RequestBody Ciudad ciudad) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.updateCiudad(id, ciudad)));
     }
 

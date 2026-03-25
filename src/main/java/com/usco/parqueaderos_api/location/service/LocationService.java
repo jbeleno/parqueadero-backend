@@ -1,6 +1,8 @@
 package com.usco.parqueaderos_api.location.service;
 
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
+import com.usco.parqueaderos_api.location.dto.CiudadDTO;
+import com.usco.parqueaderos_api.location.dto.DepartamentoDTO;
 import com.usco.parqueaderos_api.location.entity.Ciudad;
 import com.usco.parqueaderos_api.location.entity.Departamento;
 import com.usco.parqueaderos_api.location.entity.Pais;
@@ -20,6 +22,32 @@ public class LocationService {
     private final PaisRepository paisRepository;
     private final DepartamentoRepository departamentoRepository;
     private final CiudadRepository ciudadRepository;
+
+    // ---- Mappers ----
+
+    private DepartamentoDTO toDepartamentoDTO(Departamento d) {
+        DepartamentoDTO dto = new DepartamentoDTO();
+        dto.setId(d.getId());
+        dto.setNombre(d.getNombre());
+        dto.setIdentificadorNacional(d.getIdentificadorNacional());
+        if (d.getPais() != null) {
+            dto.setPaisId(d.getPais().getId());
+            dto.setPaisNombre(d.getPais().getNombre());
+        }
+        return dto;
+    }
+
+    private CiudadDTO toCiudadDTO(Ciudad c) {
+        CiudadDTO dto = new CiudadDTO();
+        dto.setId(c.getId());
+        dto.setNombre(c.getNombre());
+        dto.setIdentificadorDepartamental(c.getIdentificadorDepartamental());
+        if (c.getDepartamento() != null) {
+            dto.setDepartamentoId(c.getDepartamento().getId());
+            dto.setDepartamentoNombre(c.getDepartamento().getNombre());
+        }
+        return dto;
+    }
 
     // ---- Pais ----
     @Transactional(readOnly = true)
@@ -51,81 +79,101 @@ public class LocationService {
 
     // ---- Departamento ----
     @Transactional(readOnly = true)
-    public List<Departamento> findAllDepartamentos() { return departamentoRepository.findAll(); }
-
-    @Transactional(readOnly = true)
-    public List<Departamento> findDepartamentosByPais(Long paisId) {
-        return departamentoRepository.findByPaisId(paisId);
+    public List<DepartamentoDTO> findAllDepartamentos() {
+        return departamentoRepository.findAll().stream()
+                .map(this::toDepartamentoDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public Departamento findDepartamentoById(Long id) {
-        return departamentoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Departamento", id));
+    public List<DepartamentoDTO> findDepartamentosByPais(Long paisId) {
+        return departamentoRepository.findByPaisId(paisId).stream()
+                .map(this::toDepartamentoDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DepartamentoDTO findDepartamentoById(Long id) {
+        return toDepartamentoDTO(findDepartamentoEntity(id));
     }
 
     @Transactional
-    public Departamento saveDepartamento(Departamento departamento) {
+    public DepartamentoDTO saveDepartamento(Departamento departamento) {
         if (departamento.getPais() != null && departamento.getPais().getId() != null) {
             departamento.setPais(findPaisById(departamento.getPais().getId()));
         }
-        return departamentoRepository.save(departamento);
+        return toDepartamentoDTO(departamentoRepository.save(departamento));
     }
 
     @Transactional
-    public Departamento updateDepartamento(Long id, Departamento departamento) {
-        Departamento existing = findDepartamentoById(id);
+    public DepartamentoDTO updateDepartamento(Long id, Departamento departamento) {
+        Departamento existing = findDepartamentoEntity(id);
         existing.setNombre(departamento.getNombre());
         existing.setIdentificadorNacional(departamento.getIdentificadorNacional());
         if (departamento.getPais() != null && departamento.getPais().getId() != null) {
             existing.setPais(findPaisById(departamento.getPais().getId()));
         }
-        return departamentoRepository.save(existing);
+        return toDepartamentoDTO(departamentoRepository.save(existing));
     }
 
     @Transactional
     public void deleteDepartamento(Long id) {
-        findDepartamentoById(id);
+        findDepartamentoEntity(id);
         departamentoRepository.deleteById(id);
+    }
+
+    private Departamento findDepartamentoEntity(Long id) {
+        return departamentoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Departamento", id));
     }
 
     // ---- Ciudad ----
     @Transactional(readOnly = true)
-    public List<Ciudad> findAllCiudades() { return ciudadRepository.findAll(); }
-
-    @Transactional(readOnly = true)
-    public List<Ciudad> findCiudadesByDepartamento(Long departamentoId) {
-        return ciudadRepository.findByDepartamentoId(departamentoId);
+    public List<CiudadDTO> findAllCiudades() {
+        return ciudadRepository.findAll().stream()
+                .map(this::toCiudadDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public Ciudad findCiudadById(Long id) {
-        return ciudadRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Ciudad", id));
+    public List<CiudadDTO> findCiudadesByDepartamento(Long departamentoId) {
+        return ciudadRepository.findByDepartamentoId(departamentoId).stream()
+                .map(this::toCiudadDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CiudadDTO findCiudadById(Long id) {
+        return toCiudadDTO(findCiudadEntity(id));
     }
 
     @Transactional
-    public Ciudad saveCiudad(Ciudad ciudad) {
+    public CiudadDTO saveCiudad(Ciudad ciudad) {
         if (ciudad.getDepartamento() != null && ciudad.getDepartamento().getId() != null) {
-            ciudad.setDepartamento(findDepartamentoById(ciudad.getDepartamento().getId()));
+            ciudad.setDepartamento(findDepartamentoEntity(ciudad.getDepartamento().getId()));
         }
-        return ciudadRepository.save(ciudad);
+        return toCiudadDTO(ciudadRepository.save(ciudad));
     }
 
     @Transactional
-    public Ciudad updateCiudad(Long id, Ciudad ciudad) {
-        Ciudad existing = findCiudadById(id);
+    public CiudadDTO updateCiudad(Long id, Ciudad ciudad) {
+        Ciudad existing = findCiudadEntity(id);
         existing.setNombre(ciudad.getNombre());
         existing.setIdentificadorDepartamental(ciudad.getIdentificadorDepartamental());
         if (ciudad.getDepartamento() != null && ciudad.getDepartamento().getId() != null) {
-            existing.setDepartamento(findDepartamentoById(ciudad.getDepartamento().getId()));
+            existing.setDepartamento(findDepartamentoEntity(ciudad.getDepartamento().getId()));
         }
-        return ciudadRepository.save(existing);
+        return toCiudadDTO(ciudadRepository.save(existing));
     }
 
     @Transactional
     public void deleteCiudad(Long id) {
-        findCiudadById(id);
+        findCiudadEntity(id);
         ciudadRepository.deleteById(id);
+    }
+
+    private Ciudad findCiudadEntity(Long id) {
+        return ciudadRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ciudad", id));
     }
 }
