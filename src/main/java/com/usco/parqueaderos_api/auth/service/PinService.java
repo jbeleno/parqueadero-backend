@@ -4,6 +4,7 @@ import com.usco.parqueaderos_api.user.entity.Usuario;
 import com.usco.parqueaderos_api.user.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 public class PinService {
 
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${app.pin.expiration-minutes:15}")
     private int expirationMinutes;
@@ -22,17 +24,17 @@ public class PinService {
     private static final SecureRandom random = new SecureRandom();
 
     public String generarPin() {
-        int number = random.nextInt(900000) + 100000; // 100000 - 999999
+        int number = random.nextInt(900000) + 100000;
         return String.valueOf(number);
     }
 
     @Transactional
     public String guardarPin(Usuario usuario) {
-        String pin = generarPin();
-        usuario.setPinCodigo(pin);
+        String pinPlano = generarPin();
+        usuario.setPinCodigo(passwordEncoder.encode(pinPlano));
         usuario.setPinExpiracion(LocalDateTime.now().plusMinutes(expirationMinutes));
         usuarioRepository.save(usuario);
-        return pin;
+        return pinPlano;
     }
 
     public boolean verificarPin(Usuario usuario, String pin) {
@@ -40,9 +42,9 @@ public class PinService {
             return false;
         }
         if (LocalDateTime.now().isAfter(usuario.getPinExpiracion())) {
-            return false; // Expirado
+            return false;
         }
-        return usuario.getPinCodigo().equals(pin);
+        return passwordEncoder.matches(pin, usuario.getPinCodigo());
     }
 
     @Transactional
