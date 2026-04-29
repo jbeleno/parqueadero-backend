@@ -1,13 +1,16 @@
 target/
 .git/
 .gitignore
+.gitattributes
 .idea/
 *.iml
 *.iws
 *.ipr
 .vscode/
+.DS_Store
+**/.DS_Store
 *.md
 !README.md
 .env
 .env.example
-docker/
+docker-compose.yml
