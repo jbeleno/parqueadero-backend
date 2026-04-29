@@ -168,10 +168,15 @@ public class AuthService {
                 .build();
     }
 
-    // ── 3. REFRESH TOKEN ───────────────────────────────────────────────────────
+    // ── 3. REFRESH TOKEN (con rotacion) ────────────────────────────────────────
 
+    @Transactional
     public AuthResponse refresh(RefreshRequest request) {
         RefreshToken rt = refreshTokenService.verificarRefreshToken(request.getRefreshToken());
+
+        refreshTokenService.revocarToken(rt);
+        RefreshToken nuevoRt = refreshTokenService.crearRefreshToken(rt.getUsuario());
+
         UserDetails userDetails = userDetailsService.loadUserByUsername(rt.getUsuario().getCorreo());
         String newAccessToken = jwtService.generateToken(userDetails);
 
@@ -179,10 +184,13 @@ public class AuthService {
                 .map(a -> a.getAuthority())
                 .toList();
 
+        String nombreCompleto = rt.getUsuario().getPersona().getNombre() + " " + rt.getUsuario().getPersona().getApellido();
+
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(request.getRefreshToken())
+                .refreshToken(nuevoRt.getToken())
                 .correo(rt.getUsuario().getCorreo())
+                .nombreCompleto(nombreCompleto)
                 .roles(roles)
                 .tipo("Bearer")
                 .expiresIn(jwtService.getAccessExpirationMs() / 1000)

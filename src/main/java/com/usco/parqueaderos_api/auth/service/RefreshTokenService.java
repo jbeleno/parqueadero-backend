@@ -55,6 +55,12 @@ public class RefreshTokenService {
     }
 
     @Transactional
+    public void revocarToken(RefreshToken token) {
+        token.setRevocado(true);
+        refreshTokenRepository.save(token);
+    }
+
+    @Transactional
     @Scheduled(cron = "0 0 3 * * ?") // Cada día a las 3am
     public void limpiarTokensExpirados() {
         refreshTokenRepository.deleteByExpiracionBefore(LocalDateTime.now());
