@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.notification.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,9 +10,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class NotificacionDTO {
-    private String tipo;       // TICKET_CREADO, TICKET_CERRADO, RESERVA_CREADA
+    private String tipo;
     private String mensaje;
-    private Long referenciaId; // ID del ticket/reserva
+    private Long referenciaId;
     private Long parqueaderoId;
+    private Object data;
 }

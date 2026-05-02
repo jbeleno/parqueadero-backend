@@ -1,9 +1,11 @@
 package com.usco.parqueaderos_api.parking.controller;
 
 import com.usco.parqueaderos_api.common.dto.ApiResponse;
+import com.usco.parqueaderos_api.parking.dto.DisponibilidadDTO;
 import com.usco.parqueaderos_api.parking.dto.EmpresaDTO;
 import com.usco.parqueaderos_api.parking.dto.ParqueaderoDTO;
 import com.usco.parqueaderos_api.parking.dto.config.ParkingLotConfigDTO;
+import com.usco.parqueaderos_api.parking.service.DisponibilidadService;
 import com.usco.parqueaderos_api.parking.service.EmpresaService;
 import com.usco.parqueaderos_api.parking.service.ParkingConfigService;
 import com.usco.parqueaderos_api.parking.service.ParqueaderoService;
@@ -23,6 +25,7 @@ public class ParkingController {
     private final EmpresaService empresaService;
     private final ParqueaderoService parqueaderoService;
     private final ParkingConfigService parkingConfigService;
+    private final DisponibilidadService disponibilidadService;
 
     // ════════════════════════════════════════════════════════════════
     //  Empresas
@@ -78,6 +81,12 @@ public class ParkingController {
     @PutMapping("/api/parqueaderos/{id}")
     public ResponseEntity<ApiResponse<ParqueaderoDTO>> updateParqueadero(@PathVariable Long id, @Valid @RequestBody ParqueaderoDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(parqueaderoService.update(id, dto)));
+    }
+
+    /** Disponibilidad en tiempo real del parqueadero */
+    @GetMapping("/api/parqueaderos/{id}/disponibilidad")
+    public ResponseEntity<ApiResponse<DisponibilidadDTO>> disponibilidad(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(disponibilidadService.calcular(id)));
     }
 
     /** Soft-delete: archiva el parqueadero con toda su configuración (solo ADMIN/SUPER_ADMIN) */

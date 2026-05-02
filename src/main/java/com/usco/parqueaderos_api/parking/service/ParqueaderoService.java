@@ -7,6 +7,7 @@ import com.usco.parqueaderos_api.catalog.repository.TipoParqueaderoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.location.entity.Ciudad;
 import com.usco.parqueaderos_api.location.repository.CiudadRepository;
+import com.usco.parqueaderos_api.parking.dto.DisponibilidadDTO;
 import com.usco.parqueaderos_api.parking.dto.ParqueaderoDTO;
 import com.usco.parqueaderos_api.parking.entity.Empresa;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
@@ -30,6 +31,7 @@ public class ParqueaderoService {
     private final EmpresaRepository empresaRepository;
     private final TipoParqueaderoRepository tipoParqueaderoRepository;
     private final EstadoRepository estadoRepository;
+    private final DisponibilidadService disponibilidadService;
 
     @Transactional(readOnly = true)
     public List<ParqueaderoDTO> findAll() {
@@ -104,6 +106,15 @@ public class ParqueaderoService {
         if (e.getEmpresa() != null) { dto.setEmpresaId(e.getEmpresa().getId()); dto.setEmpresaNombre(e.getEmpresa().getNombre()); }
         if (e.getTipoParqueadero() != null) { dto.setTipoParqueaderoId(e.getTipoParqueadero().getId()); dto.setTipoParqueaderoNombre(e.getTipoParqueadero().getNombre()); }
         if (e.getEstado() != null) { dto.setEstadoId(e.getEstado().getId()); dto.setEstadoNombre(e.getEstado().getNombre()); }
+        try {
+            DisponibilidadDTO disp = disponibilidadService.calcular(e.getId());
+            dto.setTotalPuntos(disp.getTotal());
+            dto.setPuntosDisponibles(disp.getDisponibles());
+            dto.setPuntosOcupados(disp.getOcupados());
+            dto.setPuntosReservados(disp.getReservados());
+        } catch (Exception ignored) {
+            // Si no se puede calcular, dejar nulos
+        }
         return dto;
     }
 

@@ -51,4 +51,10 @@ public class ParqueaderoDTO {
     @NotNull(message = "El estado es obligatorio")
     private Long estadoId;
     private String estadoNombre;
+
+    // Conteos de disponibilidad (read-only, calculados al serializar)
+    private Long totalPuntos;
+    private Long puntosDisponibles;
+    private Long puntosOcupados;
+    private Long puntosReservados;
 }
