@@ -29,6 +29,18 @@ spring:
       name: ${SECURITY_USER:admin}
       password: ${SECURITY_PASSWORD:admin}
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 server:
   port: ${PORT:8080}
 
@@ -38,9 +50,6 @@ app:
     secret: ${JWT_SECRET}
     access-expiration-ms: ${JWT_ACCESS_EXP:3600000}      # 1 hora
     refresh-expiration-ms: ${JWT_REFRESH_EXP:604800000}  # 7 días
-  resend:
-    api-key: ${RESEND_API_KEY}
-    from-email: ${RESEND_FROM:onboarding@resend.dev}
   pin:
     expiration-minutes: ${PIN_EXPIRATION:15}
   security:
