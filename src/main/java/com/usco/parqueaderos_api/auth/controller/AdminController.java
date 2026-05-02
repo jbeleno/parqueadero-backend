@@ -58,6 +58,13 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(adminService.quitarRol(id, rolId), "Rol removido"));
     }
 
+    /** Confirmar cuenta de un usuario sin PIN (bypass email) - solo SUPER_ADMIN */
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PutMapping("/usuarios/{id}/confirmar")
+    public ResponseEntity<ApiResponse<String>> confirmarCuenta(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.confirmarCuenta(id), "Cuenta confirmada"));
+    }
+
     /** Cambiar estado de un usuario (bloquear/desbloquear) - solo SUPER_ADMIN */
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PutMapping("/usuarios/{id}/estado")

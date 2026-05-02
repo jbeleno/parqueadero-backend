@@ -77,6 +77,20 @@ public class AdminService {
         return "Estado del usuario actualizado a: " + estado.getNombre();
     }
 
+    @Transactional
+    public String confirmarCuenta(Long usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", usuarioId));
+        if (usuario.getConfirmado()) {
+            throw new BusinessException("La cuenta ya esta confirmada");
+        }
+        usuario.setConfirmado(true);
+        usuario.setPinCodigo(null);
+        usuario.setPinExpiracion(null);
+        usuarioRepository.save(usuario);
+        return "Cuenta de " + usuario.getCorreo() + " confirmada correctamente.";
+    }
+
     public Page<UsuarioAdminDTO> listarUsuarios(Pageable pageable) {
         return usuarioRepository.findAll(pageable).map(this::toAdminDTO);
     }
