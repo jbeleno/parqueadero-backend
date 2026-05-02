@@ -23,7 +23,7 @@ public class AdminController {
 
     private final AdminService adminService;
 
-    /** Listar todos los usuarios (paginado) */
+    /** Listar todos los usuarios (paginado) - ADMIN y SUPER_ADMIN */
     @GetMapping("/usuarios")
     public ResponseEntity<ApiResponse<Page<UsuarioAdminDTO>>> listarUsuarios(
             @RequestParam(defaultValue = "0") int page,
@@ -34,13 +34,14 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(result, "Usuarios listados"));
     }
 
-    /** Ver roles de un usuario */
+    /** Ver roles de un usuario - ADMIN y SUPER_ADMIN */
     @GetMapping("/usuarios/{id}/roles")
     public ResponseEntity<ApiResponse<List<String>>> getRoles(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(adminService.getRoles(id), "Roles del usuario"));
     }
 
-    /** Asignar rol a usuario */
+    /** Asignar rol a usuario - solo SUPER_ADMIN */
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/usuarios/{id}/roles")
     public ResponseEntity<ApiResponse<String>> asignarRol(
             @PathVariable Long id,
@@ -48,7 +49,8 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(adminService.asignarRol(id, request), "Rol asignado"));
     }
 
-    /** Quitar rol a usuario */
+    /** Quitar rol a usuario - solo SUPER_ADMIN */
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @DeleteMapping("/usuarios/{id}/roles/{rolId}")
     public ResponseEntity<ApiResponse<String>> quitarRol(
             @PathVariable Long id,
@@ -56,7 +58,8 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(adminService.quitarRol(id, rolId), "Rol removido"));
     }
 
-    /** Cambiar estado de un usuario */
+    /** Cambiar estado de un usuario (bloquear/desbloquear) - solo SUPER_ADMIN */
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PutMapping("/usuarios/{id}/estado")
     public ResponseEntity<ApiResponse<String>> cambiarEstado(
             @PathVariable Long id,
