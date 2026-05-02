@@ -45,7 +45,7 @@ public class Usuario {
     @Column(nullable = false)
     private Boolean confirmado = false;
 
-    @Column(name = "pin_codigo", length = 6)
+    @Column(name = "pin_codigo", length = 100)
     private String pinCodigo;
 
     @Column(name = "pin_expiracion")
