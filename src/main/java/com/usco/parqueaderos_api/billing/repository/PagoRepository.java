@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface PagoRepository extends JpaRepository<Pago, Long> {
     List<Pago> findByFacturaId(Long facturaId);
+    List<Pago> findByFacturaParqueaderoEmpresaId(Long empresaId);
+    List<Pago> findByFacturaVehiculoPersonaId(Long personaId);
 }

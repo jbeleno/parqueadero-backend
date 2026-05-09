@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.user.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.common.exception.BusinessException;
@@ -13,11 +14,13 @@ import com.usco.parqueaderos_api.user.entity.Usuario;
 import com.usco.parqueaderos_api.user.repository.PersonaRepository;
 import com.usco.parqueaderos_api.user.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,16 +33,42 @@ public class UsuarioService {
     private final EstadoRepository estadoRepository;
     private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<UsuarioDTO> findAll() {
-        return usuarioRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Usuario> base;
+        if (currentUser.isSuperAdmin()) {
+            base = usuarioRepository.findAll();
+        } else if (currentUser.isAdmin()) {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = usuarioRepository.findByEmpresaId(empresaId);
+        } else {
+            // USER: solo se ve a si mismo
+            return List.of(toDTO(currentUser.getCurrent()));
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public UsuarioDTO findById(Long id) {
-        return usuarioRepository.findById(id).map(this::toDTO)
+        Usuario u = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", id));
+        if (currentUser.isSuperAdmin()) return toDTO(u);
+        if (currentUser.isAdmin()) {
+            if (u.getEmpresa() != null) {
+                currentUser.requireEmpresa(u.getEmpresa().getId());
+            } else {
+                throw new AccessDeniedException("Usuario sin empresa, solo SUPER_ADMIN puede verlo");
+            }
+        } else {
+            // USER: solo se ve a si mismo
+            if (!u.getId().equals(currentUser.getCurrentUserId())) {
+                throw new AccessDeniedException("No puedes ver otros usuarios");
+            }
+        }
+        return toDTO(u);
     }
 
     @Transactional
@@ -49,6 +78,13 @@ public class UsuarioService {
         }
         if (dto.getPassword() == null || dto.getPassword().isBlank()) {
             throw new BusinessException("La password es obligatoria al crear un usuario");
+        }
+        // Solo SUPER_ADMIN puede asignar empresa distinta a la propia
+        if (!currentUser.isSuperAdmin() && dto.getEmpresaId() != null) {
+            Long miEmpresa = currentUser.getCurrentEmpresaId().orElse(null);
+            if (!dto.getEmpresaId().equals(miEmpresa)) {
+                throw new AccessDeniedException("No puedes asignar usuarios a otra empresa");
+            }
         }
         Usuario entity = toEntity(dto);
         entity.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
@@ -62,6 +98,25 @@ public class UsuarioService {
     public UsuarioDTO update(Long id, UsuarioDTO dto) {
         Usuario existing = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", id));
+        // Validar acceso al usuario que se modifica
+        if (!currentUser.isSuperAdmin()) {
+            if (currentUser.isAdmin()) {
+                if (existing.getEmpresa() == null
+                        || !existing.getEmpresa().getId().equals(currentUser.getCurrentEmpresaId().orElse(null))) {
+                    throw new AccessDeniedException("Usuario no pertenece a tu empresa");
+                }
+            } else {
+                if (!existing.getId().equals(currentUser.getCurrentUserId())) {
+                    throw new AccessDeniedException("Solo puedes editar tu propio usuario");
+                }
+            }
+        }
+        // R-4: Solo SUPER_ADMIN puede cambiar la empresa de un usuario
+        if (dto.getEmpresaId() != null
+                && (existing.getEmpresa() == null || !existing.getEmpresa().getId().equals(dto.getEmpresaId()))
+                && !currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede cambiar la empresa de un usuario");
+        }
         existing.setCorreo(dto.getCorreo());
         if (dto.getPersonaId() != null) existing.setPersona(findPersona(dto.getPersonaId()));
         if (dto.getEstadoId() != null) existing.setEstado(findEstado(dto.getEstadoId()));
@@ -78,6 +133,9 @@ public class UsuarioService {
     public void archivar(Long id) {
         Usuario existing = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", id));
+        if (!currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede archivar usuarios");
+        }
         Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
         existing.setEstado(archivado);

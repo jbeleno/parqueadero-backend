@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.parking.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,21 +24,38 @@ public class NivelService {
     private final NivelRepository nivelRepository;
     private final ParqueaderoRepository parqueaderoRepository;
     private final EstadoRepository estadoRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<NivelDTO> findAll() {
-        return nivelRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Nivel> base;
+        if (currentUser.isSuperAdmin()) {
+            base = nivelRepository.findAll();
+        } else {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = nivelRepository.findByParqueaderoEmpresaId(empresaId);
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<NivelDTO> findByParqueadero(Long parqueaderoId) {
-        return nivelRepository.findByParqueaderoId(parqueaderoId).stream().map(this::toDTO).collect(Collectors.toList());
+        return nivelRepository.findByParqueaderoId(parqueaderoId).stream()
+                .filter(n -> currentUser.isSuperAdmin()
+                        || (n.getParqueadero().getEmpresa() != null
+                            && currentUser.getCurrentEmpresaId().filter(eid -> eid.equals(n.getParqueadero().getEmpresa().getId())).isPresent()))
+                .map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public NivelDTO findById(Long id) {
-        return nivelRepository.findById(id).map(this::toDTO)
+        Nivel n = nivelRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nivel", id));
+        if (n.getParqueadero() != null && n.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(n.getParqueadero().getEmpresa().getId());
+        }
+        return toDTO(n);
     }
 
     @Transactional

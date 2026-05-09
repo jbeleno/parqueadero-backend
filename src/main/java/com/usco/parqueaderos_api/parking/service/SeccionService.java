@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.parking.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,16 +27,29 @@ public class SeccionService {
     private final ParqueaderoRepository parqueaderoRepository;
     private final NivelRepository nivelRepository;
     private final EstadoRepository estadoRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<SeccionDTO> findAll() {
-        return seccionRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Seccion> base;
+        if (currentUser.isSuperAdmin()) {
+            base = seccionRepository.findAll();
+        } else {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = seccionRepository.findByParqueaderoEmpresaId(empresaId);
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public SeccionDTO findById(Long id) {
-        return seccionRepository.findById(id).map(this::toDTO)
+        Seccion s = seccionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Seccion", id));
+        if (s.getParqueadero() != null && s.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(s.getParqueadero().getEmpresa().getId());
+        }
+        return toDTO(s);
     }
 
     @Transactional

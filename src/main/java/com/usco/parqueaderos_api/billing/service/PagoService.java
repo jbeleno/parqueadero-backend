@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.billing.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.billing.dto.PagoDTO;
 import com.usco.parqueaderos_api.billing.entity.Factura;
 import com.usco.parqueaderos_api.billing.entity.Pago;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,16 +22,40 @@ public class PagoService {
 
     private final PagoRepository pagoRepository;
     private final FacturaRepository facturaRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<PagoDTO> findAll() {
-        return pagoRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Pago> base;
+        if (currentUser.isSuperAdmin()) {
+            base = pagoRepository.findAll();
+        } else if (currentUser.isAdmin()) {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = pagoRepository.findByFacturaParqueaderoEmpresaId(empresaId);
+        } else {
+            base = pagoRepository.findByFacturaVehiculoPersonaId(currentUser.getCurrentPersonaId());
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public PagoDTO findById(Long id) {
-        return pagoRepository.findById(id).map(this::toDTO)
+        Pago p = pagoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
+        Factura f = p.getFactura();
+        if (currentUser.isSuperAdmin()) return toDTO(p);
+        if (currentUser.isAdmin()) {
+            if (f != null && f.getParqueadero() != null && f.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(f.getParqueadero().getEmpresa().getId());
+            }
+        } else {
+            // USER: pago debe estar asociado a su persona (via factura -> vehiculo -> persona)
+            Long personaIdRecurso = f != null && f.getVehiculo() != null && f.getVehiculo().getPersona() != null
+                    ? f.getVehiculo().getPersona().getId() : null;
+            currentUser.requireOwnerOrAnyAdmin(personaIdRecurso);
+        }
+        return toDTO(p);
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.parking.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.entity.TipoPuntoParqueo;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
@@ -17,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,21 +33,36 @@ public class PuntoParqueoService {
     private final EstadoRepository estadoRepository;
     private final TicketRepository ticketRepository;
     private final ReservaRepository reservaRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<PuntoParqueoDTO> findAll() {
-        return puntoParqueoRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<PuntoParqueo> base;
+        if (currentUser.isSuperAdmin()) {
+            base = puntoParqueoRepository.findAll();
+        } else {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = puntoParqueoRepository.findBySubSeccionSeccionParqueaderoEmpresaId(empresaId);
+        }
+        return mapAndCalcularEstadoBatch(base);
     }
 
     @Transactional(readOnly = true)
     public PuntoParqueoDTO findById(Long id) {
-        return puntoParqueoRepository.findById(id).map(this::toDTO)
+        PuntoParqueo p = puntoParqueoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", id));
+        if (p.getSubSeccion() != null && p.getSubSeccion().getSeccion() != null
+                && p.getSubSeccion().getSeccion().getParqueadero() != null
+                && p.getSubSeccion().getSeccion().getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(p.getSubSeccion().getSeccion().getParqueadero().getEmpresa().getId());
+        }
+        return toDTOConEstado(p);
     }
 
     @Transactional
     public PuntoParqueoDTO save(PuntoParqueoDTO dto) {
-        return toDTO(puntoParqueoRepository.save(toEntity(dto)));
+        return toDTOConEstado(puntoParqueoRepository.save(toEntity(dto)));
     }
 
     @Transactional
@@ -57,7 +75,7 @@ public class PuntoParqueoService {
         if (dto.getSubSeccionId() != null) existing.setSubSeccion(findSubSeccion(dto.getSubSeccionId()));
         if (dto.getTipoPuntoParqueoId() != null) existing.setTipoPuntoParqueo(findTipo(dto.getTipoPuntoParqueoId()));
         if (dto.getEstadoId() != null) existing.setEstado(findEstado(dto.getEstadoId()));
-        return toDTO(puntoParqueoRepository.save(existing));
+        return toDTOConEstado(puntoParqueoRepository.save(existing));
     }
 
     /** Soft-delete: cambia el estado a ARCHIVADO */
@@ -71,6 +89,41 @@ public class PuntoParqueoService {
         puntoParqueoRepository.save(existing);
     }
 
+    /**
+     * Mapea la lista a DTOs calculando estadoOperativo en batch (2 queries totales,
+     * no 2 por punto). Evita N+1.
+     */
+    private List<PuntoParqueoDTO> mapAndCalcularEstadoBatch(List<PuntoParqueo> entities) {
+        if (entities.isEmpty()) return Collections.emptyList();
+        List<Long> ids = entities.stream().map(PuntoParqueo::getId).collect(Collectors.toList());
+        Set<Long> ocupados = puntoParqueoRepository.idsOcupadosEntre(ids);
+        Set<Long> reservados = puntoParqueoRepository.idsReservadosEntre(ids, LocalDateTime.now());
+        return entities.stream().map(e -> {
+            PuntoParqueoDTO dto = toDTO(e);
+            if (ocupados.contains(e.getId())) dto.setEstadoOperativo("OCUPADO");
+            else if (reservados.contains(e.getId())) dto.setEstadoOperativo("RESERVADO");
+            else dto.setEstadoOperativo("DISPONIBLE");
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    /** Para un solo punto: 2 queries simples. */
+    private PuntoParqueoDTO toDTOConEstado(PuntoParqueo e) {
+        PuntoParqueoDTO dto = toDTO(e);
+        dto.setEstadoOperativo(calcularEstadoOperativo(e.getId()));
+        return dto;
+    }
+
+    private String calcularEstadoOperativo(Long puntoId) {
+        if (ticketRepository.existsByPuntoParqueoIdAndEstado(puntoId, "EN_CURSO")) {
+            return "OCUPADO";
+        }
+        if (reservaRepository.existsReservaActivaParaPunto(puntoId, LocalDateTime.now())) {
+            return "RESERVADO";
+        }
+        return "DISPONIBLE";
+    }
+
     private PuntoParqueoDTO toDTO(PuntoParqueo e) {
         PuntoParqueoDTO dto = new PuntoParqueoDTO();
         dto.setId(e.getId());
@@ -80,19 +133,7 @@ public class PuntoParqueoService {
         if (e.getSubSeccion() != null) { dto.setSubSeccionId(e.getSubSeccion().getId()); dto.setSubSeccionNombre(e.getSubSeccion().getNombre()); }
         if (e.getTipoPuntoParqueo() != null) { dto.setTipoPuntoParqueoId(e.getTipoPuntoParqueo().getId()); dto.setTipoPuntoParqueoNombre(e.getTipoPuntoParqueo().getNombre()); }
         if (e.getEstado() != null) { dto.setEstadoId(e.getEstado().getId()); dto.setEstadoNombre(e.getEstado().getNombre()); }
-        dto.setEstadoOperativo(calcularEstadoOperativo(e.getId()));
         return dto;
-    }
-
-    /** Calcula el estado operativo del punto en tiempo real. */
-    private String calcularEstadoOperativo(Long puntoId) {
-        if (ticketRepository.existsByPuntoParqueoIdAndEstado(puntoId, "EN_CURSO")) {
-            return "OCUPADO";
-        }
-        if (reservaRepository.existsReservaActivaParaPunto(puntoId, LocalDateTime.now())) {
-            return "RESERVADO";
-        }
-        return "DISPONIBLE";
     }
 
     private PuntoParqueo toEntity(PuntoParqueoDTO dto) {

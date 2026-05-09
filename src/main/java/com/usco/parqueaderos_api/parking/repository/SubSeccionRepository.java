@@ -11,4 +11,5 @@ public interface SubSeccionRepository extends JpaRepository<SubSeccion, Long> {
     List<SubSeccion> findBySeccionId(Long seccionId);
     List<SubSeccion> findBySeccionIdIn(List<Long> seccionIds);
     List<SubSeccion> findBySeccionIdInAndEstadoNombreNot(List<Long> seccionIds, String estadoNombre);
+    List<SubSeccion> findBySeccionParqueaderoEmpresaId(Long empresaId);
 }
