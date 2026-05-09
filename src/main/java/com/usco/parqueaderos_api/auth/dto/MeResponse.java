@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +13,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class MeResponse {
     private Long id;
     private String correo;
@@ -19,4 +21,6 @@ public class MeResponse {
     private List<String> roles;
     private Boolean confirmado;
     private LocalDateTime fechaCreacion;
+    private Long empresaId;
+    private String empresaNombre;
 }

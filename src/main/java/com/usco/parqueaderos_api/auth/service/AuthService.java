@@ -156,6 +156,8 @@ public class AuthService {
                 .toList();
 
         String nombreCompleto = usuario.getPersona().getNombre() + " " + usuario.getPersona().getApellido();
+        Long empresaId = usuario.getEmpresa() != null ? usuario.getEmpresa().getId() : null;
+        String empresaNombre = usuario.getEmpresa() != null ? usuario.getEmpresa().getNombre() : null;
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -165,6 +167,8 @@ public class AuthService {
                 .roles(roles)
                 .tipo("Bearer")
                 .expiresIn(jwtService.getAccessExpirationMs() / 1000)
+                .empresaId(empresaId)
+                .empresaNombre(empresaNombre)
                 .build();
     }
 
@@ -185,6 +189,8 @@ public class AuthService {
                 .toList();
 
         String nombreCompleto = rt.getUsuario().getPersona().getNombre() + " " + rt.getUsuario().getPersona().getApellido();
+        Long empresaId = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getId() : null;
+        String empresaNombre = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getNombre() : null;
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
@@ -194,6 +200,8 @@ public class AuthService {
                 .roles(roles)
                 .tipo("Bearer")
                 .expiresIn(jwtService.getAccessExpirationMs() / 1000)
+                .empresaId(empresaId)
+                .empresaNombre(empresaNombre)
                 .build();
     }
 
@@ -297,6 +305,7 @@ public class AuthService {
 
     // ── 11. ME ─────────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public MeResponse me(String correo) {
         Usuario usuario = usuarioRepository.findByCorreo(correo)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", 0L));
@@ -305,6 +314,8 @@ public class AuthService {
                 .map(ur -> ur.getRol().getNombre())
                 .toList();
         String nombreCompleto = usuario.getPersona().getNombre() + " " + usuario.getPersona().getApellido();
+        Long empresaId = usuario.getEmpresa() != null ? usuario.getEmpresa().getId() : null;
+        String empresaNombre = usuario.getEmpresa() != null ? usuario.getEmpresa().getNombre() : null;
         return MeResponse.builder()
                 .id(usuario.getId())
                 .correo(usuario.getCorreo())
@@ -312,6 +323,8 @@ public class AuthService {
                 .roles(roleNames)
                 .confirmado(usuario.getConfirmado())
                 .fechaCreacion(usuario.getFechaCreacion())
+                .empresaId(empresaId)
+                .empresaNombre(empresaNombre)
                 .build();
     }
 }
