@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.common.service;
 
+import com.usco.parqueaderos_api.common.exception.BusinessException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,11 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Async
+    /**
+     * SINCRONO: si el envio falla, lanza BusinessException para que la
+     * transaccion del registro/recuperacion haga rollback. El usuario
+     * NO debe quedar registrado sin poder recibir el PIN.
+     */
     public void enviarConfirmacionCuenta(String correo, String nombre, String pin) {
         String html = buildEmail(
             "Confirma tu cuenta",
@@ -34,7 +39,7 @@ public class EmailService {
         enviar(correo, "Confirma tu cuenta - Parqueaderos", html);
     }
 
-    @Async
+    /** SINCRONO: ver enviarConfirmacionCuenta. */
     public void enviarRecuperacionPassword(String correo, String nombre, String pin) {
         String html = buildEmail(
             "Recupera tu contrasena",
@@ -48,6 +53,7 @@ public class EmailService {
         enviar(correo, "Codigo de recuperacion - Parqueaderos", html);
     }
 
+    /** ASINC: notificacion informativa, no critica. Si falla NO se hace rollback. */
     @Async
     public void enviarCambioPasswordExitoso(String correo, String nombre) {
         String successBlock = """
@@ -175,9 +181,17 @@ public class EmailService {
             helper.setSubject(asunto);
             helper.setText(htmlBody, true);
             mailSender.send(message);
-            log.info("Email enviado a {} — {}", para, asunto);
+            log.info("Email enviado a {} - {}", para, asunto);
         } catch (MessagingException e) {
-            log.error("Error enviando email a {}: {}", para, e.getMessage());
+            log.error("CRITICO: fallo envio de email a {} ({}): {}", para, asunto, e.getMessage(), e);
+            throw new BusinessException(
+                    "No se pudo enviar el correo. Intenta de nuevo en unos minutos.",
+                    "ERR_EMAIL_DELIVERY");
+        } catch (org.springframework.mail.MailException e) {
+            log.error("CRITICO: fallo SMTP a {} ({}): {}", para, asunto, e.getMessage(), e);
+            throw new BusinessException(
+                    "No se pudo enviar el correo. Intenta de nuevo en unos minutos.",
+                    "ERR_EMAIL_DELIVERY");
         }
     }
 }
