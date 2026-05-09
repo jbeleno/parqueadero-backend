@@ -19,4 +19,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Query("SELECT COUNT(t) FROM Ticket t " +
            "WHERE t.parqueadero.id = :parqueaderoId AND t.estado = 'EN_CURSO'")
     long countOcupadosEnParqueadero(@Param("parqueaderoId") Long parqueaderoId);
+
+    boolean existsByPuntoParqueoIdAndEstado(Long puntoParqueoId, String estado);
 }

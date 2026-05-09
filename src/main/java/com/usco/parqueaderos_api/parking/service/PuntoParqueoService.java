@@ -10,10 +10,13 @@ import com.usco.parqueaderos_api.parking.entity.PuntoParqueo;
 import com.usco.parqueaderos_api.parking.entity.SubSeccion;
 import com.usco.parqueaderos_api.parking.repository.PuntoParqueoRepository;
 import com.usco.parqueaderos_api.parking.repository.SubSeccionRepository;
+import com.usco.parqueaderos_api.reservation.repository.ReservaRepository;
+import com.usco.parqueaderos_api.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +28,8 @@ public class PuntoParqueoService {
     private final SubSeccionRepository subSeccionRepository;
     private final TipoPuntoParqueoRepository tipoPuntoParqueoRepository;
     private final EstadoRepository estadoRepository;
+    private final TicketRepository ticketRepository;
+    private final ReservaRepository reservaRepository;
 
     @Transactional(readOnly = true)
     public List<PuntoParqueoDTO> findAll() {
@@ -75,7 +80,19 @@ public class PuntoParqueoService {
         if (e.getSubSeccion() != null) { dto.setSubSeccionId(e.getSubSeccion().getId()); dto.setSubSeccionNombre(e.getSubSeccion().getNombre()); }
         if (e.getTipoPuntoParqueo() != null) { dto.setTipoPuntoParqueoId(e.getTipoPuntoParqueo().getId()); dto.setTipoPuntoParqueoNombre(e.getTipoPuntoParqueo().getNombre()); }
         if (e.getEstado() != null) { dto.setEstadoId(e.getEstado().getId()); dto.setEstadoNombre(e.getEstado().getNombre()); }
+        dto.setEstadoOperativo(calcularEstadoOperativo(e.getId()));
         return dto;
+    }
+
+    /** Calcula el estado operativo del punto en tiempo real. */
+    private String calcularEstadoOperativo(Long puntoId) {
+        if (ticketRepository.existsByPuntoParqueoIdAndEstado(puntoId, "EN_CURSO")) {
+            return "OCUPADO";
+        }
+        if (reservaRepository.existsReservaActivaParaPunto(puntoId, LocalDateTime.now())) {
+            return "RESERVADO";
+        }
+        return "DISPONIBLE";
     }
 
     private PuntoParqueo toEntity(PuntoParqueoDTO dto) {

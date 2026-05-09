@@ -31,5 +31,8 @@ public class PuntoParqueoDTO {
     private Long estadoId;
     private String estadoNombre;
 
+    /** Estado operativo calculado: DISPONIBLE / OCUPADO / RESERVADO. Read-only. */
+    private String estadoOperativo;
+
     private String ubicacionWkt;
 }
