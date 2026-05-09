@@ -148,7 +148,9 @@ public class AuthService {
         usuarioRepository.save(usuario);
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getCorreo());
-        String accessToken = jwtService.generateToken(userDetails);
+        Long empresaId = usuario.getEmpresa() != null ? usuario.getEmpresa().getId() : null;
+        String empresaNombre = usuario.getEmpresa() != null ? usuario.getEmpresa().getNombre() : null;
+        String accessToken = jwtService.generateToken(userDetails, empresaId);
         RefreshToken refreshToken = refreshTokenService.crearRefreshToken(usuario);
 
         List<String> roles = userDetails.getAuthorities().stream()
@@ -156,8 +158,6 @@ public class AuthService {
                 .toList();
 
         String nombreCompleto = usuario.getPersona().getNombre() + " " + usuario.getPersona().getApellido();
-        Long empresaId = usuario.getEmpresa() != null ? usuario.getEmpresa().getId() : null;
-        String empresaNombre = usuario.getEmpresa() != null ? usuario.getEmpresa().getNombre() : null;
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -182,15 +182,15 @@ public class AuthService {
         RefreshToken nuevoRt = refreshTokenService.crearRefreshToken(rt.getUsuario());
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(rt.getUsuario().getCorreo());
-        String newAccessToken = jwtService.generateToken(userDetails);
+        Long empresaId = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getId() : null;
+        String empresaNombre = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getNombre() : null;
+        String newAccessToken = jwtService.generateToken(userDetails, empresaId);
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(a -> a.getAuthority())
                 .toList();
 
         String nombreCompleto = rt.getUsuario().getPersona().getNombre() + " " + rt.getUsuario().getPersona().getApellido();
-        Long empresaId = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getId() : null;
-        String empresaNombre = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getNombre() : null;
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)

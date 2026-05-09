@@ -40,16 +40,35 @@ public class JwtService {
         return extractClaim(token, claims -> (List<String>) claims.get("roles"));
     }
 
+    /** Devuelve el empresaId del claim, o null si no esta. */
+    public Long extractEmpresaId(String token) {
+        return extractClaim(token, claims -> {
+            Object v = claims.get("empresaId");
+            if (v == null) return null;
+            if (v instanceof Number n) return n.longValue();
+            try { return Long.parseLong(v.toString()); }
+            catch (NumberFormatException e) { return null; }
+        });
+    }
+
     public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, null);
+    }
+
+    /**
+     * Genera el access token con los claims del usuario y opcionalmente
+     * el empresaId. Permite a CurrentUserService leer la empresa sin
+     * golpear la BD en cada request.
+     */
+    public String generateToken(UserDetails userDetails, Long empresaId) {
         Map<String, Object> extraClaims = new HashMap<>();
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
         extraClaims.put("roles", roles);
-        return generateToken(extraClaims, userDetails);
-    }
-
-    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        if (empresaId != null) {
+            extraClaims.put("empresaId", empresaId);
+        }
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
@@ -89,4 +108,3 @@ public class JwtService {
         return accessExpirationMs;
     }
 }
-

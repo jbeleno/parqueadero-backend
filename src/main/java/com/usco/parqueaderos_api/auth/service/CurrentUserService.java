@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.auth.service;
 
+import com.usco.parqueaderos_api.auth.filter.JwtAuthDetails;
 import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.user.entity.Persona;
 import com.usco.parqueaderos_api.user.entity.Usuario;
@@ -44,8 +45,20 @@ public class CurrentUserService {
         return getCurrent().getId();
     }
 
+    /**
+     * Lee empresaId desde el JWT (Authentication.details). Si no esta
+     * en el token (login antiguo o usuario sin empresa) cae al fallback
+     * de leer de BD.
+     */
     @Transactional(readOnly = true)
     public Optional<Long> getCurrentEmpresaId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getDetails() instanceof JwtAuthDetails details) {
+            if (details.empresaId() != null) {
+                return Optional.of(details.empresaId());
+            }
+        }
+        // Fallback: query a BD si el token no trae el claim
         Usuario u = getCurrent();
         return Optional.ofNullable(u.getEmpresa()).map(e -> e.getId());
     }
