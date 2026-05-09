@@ -35,6 +35,10 @@ build/
 ### Deploy notes (private) ###
 DEPLOY.md
 
+### Personal prompts / workflows ###
+PROMPTS.md
+CLAUDE.md
+
 ### Docker secrets ###
 .env
 
