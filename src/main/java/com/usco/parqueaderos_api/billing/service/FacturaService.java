@@ -4,6 +4,7 @@ import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.billing.dto.FacturaDTO;
 import com.usco.parqueaderos_api.billing.entity.Factura;
 import com.usco.parqueaderos_api.billing.repository.FacturaRepository;
+import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.parking.repository.ParqueaderoRepository;
@@ -12,6 +13,7 @@ import com.usco.parqueaderos_api.ticket.repository.TicketRepository;
 import com.usco.parqueaderos_api.vehicle.entity.Vehiculo;
 import com.usco.parqueaderos_api.vehicle.repository.VehiculoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +42,6 @@ public class FacturaService {
             if (empresaId == null) return Collections.emptyList();
             base = facturaRepository.findByParqueaderoEmpresaId(empresaId);
         } else {
-            // USER: solo facturas de sus propios vehiculos
             base = facturaRepository.findByVehiculoPersonaId(currentUser.getCurrentPersonaId());
         }
         return base.stream().map(this::toDTO).collect(Collectors.toList());
@@ -63,26 +64,84 @@ public class FacturaService {
         return toDTO(f);
     }
 
+    /**
+     * Crea una factura. Blindado:
+     * - RBAC: solo ADMIN/SUPER_ADMIN
+     * - Multi-tenant: parqueadero debe ser de la empresa del operador
+     * - Invariantes: ticket debe estar CERRADO con monto. valorTotal del
+     *   cliente se IGNORA, se toma del ticket.montoCalculado para evitar
+     *   manipulacion.
+     */
     @Transactional
     public FacturaDTO save(FacturaDTO dto) {
-        Factura entity = toEntity(dto);
-        if (entity.getFechaHora() == null) entity.setFechaHora(LocalDateTime.now());
-        if (entity.getEstado() == null) entity.setEstado("PENDIENTE");
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo el operador puede generar facturas");
+        }
+        if (dto.getTicketId() == null) {
+            throw new BusinessException("ticketId es obligatorio", "ERR_MISSING_FIELDS");
+        }
+        Ticket ticket = findTicket(dto.getTicketId());
+
+        // Multi-tenant
+        if (ticket.getParqueadero() != null && ticket.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(ticket.getParqueadero().getEmpresa().getId());
+        }
+
+        // El ticket debe estar CERRADO con monto calculado
+        if (!"CERRADO".equals(ticket.getEstado())) {
+            throw new BusinessException(
+                    "El ticket debe estar CERRADO para facturar. Estado actual: " + ticket.getEstado(),
+                    "ERR_TICKET_NOT_CLOSED");
+        }
+        if (ticket.getMontoCalculado() == null || ticket.getMontoCalculado() <= 0) {
+            throw new BusinessException(
+                    "El ticket no tiene monto calculado",
+                    "ERR_TICKET_NO_AMOUNT");
+        }
+
+        // Evitar duplicar facturas para el mismo ticket
+        if (!facturaRepository.findByTicketId(ticket.getId()).isEmpty()) {
+            throw new BusinessException(
+                    "El ticket ya tiene una factura asociada",
+                    "ERR_INVOICE_DUPLICATE");
+        }
+
+        // Forzar valorTotal = monto del ticket (no leer del DTO)
+        Factura entity = new Factura();
+        entity.setTicket(ticket);
+        entity.setParqueadero(ticket.getParqueadero());
+        entity.setVehiculo(ticket.getVehiculo());
+        entity.setValorTotal(ticket.getMontoCalculado());
+        entity.setFechaHora(LocalDateTime.now());
+        entity.setEstado("PENDIENTE");
         return toDTO(facturaRepository.save(entity));
     }
 
+    /**
+     * Solo SUPER_ADMIN puede modificar una factura ya emitida (correccion).
+     * No se permite cambiar valorTotal — ese es el del ticket. Solo estado
+     * para casos de anulacion.
+     */
     @Transactional
     public FacturaDTO update(Long id, FacturaDTO dto) {
+        if (!currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede modificar una factura emitida");
+        }
         Factura existing = facturaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Factura", id));
-        existing.setValorTotal(dto.getValorTotal());
-        existing.setEstado(dto.getEstado());
+        if (dto.getEstado() != null) {
+            existing.setEstado(dto.getEstado());
+        }
         return toDTO(facturaRepository.save(existing));
     }
 
     @Transactional
     public void delete(Long id) {
-        facturaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Factura", id));
+        if (!currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede eliminar facturas");
+        }
+        facturaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Factura", id));
         facturaRepository.deleteById(id);
     }
 
@@ -98,17 +157,5 @@ public class FacturaService {
         return dto;
     }
 
-    private Factura toEntity(FacturaDTO dto) {
-        Factura e = new Factura();
-        e.setValorTotal(dto.getValorTotal());
-        e.setEstado(dto.getEstado());
-        if (dto.getTicketId() != null) e.setTicket(findTicket(dto.getTicketId()));
-        if (dto.getParqueaderoId() != null) e.setParqueadero(findParqueadero(dto.getParqueaderoId()));
-        if (dto.getVehiculoId() != null) e.setVehiculo(findVehiculo(dto.getVehiculoId()));
-        return e;
-    }
-
     private Ticket findTicket(Long id) { return ticketRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Ticket", id)); }
-    private Parqueadero findParqueadero(Long id) { return parqueaderoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Parqueadero", id)); }
-    private Vehiculo findVehiculo(Long id) { return vehiculoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vehiculo", id)); }
 }

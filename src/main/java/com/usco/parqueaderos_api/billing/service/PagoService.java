@@ -6,8 +6,10 @@ import com.usco.parqueaderos_api.billing.entity.Factura;
 import com.usco.parqueaderos_api.billing.entity.Pago;
 import com.usco.parqueaderos_api.billing.repository.FacturaRepository;
 import com.usco.parqueaderos_api.billing.repository.PagoRepository;
+import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PagoService {
+
+    private static final double TOLERANCIA_DECIMAL = 0.01;
 
     private final PagoRepository pagoRepository;
     private final FacturaRepository facturaRepository;
@@ -50,36 +54,124 @@ public class PagoService {
                 currentUser.requireEmpresa(f.getParqueadero().getEmpresa().getId());
             }
         } else {
-            // USER: pago debe estar asociado a su persona (via factura -> vehiculo -> persona)
-            Long personaIdRecurso = f != null && f.getVehiculo() != null && f.getVehiculo().getPersona() != null
+            Long personaId = f != null && f.getVehiculo() != null && f.getVehiculo().getPersona() != null
                     ? f.getVehiculo().getPersona().getId() : null;
-            currentUser.requireOwnerOrAnyAdmin(personaIdRecurso);
+            currentUser.requireOwnerOrAnyAdmin(personaId);
         }
         return toDTO(p);
     }
 
+    /**
+     * Registra un pago. Blindado contra:
+     * - RBAC: solo ADMIN/SUPER_ADMIN
+     * - Multi-tenant: la factura debe ser de la empresa del operador
+     * - Invariantes: monto > 0, monto <= saldo pendiente
+     * - Inyeccion: el cliente NO setea fecha. Si la suma de pagos
+     *   COMPLETADOs alcanza el valor total, factura pasa a PAGADA.
+     */
     @Transactional
     public PagoDTO save(PagoDTO dto) {
-        Pago entity = toEntity(dto);
-        if (entity.getFechaHora() == null) entity.setFechaHora(LocalDateTime.now());
-        if (entity.getEstado() == null) entity.setEstado("PENDIENTE");
-        return toDTO(pagoRepository.save(entity));
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo el operador puede registrar pagos");
+        }
+
+        if (dto.getFacturaId() == null) {
+            throw new BusinessException("facturaId es obligatorio", "ERR_MISSING_FIELDS");
+        }
+        Factura factura = facturaRepository.findById(dto.getFacturaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Factura", dto.getFacturaId()));
+
+        // Multi-tenant
+        if (factura.getParqueadero() != null && factura.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(factura.getParqueadero().getEmpresa().getId());
+        }
+
+        // Validar que la factura no este ya PAGADA o ANULADA
+        if ("PAGADA".equals(factura.getEstado())) {
+            throw new BusinessException("La factura ya esta pagada", "ERR_INVOICE_ALREADY_PAID");
+        }
+        if ("ANULADA".equals(factura.getEstado())) {
+            throw new BusinessException("La factura esta anulada", "ERR_INVOICE_VOID");
+        }
+
+        // Invariantes de monto
+        if (dto.getMonto() == null || dto.getMonto() <= 0) {
+            throw new BusinessException(
+                    "El monto debe ser mayor a cero",
+                    "ERR_INVALID_AMOUNT");
+        }
+
+        double pagadoActual = pagoRepository.findByFacturaId(factura.getId()).stream()
+                .filter(p -> "COMPLETADO".equals(p.getEstado()))
+                .mapToDouble(Pago::getMonto)
+                .sum();
+        double saldoPendiente = factura.getValorTotal() - pagadoActual;
+
+        if (dto.getMonto() > saldoPendiente + TOLERANCIA_DECIMAL) {
+            throw new BusinessException(
+                    "El monto " + dto.getMonto() + " excede el saldo pendiente " + saldoPendiente,
+                    "ERR_INSUFFICIENT_FUNDS");
+        }
+
+        if (dto.getMetodo() == null || dto.getMetodo().isBlank()) {
+            throw new BusinessException("metodo es obligatorio (EFECTIVO, TARJETA, APP)", "ERR_MISSING_FIELDS");
+        }
+
+        // Sanitizacion: forzar fecha y estado por defecto
+        Pago entity = new Pago();
+        entity.setFactura(factura);
+        entity.setMonto(dto.getMonto());
+        entity.setMetodo(dto.getMetodo());
+        entity.setFechaHora(LocalDateTime.now()); // server time, ignorar dto
+        // Estado por defecto COMPLETADO si no se especifica (registro manual del operador)
+        // Si en el futuro se integra pasarela, deberia ser PENDIENTE hasta confirmar webhook.
+        String estado = dto.getEstado() != null ? dto.getEstado() : "COMPLETADO";
+        if (!estado.equals("COMPLETADO") && !estado.equals("PENDIENTE") && !estado.equals("FALLIDO")) {
+            throw new BusinessException("Estado invalido: " + estado, "ERR_INVALID_STATE");
+        }
+        entity.setEstado(estado);
+
+        Pago saved = pagoRepository.save(entity);
+
+        // Si la suma de pagos COMPLETADOs cubre el valor total, marcar factura PAGADA
+        if ("COMPLETADO".equals(estado)) {
+            double totalPagado = pagadoActual + dto.getMonto();
+            if (totalPagado >= factura.getValorTotal() - TOLERANCIA_DECIMAL) {
+                factura.setEstado("PAGADA");
+                facturaRepository.save(factura);
+            }
+        }
+
+        return toDTO(saved);
     }
 
+    /**
+     * El update de un pago solo lo puede hacer SUPER_ADMIN
+     * (caso reconciliacion / reverso). No se permite cambiar el monto
+     * para evitar manipulaciones financieras.
+     */
     @Transactional
     public PagoDTO update(Long id, PagoDTO dto) {
+        if (!currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede modificar un pago registrado");
+        }
         Pago existing = pagoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
-        existing.setMonto(dto.getMonto());
-        existing.setMetodo(dto.getMetodo());
-        existing.setEstado(dto.getEstado());
-        if (dto.getFacturaId() != null) existing.setFactura(findFactura(dto.getFacturaId()));
+        // Solo permite cambiar estado (ej. marcar FALLIDO o COMPLETADO tras reconciliacion)
+        if (dto.getEstado() != null) {
+            existing.setEstado(dto.getEstado());
+        }
+        // monto, metodo y factura NO se pueden alterar
         return toDTO(pagoRepository.save(existing));
     }
 
     @Transactional
     public void delete(Long id) {
-        pagoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Pago", id));
+        if (!currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede eliminar pagos");
+        }
+        pagoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
         pagoRepository.deleteById(id);
     }
 
@@ -93,15 +185,4 @@ public class PagoService {
         if (e.getFactura() != null) dto.setFacturaId(e.getFactura().getId());
         return dto;
     }
-
-    private Pago toEntity(PagoDTO dto) {
-        Pago e = new Pago();
-        e.setMonto(dto.getMonto());
-        e.setMetodo(dto.getMetodo());
-        e.setEstado(dto.getEstado());
-        if (dto.getFacturaId() != null) e.setFactura(findFactura(dto.getFacturaId()));
-        return e;
-    }
-
-    private Factura findFactura(Long id) { return facturaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Factura", id)); }
 }
