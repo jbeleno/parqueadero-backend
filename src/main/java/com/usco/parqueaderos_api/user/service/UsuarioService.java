@@ -2,6 +2,7 @@ package com.usco.parqueaderos_api.user.service;
 
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
+import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.DuplicateResourceException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Empresa;
@@ -12,6 +13,7 @@ import com.usco.parqueaderos_api.user.entity.Usuario;
 import com.usco.parqueaderos_api.user.repository.PersonaRepository;
 import com.usco.parqueaderos_api.user.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ public class UsuarioService {
     private final PersonaRepository personaRepository;
     private final EstadoRepository estadoRepository;
     private final EmpresaRepository empresaRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public List<UsuarioDTO> findAll() {
@@ -44,8 +47,14 @@ public class UsuarioService {
         if (usuarioRepository.existsByCorreo(dto.getCorreo())) {
             throw new DuplicateResourceException("Ya existe un usuario con el correo: " + dto.getCorreo());
         }
+        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
+            throw new BusinessException("La password es obligatoria al crear un usuario");
+        }
         Usuario entity = toEntity(dto);
+        entity.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         entity.setFechaCreacion(LocalDateTime.now());
+        entity.setConfirmado(dto.getConfirmado() != null ? dto.getConfirmado() : true);
+        entity.setIntentosFallidos(0);
         return toDTO(usuarioRepository.save(entity));
     }
 
@@ -57,6 +66,10 @@ public class UsuarioService {
         if (dto.getPersonaId() != null) existing.setPersona(findPersona(dto.getPersonaId()));
         if (dto.getEstadoId() != null) existing.setEstado(findEstado(dto.getEstadoId()));
         if (dto.getEmpresaId() != null) existing.setEmpresa(findEmpresa(dto.getEmpresaId()));
+        if (dto.getConfirmado() != null) existing.setConfirmado(dto.getConfirmado());
+        if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+            existing.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        }
         return toDTO(usuarioRepository.save(existing));
     }
 
@@ -76,6 +89,7 @@ public class UsuarioService {
         dto.setId(e.getId());
         dto.setCorreo(e.getCorreo());
         dto.setFechaCreacion(e.getFechaCreacion());
+        dto.setConfirmado(e.getConfirmado());
         if (e.getPersona() != null) {
             dto.setPersonaId(e.getPersona().getId());
             dto.setPersonaNombre(e.getPersona().getNombre() + " " + e.getPersona().getApellido());
@@ -89,7 +103,6 @@ public class UsuarioService {
     private Usuario toEntity(UsuarioDTO dto) {
         Usuario e = new Usuario();
         e.setCorreo(dto.getCorreo());
-        e.setPasswordHash(""); // password set separately by auth flow
         if (dto.getPersonaId() != null) e.setPersona(findPersona(dto.getPersonaId()));
         if (dto.getEstadoId() != null) e.setEstado(findEstado(dto.getEstadoId()));
         if (dto.getEmpresaId() != null) e.setEmpresa(findEmpresa(dto.getEmpresaId()));
