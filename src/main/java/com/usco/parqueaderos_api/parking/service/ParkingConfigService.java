@@ -40,6 +40,7 @@ public class ParkingConfigService {
     private final SubSeccionRepository subSeccionRepo;
     private final PuntoParqueoRepository puntoParqueoRepo;
     private final CaminoRepository caminoRepo;
+    private final CamaraRepository camaraRepo;
     private final EmpresaRepository empresaRepo;
     private final CiudadRepository ciudadRepo;
     private final TipoParqueaderoRepository tipoParqueaderoRepo;
@@ -98,6 +99,10 @@ public class ParkingConfigService {
         // Caminos
         List<Camino> caminos = caminoRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO);
         floor.setPaths(caminos.stream().map(this::toPathConfig).collect(Collectors.toList()));
+
+        // Camaras
+        List<Camara> camaras = camaraRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO);
+        floor.setCameras(camaras.stream().map(this::toCameraConfig).collect(Collectors.toList()));
 
         return floor;
     }
@@ -286,6 +291,35 @@ public class ParkingConfigService {
             }
         }
 
+        // ── Camaras ──
+        List<CameraConfigDTO> savedCameras = new ArrayList<>();
+        if (dto.getCameras() != null) {
+            for (CameraConfigDTO camDTO : dto.getCameras()) {
+                Camara camara = resolveOrCreate(camDTO.getId(), camaraRepo, "Camara", () -> {
+                    Camara c = new Camara();
+                    c.setNivel(nivelRepo.getReferenceById(nivelId));
+                    c.setEstado(activo);
+                    return c;
+                });
+                camara.setNombre(camDTO.getName());
+                camara.setColor(camDTO.getColor());
+                camara.setCoordenadas(serializeCameraCoords(camDTO));
+                camara.setAssignedSpots(serializeJson(camDTO.getAssignedSpots()));
+                camara.setNivel(nivelRepo.getReferenceById(nivelId));
+                // Resolver seccion padre si viene
+                if (camDTO.getParentSectionId() != null) {
+                    try {
+                        Long parentSeccionId = resolveRef(camDTO.getParentSectionId(), sectionRefMap, "parentSectionId");
+                        camara.setSeccion(seccionRepo.getReferenceById(parentSeccionId));
+                    } catch (IllegalArgumentException ignored) {
+                        // Si la ref no se puede resolver, dejar la seccion en null (camara global del nivel)
+                    }
+                }
+                camara = camaraRepo.save(camara);
+                savedCameras.add(toCameraConfig(camara));
+            }
+        }
+
         FloorConfigDTO result = new FloorConfigDTO();
         result.setId(nivel.getId().toString());
         result.setName(nivel.getNombre());
@@ -293,6 +327,7 @@ public class ParkingConfigService {
         result.setSubsections(savedSubsections);
         result.setParkingSpots(savedSpots);
         result.setPaths(savedPaths);
+        result.setCameras(savedCameras);
         return result;
     }
 
@@ -346,6 +381,9 @@ public class ParkingConfigService {
 
         // Caminos
         caminoRepo.findByNivelId(nivel.getId()).forEach(c -> { c.setEstado(archivado); caminoRepo.save(c); });
+
+        // Camaras
+        camaraRepo.findByNivelId(nivel.getId()).forEach(c -> { c.setEstado(archivado); camaraRepo.save(c); });
 
         nivel.setEstado(archivado);
         nivelRepo.save(nivel);
@@ -422,6 +460,26 @@ public class ParkingConfigService {
         return dto;
     }
 
+    private CameraConfigDTO toCameraConfig(Camara c) {
+        CameraConfigDTO dto = new CameraConfigDTO();
+        dto.setId(c.getId().toString());
+        dto.setName(c.getNombre());
+        dto.setColor(c.getColor());
+        if (c.getSeccion() != null) {
+            dto.setParentSectionId(c.getSeccion().getId().toString());
+        }
+        // Coordenadas normalizadas
+        Map<String, Double> coords = deserializeCameraCoords(c.getCoordenadas());
+        if (coords != null) {
+            dto.setNx(coords.get("nx"));
+            dto.setNy(coords.get("ny"));
+            dto.setNw(coords.get("nw"));
+            dto.setNh(coords.get("nh"));
+        }
+        dto.setAssignedSpots(deserializeStringList(c.getAssignedSpots()));
+        return dto;
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     //  Utilidades
     // ═══════════════════════════════════════════════════════════════════
@@ -486,6 +544,39 @@ public class ParkingConfigService {
         } catch (JsonProcessingException e) {
             log.warn("Error deserializando coordenadas de punto: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /** Serializa nx,ny,nw,nh a JSON. */
+    private String serializeCameraCoords(CameraConfigDTO dto) {
+        if (dto.getNx() == null && dto.getNy() == null && dto.getNw() == null && dto.getNh() == null) {
+            return null;
+        }
+        Map<String, Double> map = new HashMap<>();
+        if (dto.getNx() != null) map.put("nx", dto.getNx());
+        if (dto.getNy() != null) map.put("ny", dto.getNy());
+        if (dto.getNw() != null) map.put("nw", dto.getNw());
+        if (dto.getNh() != null) map.put("nh", dto.getNh());
+        return serializeJson(map);
+    }
+
+    private Map<String, Double> deserializeCameraCoords(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Double>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("Error deserializando coordenadas de camara: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private List<String> deserializeStringList(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("Error deserializando lista de strings: {}", e.getMessage());
+            return List.of();
         }
     }
 }

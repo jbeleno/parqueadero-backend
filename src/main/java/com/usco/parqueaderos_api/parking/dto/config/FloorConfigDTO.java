@@ -17,4 +17,5 @@ public class FloorConfigDTO {
     private List<SubsectionConfigDTO> subsections;
     private List<ParkingSpotConfigDTO> parkingSpots;
     private List<PathConfigDTO> paths;
+    private List<CameraConfigDTO> cameras;
 }
