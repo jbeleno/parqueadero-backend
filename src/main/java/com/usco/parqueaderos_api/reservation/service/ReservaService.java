@@ -53,8 +53,13 @@ public class ReservaService {
 
     @Transactional(readOnly = true)
     public ReservaDTO findById(Long id) {
-        return reservaRepository.findById(id).map(this::toDTO)
+        Reserva r = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        Long ownerUserId = r.getUsuario() != null ? r.getUsuario().getId() : null;
+        Long empresaId = r.getParqueadero() != null && r.getParqueadero().getEmpresa() != null
+                ? r.getParqueadero().getEmpresa().getId() : null;
+        currentUser.requireOwnerOrAdminEmpresa(ownerUserId, empresaId);
+        return toDTO(r);
     }
 
     @Transactional

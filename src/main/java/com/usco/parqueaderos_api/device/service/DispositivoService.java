@@ -47,8 +47,12 @@ public class DispositivoService {
 
     @Transactional(readOnly = true)
     public DispositivoDTO findById(Long id) {
-        return dispositivoRepository.findById(id).map(this::toDTO)
+        Dispositivo d = dispositivoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dispositivo", id));
+        if (d.getParqueadero() != null && d.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(d.getParqueadero().getEmpresa().getId());
+        }
+        return toDTO(d);
     }
 
     @Transactional

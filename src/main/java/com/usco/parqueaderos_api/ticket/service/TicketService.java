@@ -55,8 +55,20 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public TicketDTO findById(Long id) {
-        return ticketRepository.findById(id).map(this::toDTO)
+        Ticket t = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket", id));
+        if (currentUser.isSuperAdmin()) return toDTO(t);
+        if (currentUser.isAdmin()) {
+            if (t.getParqueadero() != null && t.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(t.getParqueadero().getEmpresa().getId());
+            }
+        } else {
+            // USER: ticket debe ser de uno de sus vehiculos
+            Long personaId = t.getVehiculo() != null && t.getVehiculo().getPersona() != null
+                    ? t.getVehiculo().getPersona().getId() : null;
+            currentUser.requireOwnerOrAnyAdmin(personaId);
+        }
+        return toDTO(t);
     }
 
     @Transactional

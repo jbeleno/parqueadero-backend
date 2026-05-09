@@ -43,8 +43,13 @@ public class TarifaService {
 
     @Transactional(readOnly = true)
     public TarifaDTO findById(Long id) {
-        return tarifaRepository.findById(id).map(this::toDTO)
+        Tarifa t = tarifaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tarifa", id));
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && t.getParqueadero() != null && t.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(t.getParqueadero().getEmpresa().getId());
+        }
+        return toDTO(t);
     }
 
     @Transactional

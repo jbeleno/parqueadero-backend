@@ -38,9 +38,10 @@ public class EmpresaService {
 
     @Transactional(readOnly = true)
     public EmpresaDTO findById(Long id) {
-        return empresaRepository.findById(id)
-                .map(this::toDTO)
+        Empresa e = empresaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Empresa", id));
+        currentUser.requireEmpresa(e.getId());
+        return toDTO(e);
     }
 
     @Transactional

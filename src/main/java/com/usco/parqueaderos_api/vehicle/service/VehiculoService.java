@@ -42,8 +42,11 @@ public class VehiculoService {
 
     @Transactional(readOnly = true)
     public VehiculoDTO findById(Long id) {
-        return vehiculoRepository.findById(id).map(this::toDTO)
+        Vehiculo v = vehiculoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehiculo", id));
+        Long personaId = v.getPersona() != null ? v.getPersona().getId() : null;
+        currentUser.requireOwnerOrAnyAdmin(personaId);
+        return toDTO(v);
     }
 
     @Transactional

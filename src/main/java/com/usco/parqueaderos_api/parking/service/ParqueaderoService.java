@@ -51,9 +51,12 @@ public class ParqueaderoService {
 
     @Transactional(readOnly = true)
     public ParqueaderoDTO findById(Long id) {
-        return parqueaderoRepository.findById(id)
-                .map(this::toDTO)
+        Parqueadero p = parqueaderoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", id));
+        if (p.getEmpresa() != null) {
+            currentUser.requireEmpresa(p.getEmpresa().getId());
+        }
+        return toDTO(p);
     }
 
     @Transactional

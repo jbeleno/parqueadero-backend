@@ -48,8 +48,19 @@ public class FacturaService {
 
     @Transactional(readOnly = true)
     public FacturaDTO findById(Long id) {
-        return facturaRepository.findById(id).map(this::toDTO)
+        Factura f = facturaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Factura", id));
+        if (currentUser.isSuperAdmin()) return toDTO(f);
+        if (currentUser.isAdmin()) {
+            if (f.getParqueadero() != null && f.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(f.getParqueadero().getEmpresa().getId());
+            }
+        } else {
+            Long personaId = f.getVehiculo() != null && f.getVehiculo().getPersona() != null
+                    ? f.getVehiculo().getPersona().getId() : null;
+            currentUser.requireOwnerOrAnyAdmin(personaId);
+        }
+        return toDTO(f);
     }
 
     @Transactional
