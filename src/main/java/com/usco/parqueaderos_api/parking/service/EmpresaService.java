@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.parking.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,11 +21,19 @@ public class EmpresaService {
 
     private final EmpresaRepository empresaRepository;
     private final EstadoRepository estadoRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<EmpresaDTO> findAll() {
-        return empresaRepository.findByEstadoNombreNot("ARCHIVADO").stream()
-                .map(this::toDTO).collect(Collectors.toList());
+        if (currentUser.isSuperAdmin()) {
+            return empresaRepository.findByEstadoNombreNot("ARCHIVADO").stream()
+                    .map(this::toDTO).collect(Collectors.toList());
+        }
+        Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+        if (empresaId == null) return Collections.emptyList();
+        return empresaRepository.findById(empresaId)
+                .map(e -> List.of(toDTO(e)))
+                .orElse(Collections.emptyList());
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.billing.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.billing.dto.FacturaDTO;
 import com.usco.parqueaderos_api.billing.entity.Factura;
 import com.usco.parqueaderos_api.billing.repository.FacturaRepository;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,10 +28,22 @@ public class FacturaService {
     private final TicketRepository ticketRepository;
     private final ParqueaderoRepository parqueaderoRepository;
     private final VehiculoRepository vehiculoRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<FacturaDTO> findAll() {
-        return facturaRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Factura> base;
+        if (currentUser.isSuperAdmin()) {
+            base = facturaRepository.findAll();
+        } else if (currentUser.isAdmin()) {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = facturaRepository.findByParqueaderoEmpresaId(empresaId);
+        } else {
+            // USER: solo facturas de sus propios vehiculos
+            base = facturaRepository.findByVehiculoPersonaId(currentUser.getCurrentPersonaId());
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

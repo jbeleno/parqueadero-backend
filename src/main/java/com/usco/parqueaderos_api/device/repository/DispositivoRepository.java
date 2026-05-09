@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface DispositivoRepository extends JpaRepository<Dispositivo, Long> {
     List<Dispositivo> findByParqueaderoId(Long parqueaderoId);
+    List<Dispositivo> findByParqueaderoEmpresaId(Long empresaId);
 }

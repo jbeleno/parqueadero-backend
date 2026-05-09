@@ -11,7 +11,9 @@ import java.util.List;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findByParqueaderoId(Long parqueaderoId);
+    List<Ticket> findByParqueaderoEmpresaId(Long empresaId);
     List<Ticket> findByVehiculoId(Long vehiculoId);
+    List<Ticket> findByVehiculoPersonaId(Long personaId);
     List<Ticket> findByEstado(String estado);
 
     @Query("SELECT COUNT(t) FROM Ticket t " +

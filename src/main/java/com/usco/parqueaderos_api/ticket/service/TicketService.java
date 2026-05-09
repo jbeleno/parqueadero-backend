@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.ticket.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
 import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,10 +35,22 @@ public class TicketService {
     private final VehiculoRepository vehiculoRepository;
     private final TarifaRepository tarifaRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<TicketDTO> findAll() {
-        return ticketRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Ticket> base;
+        if (currentUser.isSuperAdmin()) {
+            base = ticketRepository.findAll();
+        } else if (currentUser.isAdmin()) {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = ticketRepository.findByParqueaderoEmpresaId(empresaId);
+        } else {
+            // USER: solo tickets de sus propios vehiculos
+            base = ticketRepository.findByVehiculoPersonaId(currentUser.getCurrentPersonaId());
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

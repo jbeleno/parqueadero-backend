@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.reservation.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.common.event.ReservaCreadaEvent;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
@@ -18,6 +19,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,10 +33,22 @@ public class ReservaService {
     private final UsuarioRepository usuarioRepository;
     private final VehiculoRepository vehiculoRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<ReservaDTO> findAll() {
-        return reservaRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Reserva> base;
+        if (currentUser.isSuperAdmin()) {
+            base = reservaRepository.findAll();
+        } else if (currentUser.isAdmin()) {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = reservaRepository.findByParqueaderoEmpresaId(empresaId);
+        } else {
+            // USER: solo sus propias reservas
+            base = reservaRepository.findByUsuarioId(currentUser.getCurrentUserId());
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

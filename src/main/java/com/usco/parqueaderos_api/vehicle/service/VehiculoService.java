@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.vehicle.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
 import com.usco.parqueaderos_api.catalog.repository.TipoVehiculoRepository;
 import com.usco.parqueaderos_api.common.exception.DuplicateResourceException;
@@ -23,10 +24,20 @@ public class VehiculoService {
     private final VehiculoRepository vehiculoRepository;
     private final PersonaRepository personaRepository;
     private final TipoVehiculoRepository tipoVehiculoRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<VehiculoDTO> findAll() {
-        return vehiculoRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Vehiculo> base;
+        if (currentUser.isSuperAdmin() || currentUser.isAdmin()) {
+            // ADMIN ve todos para poder registrar tickets de cualquier visitante
+            base = vehiculoRepository.findAll();
+        } else {
+            // USER ve solo sus propios vehiculos
+            Long personaId = currentUser.getCurrentPersonaId();
+            base = vehiculoRepository.findByPersonaId(personaId);
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

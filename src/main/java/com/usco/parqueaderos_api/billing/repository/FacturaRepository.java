@@ -10,4 +10,6 @@ import java.util.List;
 public interface FacturaRepository extends JpaRepository<Factura, Long> {
     List<Factura> findByTicketId(Long ticketId);
     List<Factura> findByParqueaderoId(Long parqueaderoId);
+    List<Factura> findByParqueaderoEmpresaId(Long empresaId);
+    List<Factura> findByVehiculoPersonaId(Long personaId);
 }

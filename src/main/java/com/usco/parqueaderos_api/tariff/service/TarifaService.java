@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.tariff.service;
 
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
 import com.usco.parqueaderos_api.catalog.repository.TipoVehiculoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,10 +25,20 @@ public class TarifaService {
     private final TarifaRepository tarifaRepository;
     private final ParqueaderoRepository parqueaderoRepository;
     private final TipoVehiculoRepository tipoVehiculoRepository;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<TarifaDTO> findAll() {
-        return tarifaRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        List<Tarifa> base;
+        if (currentUser.isSuperAdmin() || currentUser.isUser()) {
+            // USER tambien necesita ver tarifas para saber cuanto pagara
+            base = tarifaRepository.findAll();
+        } else {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = tarifaRepository.findByParqueaderoEmpresaId(empresaId);
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

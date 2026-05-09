@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface TarifaRepository extends JpaRepository<Tarifa, Long> {
     List<Tarifa> findByParqueaderoId(Long parqueaderoId);
+    List<Tarifa> findByParqueaderoEmpresaId(Long empresaId);
 }

@@ -7,6 +7,7 @@ import com.usco.parqueaderos_api.catalog.repository.TipoParqueaderoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.location.entity.Ciudad;
 import com.usco.parqueaderos_api.location.repository.CiudadRepository;
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.parking.dto.DisponibilidadDTO;
 import com.usco.parqueaderos_api.parking.dto.ParqueaderoDTO;
 import com.usco.parqueaderos_api.parking.entity.Empresa;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,12 +34,19 @@ public class ParqueaderoService {
     private final TipoParqueaderoRepository tipoParqueaderoRepository;
     private final EstadoRepository estadoRepository;
     private final DisponibilidadService disponibilidadService;
+    private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
     public List<ParqueaderoDTO> findAll() {
-        return parqueaderoRepository.findAll().stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        List<Parqueadero> base;
+        if (currentUser.isSuperAdmin()) {
+            base = parqueaderoRepository.findAll();
+        } else {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            if (empresaId == null) return Collections.emptyList();
+            base = parqueaderoRepository.findByEmpresaId(empresaId);
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

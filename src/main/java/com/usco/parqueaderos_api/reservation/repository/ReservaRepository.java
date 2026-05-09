@@ -13,6 +13,7 @@ import java.util.List;
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     List<Reserva> findByUsuarioId(Long usuarioId);
     List<Reserva> findByParqueaderoId(Long parqueaderoId);
+    List<Reserva> findByParqueaderoEmpresaId(Long empresaId);
     List<Reserva> findByEstado(String estado);
 
     @Query("SELECT COUNT(r) FROM Reserva r " +
