@@ -109,3 +109,24 @@ INSERT INTO ciudad (id, departamento_id, nombre, identificador_departamental) VA
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('ciudad_id_seq', (SELECT COALESCE(MAX(id),0) FROM ciudad));
+
+-- ════════════════════════════════════════════════════════════════
+-- 8. INDICES OPERATIVOS (no los crea Hibernate ddl-auto)
+-- ════════════════════════════════════════════════════════════════
+
+-- Anti-sobreventa: solo puede haber UN ticket EN_CURSO por punto de parqueo.
+-- Indice unico parcial. Si dos requests intentan crear ticket EN_CURSO
+-- en el mismo punto, la segunda inserción falla con violacion de unicidad.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_ticket_punto_en_curso
+  ON ticket (punto_parqueo_id)
+  WHERE estado = 'EN_CURSO';
+
+-- Indices hot-path para queries de filtrado/conteo
+CREATE INDEX IF NOT EXISTS idx_ticket_estado            ON ticket (estado);
+CREATE INDEX IF NOT EXISTS idx_ticket_parqueadero       ON ticket (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_vehiculo          ON ticket (vehiculo_id);
+CREATE INDEX IF NOT EXISTS idx_reserva_estado_fechas    ON reserva (estado, fecha_hora_inicio, fecha_hora_fin);
+CREATE INDEX IF NOT EXISTS idx_reserva_punto            ON reserva (punto_parqueo_id);
+CREATE INDEX IF NOT EXISTS idx_factura_ticket           ON factura (ticket_id);
+CREATE INDEX IF NOT EXISTS idx_factura_estado           ON factura (estado);
+CREATE INDEX IF NOT EXISTS idx_pago_factura             ON pago (factura_id);
