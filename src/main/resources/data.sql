@@ -90,6 +90,15 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('departamento_id_seq', (SELECT COALESCE(MAX(id),0) FROM departamento));
 
+-- ════════════════════════════════════════════════════════════════
+-- 7.5. EMPRESA POR DEFECTO (asignada a usuarios que se registran sin empresa)
+-- ════════════════════════════════════════════════════════════════
+INSERT INTO empresa (id, nombre, descripcion, estado_id) VALUES
+  (1, 'Público', 'Empresa por defecto para usuarios sin afiliación a una empresa específica. Permite acceso a parqueaderos públicos.', 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval('empresa_id_seq', GREATEST((SELECT COALESCE(MAX(id),0) FROM empresa), 1));
+
 INSERT INTO ciudad (id, departamento_id, nombre, identificador_departamental) VALUES
   -- Huila
   (1,  1, 'Neiva',       '001'),

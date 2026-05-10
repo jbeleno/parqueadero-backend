@@ -9,6 +9,8 @@ import com.usco.parqueaderos_api.catalog.repository.RolRepository;
 import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.common.service.EmailService;
+import com.usco.parqueaderos_api.parking.entity.Empresa;
+import com.usco.parqueaderos_api.parking.repository.EmpresaRepository;
 import com.usco.parqueaderos_api.user.entity.Persona;
 import com.usco.parqueaderos_api.user.entity.Usuario;
 import com.usco.parqueaderos_api.user.entity.UsuarioRol;
@@ -38,6 +40,7 @@ public class AuthService {
     private final UsuarioRolRepository usuarioRolRepository;
     private final RolRepository rolRepository;
     private final EstadoRepository estadoRepository;
+    private final EmpresaRepository empresaRepository;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final PinService pinService;
@@ -45,6 +48,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+
+    private static final String EMPRESA_DEFAULT_NOMBRE = "Público";
 
     @Value("${app.security.max-intentos-fallidos:5}")
     private int maxIntentosFallidos;
@@ -79,11 +84,28 @@ public class AuthService {
         persona.setNumeroDocumento(request.getNumeroDocumento());
         personaRepository.save(persona);
 
+        // Resolver empresa: la del request si vino, sino la "Publico" por defecto
+        Empresa empresa;
+        if (request.getEmpresaId() != null) {
+            empresa = empresaRepository.findById(request.getEmpresaId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Empresa", request.getEmpresaId()));
+        } else {
+            empresa = empresaRepository.findByNombreIgnoreCase(EMPRESA_DEFAULT_NOMBRE)
+                    .orElseGet(() -> {
+                        Empresa e = new Empresa();
+                        e.setNombre(EMPRESA_DEFAULT_NOMBRE);
+                        e.setDescripcion("Empresa por defecto para usuarios sin afiliación específica");
+                        e.setEstado(estadoActivo);
+                        return empresaRepository.save(e);
+                    });
+        }
+
         Usuario usuario = new Usuario();
         usuario.setCorreo(request.getCorreo());
         usuario.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         usuario.setEstado(estadoActivo);
         usuario.setPersona(persona);
+        usuario.setEmpresa(empresa);
         usuario.setConfirmado(false);
         usuario.setIntentosFallidos(0);
         usuario.setFechaCreacion(LocalDateTime.now());
