@@ -202,6 +202,44 @@ public class TicketService {
         ticketRepository.deleteById(id);
     }
 
+    /**
+     * Registra la salida de un ticket EN_CURSO. Endpoint dedicado y limpio:
+     * - Usa el reloj del servidor para fechaHoraSalida (anti-fraude)
+     * - Calcula el monto via TarifaCalculatorService
+     * - Solo permite cerrar tickets en estado EN_CURSO
+     * - Publica TicketCerradoEvent para que el sistema actualice ocupacion
+     */
+    @Transactional
+    public TicketDTO registrarSalida(Long id) {
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo el operador puede registrar salidas");
+        }
+        Ticket existing = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket", id));
+
+        if (existing.getParqueadero() != null && existing.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+        }
+
+        if (!"EN_CURSO".equals(existing.getEstado())) {
+            throw new BusinessException(
+                    "Solo se puede registrar salida de un ticket EN_CURSO. Estado actual: " + existing.getEstado(),
+                    "ERR_INVALID_TRANSITION");
+        }
+
+        LocalDateTime salida = LocalDateTime.now();
+        existing.setFechaHoraSalida(salida);
+        existing.setMontoCalculado(tarifaCalculator.calcular(existing, salida));
+        existing.setEstado("CERRADO");
+        Ticket saved = ticketRepository.save(existing);
+
+        Long parqueaderoId = saved.getParqueadero() != null ? saved.getParqueadero().getId() : null;
+        Long puntoId = saved.getPuntoParqueo() != null ? saved.getPuntoParqueo().getId() : null;
+        eventPublisher.publishEvent(new TicketCerradoEvent(this, saved.getId(), parqueaderoId, puntoId));
+
+        return toDTO(saved);
+    }
+
     private TicketDTO toDTO(Ticket e) {
         TicketDTO dto = new TicketDTO();
         dto.setId(e.getId());

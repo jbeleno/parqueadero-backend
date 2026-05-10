@@ -38,6 +38,18 @@ public class TicketController {
         return ResponseEntity.ok(ApiResponse.ok(ticketService.update(id, dto)));
     }
 
+    /**
+     * Registra la salida de un ticket EN_CURSO.
+     * El backend setea fechaHoraSalida con el reloj del servidor y calcula
+     * el monto automaticamente via TarifaCalculatorService.
+     * No requiere body.
+     */
+    @PatchMapping("/{id}/salida")
+    public ResponseEntity<ApiResponse<TicketDTO>> registrarSalida(@PathVariable Long id) {
+        return ResponseEntity.ok(
+                ApiResponse.ok(ticketService.registrarSalida(id), "Salida registrada y monto calculado"));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         ticketService.delete(id);
