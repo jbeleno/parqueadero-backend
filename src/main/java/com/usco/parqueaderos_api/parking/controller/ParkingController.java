@@ -68,6 +68,17 @@ public class ParkingController {
         return ResponseEntity.ok(ApiResponse.ok(parqueaderoService.findAll()));
     }
 
+    /**
+     * Parqueaderos accesibles para CUALQUIER usuario autenticado (incluido USER).
+     * Devuelve los activos que son publicos (empresa "Público") o de la empresa
+     * del usuario. Pensado para que el cliente pueda crear reservas sin chocar
+     * con el filtrado estricto multi-tenant de GET /api/parqueaderos.
+     */
+    @GetMapping("/api/parqueaderos/publicos")
+    public ResponseEntity<ApiResponse<List<ParqueaderoDTO>>> getParqueaderosPublicos() {
+        return ResponseEntity.ok(ApiResponse.ok(parqueaderoService.findPublicos()));
+    }
+
     @GetMapping("/api/parqueaderos/{id}")
     public ResponseEntity<ApiResponse<ParqueaderoDTO>> getParqueaderoById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(parqueaderoService.findById(id)));

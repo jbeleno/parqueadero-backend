@@ -59,6 +59,24 @@ public class ParqueaderoService {
         return toDTO(p);
     }
 
+    /**
+     * Devuelve parqueaderos accesibles para el usuario actual sin restriccion
+     * estricta de empresa: los publicos (empresa "Público") + los de la empresa
+     * propia. Accesible para CUALQUIER usuario autenticado, incluyendo USER.
+     * Pensado para que el USER vea opciones donde puede reservar.
+     */
+    @Transactional(readOnly = true)
+    public List<ParqueaderoDTO> findPublicos() {
+        List<Parqueadero> base;
+        if (currentUser.isSuperAdmin()) {
+            base = parqueaderoRepository.findAll();
+        } else {
+            Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+            base = parqueaderoRepository.findPublicosYDeMiEmpresa(empresaId);
+        }
+        return base.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     @Transactional
     public ParqueaderoDTO save(ParqueaderoDTO dto) {
         Parqueadero entity = toEntity(dto);
