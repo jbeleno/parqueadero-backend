@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.entity.TipoParqueadero;
 import com.usco.parqueaderos_api.catalog.entity.TipoPuntoParqueo;
+import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.catalog.repository.TipoParqueaderoRepository;
 import com.usco.parqueaderos_api.catalog.repository.TipoPuntoParqueoRepository;
@@ -48,6 +49,7 @@ public class ParkingConfigService {
     private final EstadoRepository estadoRepo;
 
     private final ObjectMapper objectMapper;
+    private final CurrentUserService currentUser;
 
     // ─── CONSTANTS ──────────────────────────────────────────────────────
     private static final String ARCHIVADO = "ARCHIVADO";
@@ -61,6 +63,14 @@ public class ParkingConfigService {
     public ParkingLotConfigDTO getConfig(Long parqueaderoId) {
         Parqueadero p = parqueaderoRepo.findById(parqueaderoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", parqueaderoId));
+
+        // Multi-tenant: solo SUPER_ADMIN ve cualquier parqueadero;
+        // ADMIN solo el de su empresa; USER puede leer (parqueaderos publicos)
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            if (p.getEmpresa() != null) {
+                currentUser.requireEmpresa(p.getEmpresa().getId());
+            }
+        }
 
         ParkingLotConfigDTO config = new ParkingLotConfigDTO();
         config.setParkingLot(toParkingLotInfo(p));
@@ -113,8 +123,32 @@ public class ParkingConfigService {
 
     @Transactional
     public ParkingLotConfigDTO saveConfig(ParkingLotConfigDTO configDTO) {
+        // RBAC: solo ADMIN/SUPER_ADMIN pueden crear/modificar layouts
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Solo ADMIN o SUPER_ADMIN pueden modificar la configuracion de un parqueadero");
+        }
+
         Estado activo = estadoRepo.findByNombreIgnoreCase(ACTIVO)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ACTIVO no encontrado"));
+
+        // Multi-tenant: si es ADMIN y el parqueadero ya existe, validar ownership
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && configDTO.getParkingLot() != null && configDTO.getParkingLot().getId() != null) {
+            Parqueadero existente = parqueaderoRepo.findById(configDTO.getParkingLot().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", configDTO.getParkingLot().getId()));
+            if (existente.getEmpresa() != null) {
+                currentUser.requireEmpresa(existente.getEmpresa().getId());
+            }
+        }
+        // Si es ADMIN y crea uno nuevo, debe asignarlo a su empresa
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && configDTO.getParkingLot() != null && configDTO.getParkingLot().getId() == null) {
+            Long miEmpresa = currentUser.getCurrentEmpresaId().orElse(null);
+            if (miEmpresa != null) {
+                configDTO.getParkingLot().setEmpresaId(miEmpresa);
+            }
+        }
 
         // 1) Parqueadero
         Parqueadero parqueadero = saveOrUpdateParqueadero(configDTO.getParkingLot(), activo);
@@ -359,6 +393,36 @@ public class ParkingConfigService {
         Estado archivado = estadoRepo.findByNombreIgnoreCase(ARCHIVADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
         archivarNivelCascade(nivel, archivado);
+    }
+
+    /**
+     * Borra (soft-delete) toda la configuracion interna de un parqueadero:
+     * niveles, secciones, subsecciones, puntos de parqueo, caminos y camaras.
+     * El parqueadero en si NO se archiva, puede recibir una nueva configuracion.
+     *
+     * RBAC: solo ADMIN/SUPER_ADMIN. Multi-tenant: la empresa del parqueadero
+     * debe coincidir con la del operador (excepto SUPER_ADMIN).
+     */
+    @Transactional
+    public void deleteConfig(Long parqueaderoId) {
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Solo ADMIN o SUPER_ADMIN pueden borrar la configuracion");
+        }
+        Parqueadero p = parqueaderoRepo.findById(parqueaderoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", parqueaderoId));
+        if (p.getEmpresa() != null) {
+            currentUser.requireEmpresa(p.getEmpresa().getId());
+        }
+
+        Estado archivado = estadoRepo.findByNombreIgnoreCase(ARCHIVADO)
+                .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
+
+        List<Nivel> niveles = nivelRepo.findByParqueaderoId(parqueaderoId);
+        for (Nivel nivel : niveles) {
+            archivarNivelCascade(nivel, archivado);
+        }
+        // El parqueadero permanece activo
     }
 
     private void archivarNivelCascade(Nivel nivel, Estado archivado) {

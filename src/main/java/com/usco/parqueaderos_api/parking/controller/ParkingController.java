@@ -101,8 +101,9 @@ public class ParkingController {
     //  Configuración completa (diseño del parqueadero)
     // ════════════════════════════════════════════════════════════════
 
-    /** Guarda toda la configuración del parqueadero (pisos, secciones, subsecciones, puntos, caminos) */
+    /** Guarda toda la configuración del parqueadero (pisos, secciones, subsecciones, puntos, caminos, camaras) */
     @PostMapping("/api/parqueaderos/configuracion")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<ParkingLotConfigDTO>> saveConfig(
             @RequestBody ParkingLotConfigDTO configDTO) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -111,6 +112,7 @@ public class ParkingController {
 
     /** Actualiza la configuración existente de un parqueadero */
     @PutMapping("/api/parqueaderos/{id}/configuracion")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<ParkingLotConfigDTO>> updateConfig(
             @PathVariable Long id,
             @RequestBody ParkingLotConfigDTO configDTO) {
@@ -125,6 +127,20 @@ public class ParkingController {
     @GetMapping("/api/parqueaderos/{id}/configuracion")
     public ResponseEntity<ApiResponse<ParkingLotConfigDTO>> getConfig(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(parkingConfigService.getConfig(id)));
+    }
+
+    /**
+     * Borra (soft-delete) toda la configuración interna del parqueadero
+     * (niveles, secciones, subsecciones, puntos, caminos, camaras).
+     * El parqueadero permanece activo y puede recibir una nueva configuración.
+     *
+     * Solo ADMIN/SUPER_ADMIN. Multi-tenant: la empresa debe coincidir.
+     */
+    @DeleteMapping("/api/parqueaderos/{id}/configuracion")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<String>> deleteConfig(@PathVariable Long id) {
+        parkingConfigService.deleteConfig(id);
+        return ResponseEntity.ok(ApiResponse.ok("Configuración del parqueadero eliminada. El parqueadero queda activo y puede recibir nueva configuración."));
     }
 
     /** Archiva un nivel específico y todos sus hijos (solo ADMIN/SUPER_ADMIN) */
