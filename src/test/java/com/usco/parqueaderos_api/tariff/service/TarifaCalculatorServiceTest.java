@@ -122,4 +122,58 @@ class TarifaCalculatorServiceTest {
         assertThrows(BusinessException.class,
                 () -> calculator.calcular(ticket, LocalDateTime.now().plusHours(1)));
     }
+
+    @Test
+    @DisplayName("Unidad 'Hora' (sin POR_) se normaliza a POR_HORA")
+    void unidad_Hora_seNormaliza() {
+        Tarifa t = tarifa("Hora", 3000, null);
+        LocalDateTime entrada = LocalDateTime.of(2026, 5, 13, 10, 0);
+        double monto = calculator.calcular(ticketCon(t, entrada), entrada.plusHours(2));
+        assertEquals(6000.0, monto);
+    }
+
+    @Test
+    @DisplayName("Unidad 'hora' minuscula tambien funciona")
+    void unidad_hora_minuscula() {
+        Tarifa t = tarifa("hora", 3000, null);
+        LocalDateTime entrada = LocalDateTime.of(2026, 5, 13, 10, 0);
+        double monto = calculator.calcular(ticketCon(t, entrada), entrada.plusHours(1));
+        assertEquals(3000.0, monto);
+    }
+
+    @Test
+    @DisplayName("Unidad 'Día' con tilde se normaliza a POR_DIA")
+    void unidad_DiaConTilde() {
+        Tarifa t = tarifa("Día", 25000, null);
+        LocalDateTime entrada = LocalDateTime.of(2026, 5, 13, 10, 0);
+        double monto = calculator.calcular(ticketCon(t, entrada), entrada.plusHours(25));
+        assertEquals(50000.0, monto);
+    }
+
+    @Test
+    @DisplayName("Unidad 'Por Hora' con espacio se normaliza")
+    void unidad_PorHoraConEspacio() {
+        Tarifa t = tarifa("Por Hora", 3000, null);
+        LocalDateTime entrada = LocalDateTime.of(2026, 5, 13, 10, 0);
+        double monto = calculator.calcular(ticketCon(t, entrada), entrada.plusHours(1));
+        assertEquals(3000.0, monto);
+    }
+
+    @Test
+    @DisplayName("Unidad 'Fraccion' (sin POR_) se normaliza")
+    void unidad_Fraccion() {
+        Tarifa t = tarifa("Fraccion", 800, 15);
+        LocalDateTime entrada = LocalDateTime.of(2026, 5, 13, 10, 0);
+        double monto = calculator.calcular(ticketCon(t, entrada), entrada.plusMinutes(20));
+        assertEquals(1600.0, monto);
+    }
+
+    @Test
+    @DisplayName("Unidad 'Plana' se normaliza")
+    void unidad_Plana() {
+        Tarifa t = tarifa("Plana", 5000, null);
+        LocalDateTime entrada = LocalDateTime.of(2026, 5, 13, 10, 0);
+        double monto = calculator.calcular(ticketCon(t, entrada), entrada.plusHours(8));
+        assertEquals(5000.0, monto);
+    }
 }

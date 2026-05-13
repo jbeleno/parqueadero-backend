@@ -44,14 +44,10 @@ public class TarifaCalculatorService {
         }
         long minutos = Math.max(0L, Duration.between(ticket.getFechaHoraEntrada(), salida).toMinutes());
 
-        String unidad = tarifa.getUnidad();
+        String unidadNormalizada = normalizarUnidad(tarifa.getUnidad());
         double valor = tarifa.getValor();
 
-        if (unidad == null) {
-            throw new BusinessException("Tarifa sin unidad definida", "ERR_TARIFA_UNIDAD");
-        }
-
-        switch (unidad) {
+        switch (unidadNormalizada) {
             case "POR_HORA":
                 return Math.ceil(minutos / 60.0) * valor;
             case "POR_FRACCION":
@@ -64,8 +60,45 @@ public class TarifaCalculatorService {
                 return valor;
             default:
                 throw new BusinessException(
-                        "Unidad de tarifa no soportada: " + unidad,
+                        "Unidad de tarifa no soportada: " + tarifa.getUnidad(),
                         "ERR_TARIFA_UNIDAD_DESCONOCIDA");
         }
+    }
+
+    /**
+     * Normaliza la unidad de tarifa a uno de los valores canónicos:
+     * POR_HORA, POR_FRACCION, POR_DIA, PLANA.
+     *
+     * Tolerante a variantes que el frontend o usuarios admin puedan
+     * haber guardado: "Hora", "hora", "HOUR", "Por Hora", "Día", etc.
+     * Case-insensitive, ignora acentos y separadores comunes.
+     */
+    private String normalizarUnidad(String unidad) {
+        if (unidad == null) {
+            throw new BusinessException("Tarifa sin unidad definida", "ERR_TARIFA_UNIDAD");
+        }
+        // Normalizar: minusculas, quitar tildes, quitar espacios y guiones
+        String n = unidad.trim().toLowerCase()
+                .replace("á", "a").replace("é", "e").replace("í", "i")
+                .replace("ó", "o").replace("ú", "u")
+                .replace(" ", "").replace("_", "").replace("-", "");
+
+        // Hora: "hora", "porhora", "hour", "byhour"
+        if (n.equals("hora") || n.equals("porhora") || n.equals("hour") || n.equals("byhour")) {
+            return "POR_HORA";
+        }
+        // Fraccion: "fraccion", "porfraccion", "fraction", "byfraction"
+        if (n.equals("fraccion") || n.equals("porfraccion") || n.equals("fraction") || n.equals("byfraction")) {
+            return "POR_FRACCION";
+        }
+        // Dia: "dia", "pordia", "day", "byday"
+        if (n.equals("dia") || n.equals("pordia") || n.equals("day") || n.equals("byday")) {
+            return "POR_DIA";
+        }
+        // Plana: "plana", "plano", "flat", "fija", "fijo"
+        if (n.equals("plana") || n.equals("plano") || n.equals("flat") || n.equals("fija") || n.equals("fijo")) {
+            return "PLANA";
+        }
+        return ""; // hara fallar el switch → ERR_TARIFA_UNIDAD_DESCONOCIDA
     }
 }
