@@ -28,12 +28,34 @@ public class VehiculoService {
 
     @Transactional(readOnly = true)
     public List<VehiculoDTO> findAll() {
+        return findAll(false);
+    }
+
+    /**
+     * Lista vehiculos.
+     * - SUPER_ADMIN: siempre ve todos (ignora soloMiEmpresa)
+     * - ADMIN:
+     *     soloMiEmpresa=false (default): ve todos (necesario para registrar
+     *         entradas de visitantes cuyo vehiculo aun no esta en su empresa)
+     *     soloMiEmpresa=true: filtra por historial - solo vehiculos que ya
+     *         hayan tenido ticket o reserva en algun parqueadero de su empresa
+     * - USER: ignora el flag, solo ve sus propios vehiculos
+     */
+    @Transactional(readOnly = true)
+    public List<VehiculoDTO> findAll(boolean soloMiEmpresa) {
         List<Vehiculo> base;
-        if (currentUser.isSuperAdmin() || currentUser.isAdmin()) {
-            // ADMIN ve todos para poder registrar tickets de cualquier visitante
+        if (currentUser.isSuperAdmin()) {
             base = vehiculoRepository.findAll();
+        } else if (currentUser.isAdmin()) {
+            if (soloMiEmpresa) {
+                Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
+                if (empresaId == null) return java.util.Collections.emptyList();
+                base = vehiculoRepository.findByActividadEnEmpresa(empresaId);
+            } else {
+                base = vehiculoRepository.findAll();
+            }
         } else {
-            // USER ve solo sus propios vehiculos
+            // USER: solo sus propios vehiculos
             Long personaId = currentUser.getCurrentPersonaId();
             base = vehiculoRepository.findByPersonaId(personaId);
         }

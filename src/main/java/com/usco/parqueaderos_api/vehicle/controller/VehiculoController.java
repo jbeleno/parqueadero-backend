@@ -18,9 +18,18 @@ public class VehiculoController {
 
     private final VehiculoService vehiculoService;
 
+    /**
+     * Lista vehiculos.
+     * @param soloMiEmpresa si true, ADMIN ve solo vehiculos con actividad
+     *                       (tickets/reservas) en parqueaderos de su empresa.
+     *                       SUPER_ADMIN ignora el flag (siempre todos).
+     *                       USER ignora el flag (siempre solo los suyos).
+     *                       Default: false.
+     */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<VehiculoDTO>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(vehiculoService.findAll()));
+    public ResponseEntity<ApiResponse<List<VehiculoDTO>>> getAll(
+            @RequestParam(name = "soloMiEmpresa", required = false, defaultValue = "false") boolean soloMiEmpresa) {
+        return ResponseEntity.ok(ApiResponse.ok(vehiculoService.findAll(soloMiEmpresa)));
     }
 
     @GetMapping("/{id}")
