@@ -100,9 +100,12 @@ public class PuntoParqueoService {
         Set<Long> reservados = puntoParqueoRepository.idsReservadosEntre(ids, LocalDateTime.now());
         return entities.stream().map(e -> {
             PuntoParqueoDTO dto = toDTO(e);
-            if (ocupados.contains(e.getId())) dto.setEstadoOperativo("OCUPADO");
-            else if (reservados.contains(e.getId())) dto.setEstadoOperativo("RESERVADO");
-            else dto.setEstadoOperativo("DISPONIBLE");
+            String op;
+            if (ocupados.contains(e.getId())) op = "OCUPADO";
+            else if (reservados.contains(e.getId())) op = "RESERVADO";
+            else op = "DISPONIBLE";
+            dto.setEstadoOperativo(op);
+            dto.setEstado(toLowerEstado(op));
             return dto;
         }).collect(Collectors.toList());
     }
@@ -110,7 +113,9 @@ public class PuntoParqueoService {
     /** Para un solo punto: 2 queries simples. */
     private PuntoParqueoDTO toDTOConEstado(PuntoParqueo e) {
         PuntoParqueoDTO dto = toDTO(e);
-        dto.setEstadoOperativo(calcularEstadoOperativo(e.getId()));
+        String op = calcularEstadoOperativo(e.getId());
+        dto.setEstadoOperativo(op);
+        dto.setEstado(toLowerEstado(op));
         return dto;
     }
 
@@ -122,6 +127,27 @@ public class PuntoParqueoService {
             return "RESERVADO";
         }
         return "DISPONIBLE";
+    }
+
+    /** OCUPADO->occupied, RESERVADO->reserved, DISPONIBLE->free (formato frontend). */
+    private String toLowerEstado(String op) {
+        if (op == null) return "free";
+        switch (op) {
+            case "OCUPADO":   return "occupied";
+            case "RESERVADO": return "reserved";
+            default:          return "free";
+        }
+    }
+
+    /**
+     * Lista los puntos no archivados de un parqueadero con su estado operativo
+     * calculado. Accesible para cualquier usuario autenticado (sin filtrado
+     * multi-tenant porque es lectura del layout publico del parqueadero).
+     */
+    @Transactional(readOnly = true)
+    public List<PuntoParqueoDTO> findByParqueadero(Long parqueaderoId) {
+        List<PuntoParqueo> base = puntoParqueoRepository.findActiveByParqueaderoId(parqueaderoId);
+        return mapAndCalcularEstadoBatch(base);
     }
 
     private PuntoParqueoDTO toDTO(PuntoParqueo e) {

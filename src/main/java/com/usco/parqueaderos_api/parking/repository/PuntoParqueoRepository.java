@@ -33,6 +33,12 @@ public interface PuntoParqueoRepository extends JpaRepository<PuntoParqueo, Long
 
     List<PuntoParqueo> findBySubSeccionSeccionParqueaderoEmpresaId(Long empresaId);
 
+    /** Puntos no archivados de un parqueadero (jerarquia: punto -> subSeccion -> seccion -> parqueadero) */
+    @Query("SELECT pp FROM PuntoParqueo pp " +
+           "WHERE pp.subSeccion.seccion.parqueadero.id = :parqueaderoId " +
+           "AND (pp.estado IS NULL OR pp.estado.nombre <> 'ARCHIVADO')")
+    List<PuntoParqueo> findActiveByParqueaderoId(@Param("parqueaderoId") Long parqueaderoId);
+
     /** IDs de puntos OCUPADOS (con ticket EN_CURSO) entre los dados. Para batch del estadoOperativo. */
     @Query("SELECT t.puntoParqueo.id FROM Ticket t " +
            "WHERE t.puntoParqueo.id IN :puntoIds AND t.estado = 'EN_CURSO'")

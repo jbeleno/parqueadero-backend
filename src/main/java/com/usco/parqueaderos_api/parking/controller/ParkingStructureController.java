@@ -131,6 +131,18 @@ public class ParkingStructureController {
         return ResponseEntity.ok(ApiResponse.ok(puntoParqueoService.findById(id)));
     }
 
+    /**
+     * Lista los puntos de parqueo de un parqueadero con su estado operativo
+     * actual (free / occupied / reserved). Accesible para cualquier usuario
+     * autenticado, pensado para que el frontend pinte el layout con estados
+     * en tiempo real.
+     */
+    @GetMapping("/api/puntos-parqueo/parqueadero/{parqueaderoId}")
+    public ResponseEntity<ApiResponse<List<PuntoParqueoDTO>>> getPuntosByParqueadero(
+            @PathVariable Long parqueaderoId) {
+        return ResponseEntity.ok(ApiResponse.ok(puntoParqueoService.findByParqueadero(parqueaderoId)));
+    }
+
     @PostMapping("/api/puntos-parqueo")
     public ResponseEntity<ApiResponse<PuntoParqueoDTO>> createPuntoParqueo(@Valid @RequestBody PuntoParqueoDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(puntoParqueoService.save(dto)));

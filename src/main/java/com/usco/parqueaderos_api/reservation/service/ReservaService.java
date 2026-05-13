@@ -1,6 +1,7 @@
 package com.usco.parqueaderos_api.reservation.service;
 
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
+import com.usco.parqueaderos_api.common.event.ReservaCanceladaEvent;
 import com.usco.parqueaderos_api.common.event.ReservaCreadaEvent;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
@@ -77,6 +78,7 @@ public class ReservaService {
     public ReservaDTO update(Long id, ReservaDTO dto) {
         Reserva existing = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        String estadoAnterior = existing.getEstado();
         existing.setFechaHoraInicio(dto.getFechaHoraInicio());
         existing.setFechaHoraFin(dto.getFechaHoraFin());
         existing.setEstado(dto.getEstado());
@@ -84,13 +86,38 @@ public class ReservaService {
         if (dto.getVehiculoId() != null) existing.setVehiculo(findVehiculo(dto.getVehiculoId()));
         if (dto.getParqueaderoId() != null) existing.setParqueadero(findParqueadero(dto.getParqueaderoId()));
         if (dto.getPuntoParqueoId() != null) existing.setPuntoParqueo(findPuntoParqueo(dto.getPuntoParqueoId()));
-        return toDTO(reservaRepository.save(existing));
+        Reserva saved = reservaRepository.save(existing);
+
+        // Si paso a un estado "no activo", publicar evento para liberar el punto
+        boolean eraActiva = "PENDIENTE".equals(estadoAnterior) || "CONFIRMADA".equals(estadoAnterior);
+        boolean ahoraInactiva = "CANCELADA".equals(saved.getEstado()) || "EXPIRADA".equals(saved.getEstado());
+        if (eraActiva && ahoraInactiva) {
+            publicarCancelada(saved);
+        }
+        return toDTO(saved);
     }
 
     @Transactional
     public void delete(Long id) {
-        reservaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        Reserva existing = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        // Capturar refs antes de borrar para el evento
+        Long reservaId = existing.getId();
+        Long usuarioId = existing.getUsuario() != null ? existing.getUsuario().getId() : null;
+        Long parqueaderoId = existing.getParqueadero() != null ? existing.getParqueadero().getId() : null;
+        Long puntoParqueoId = existing.getPuntoParqueo() != null ? existing.getPuntoParqueo().getId() : null;
+
         reservaRepository.deleteById(id);
+        eventPublisher.publishEvent(
+                new ReservaCanceladaEvent(this, reservaId, usuarioId, parqueaderoId, puntoParqueoId));
+    }
+
+    private void publicarCancelada(Reserva r) {
+        Long usuarioId = r.getUsuario() != null ? r.getUsuario().getId() : null;
+        Long parqueaderoId = r.getParqueadero() != null ? r.getParqueadero().getId() : null;
+        Long puntoParqueoId = r.getPuntoParqueo() != null ? r.getPuntoParqueo().getId() : null;
+        eventPublisher.publishEvent(
+                new ReservaCanceladaEvent(this, r.getId(), usuarioId, parqueaderoId, puntoParqueoId));
     }
 
     private ReservaDTO toDTO(Reserva e) {
