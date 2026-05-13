@@ -139,3 +139,22 @@ CREATE INDEX IF NOT EXISTS idx_reserva_punto            ON reserva (punto_parque
 CREATE INDEX IF NOT EXISTS idx_factura_ticket           ON factura (ticket_id);
 CREATE INDEX IF NOT EXISTS idx_factura_estado           ON factura (estado);
 CREATE INDEX IF NOT EXISTS idx_pago_factura             ON pago (factura_id);
+
+-- Indices para queries multi-tenant (joins por empresa) y jerarquia
+CREATE INDEX IF NOT EXISTS idx_parqueadero_empresa      ON parqueadero (empresa_id);
+CREATE INDEX IF NOT EXISTS idx_nivel_parqueadero        ON nivel (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_seccion_parqueadero      ON seccion (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_seccion_nivel            ON seccion (nivel_id);
+CREATE INDEX IF NOT EXISTS idx_subseccion_seccion       ON sub_seccion (seccion_id);
+CREATE INDEX IF NOT EXISTS idx_punto_subseccion         ON punto_parqueo (sub_seccion_id);
+CREATE INDEX IF NOT EXISTS idx_camino_nivel             ON camino (nivel_id);
+CREATE INDEX IF NOT EXISTS idx_camara_nivel             ON camara (nivel_id);
+CREATE INDEX IF NOT EXISTS idx_dispositivo_parqueadero  ON dispositivo (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_tarifa_parqueadero       ON tarifa (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_vehiculo_persona         ON vehiculo (persona_id);
+CREATE INDEX IF NOT EXISTS idx_usuario_empresa          ON usuario (empresa_id);
+CREATE INDEX IF NOT EXISTS idx_usuario_correo           ON usuario (correo);
+CREATE INDEX IF NOT EXISTS idx_reserva_usuario          ON reserva (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_reserva_parqueadero      ON reserva (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_factura_parqueadero      ON factura (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_factura_vehiculo         ON factura (vehiculo_id);
