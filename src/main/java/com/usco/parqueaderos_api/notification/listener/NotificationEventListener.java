@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.notification.listener;
 
+import com.usco.parqueaderos_api.common.event.CamaraImagenActualizadaEvent;
 import com.usco.parqueaderos_api.common.event.ReservaCanceladaEvent;
 import com.usco.parqueaderos_api.common.event.ReservaCreadaEvent;
 import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
@@ -101,6 +102,23 @@ public class NotificationEventListener {
             emitirSpotStatusChange(event.getPuntoParqueoId(), "free", null, event.getParqueaderoId());
         }
         emitirOcupacionActualizada(event.getParqueaderoId());
+    }
+
+    @Async
+    @EventListener
+    public void onCamaraImagenActualizada(CamaraImagenActualizadaEvent event) {
+        if (event.getParqueaderoId() == null) return;
+        Map<String, Object> data = new HashMap<>();
+        data.put("cameraId", event.getCamaraId().toString());
+        data.put("imagenUrl", "/api/camaras/" + event.getCamaraId() + "/imagen?t=" + event.getImagenTimestamp());
+        data.put("timestamp", event.getImagenTimestamp().toString());
+
+        NotificacionDTO notif = NotificacionDTO.builder()
+                .tipo("CAMERA_IMAGE_UPDATED")
+                .parqueaderoId(event.getParqueaderoId())
+                .data(data)
+                .build();
+        notificationService.notificarParqueadero(event.getParqueaderoId(), notif);
     }
 
     /**

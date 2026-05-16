@@ -540,7 +540,12 @@ public class ParkingConfigService {
             dto.setNw(coords.get("nw"));
             dto.setNh(coords.get("nh"));
         }
-        dto.setAssignedSpots(deserializeStringList(c.getAssignedSpots()));
+        dto.setAssignedSpots(deserializeAssignedSpots(c.getAssignedSpots()));
+        // Imagen: URL relativa + timestamp para cache-busting
+        if (c.getImagenPath() != null && c.getImagenTimestamp() != null) {
+            dto.setImagenUrl("/api/camaras/" + c.getId() + "/imagen?t=" + c.getImagenTimestamp());
+            dto.setImagenTimestamp(c.getImagenTimestamp());
+        }
         return dto;
     }
 
@@ -640,6 +645,38 @@ public class ParkingConfigService {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {});
         } catch (JsonProcessingException e) {
             log.warn("Error deserializando lista de strings: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Reader tolerante para assignedSpots de una camara. En BD puede haber:
+     * - Formato legacy: ["117","118"]  -> se promueve a [{spotId:"117",imageBox:null},...]
+     * - Formato nuevo:  [{"spotId":"117","imageBox":{"x":0.1,"y":0.2,"w":0.1,"h":0.1}}]
+     *
+     * Detecta el formato leyendo como JsonNode y bifurca segun el tipo
+     * del primer elemento.
+     */
+    private List<CameraAssignedSpotDTO> deserializeAssignedSpots(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(json);
+            if (!root.isArray()) return List.of();
+            if (root.isEmpty()) return List.of();
+            com.fasterxml.jackson.databind.JsonNode first = root.get(0);
+            if (first.isTextual()) {
+                // Legacy: array de strings
+                List<CameraAssignedSpotDTO> out = new ArrayList<>();
+                for (com.fasterxml.jackson.databind.JsonNode n : root) {
+                    out.add(new CameraAssignedSpotDTO(n.asText(), null));
+                }
+                return out;
+            }
+            // Nuevo formato
+            return objectMapper.readValue(json,
+                    new TypeReference<List<CameraAssignedSpotDTO>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("Error deserializando assignedSpots: {}", e.getMessage());
             return List.of();
         }
     }

@@ -40,6 +40,18 @@ public class Camara {
     @Column(length = 30)
     private String color;
 
+    /** Path relativo donde el ImageStorage guarda la ultima imagen. NULL si nunca se subio. */
+    @Column(name = "imagen_path", length = 500)
+    private String imagenPath;
+
+    /** Timestamp del ultimo upload. Sirve para cache-busting en la URL. */
+    @Column(name = "imagen_timestamp")
+    private java.time.LocalDateTime imagenTimestamp;
+
+    /** Content-Type de la ultima imagen (image/jpeg, image/png). */
+    @Column(name = "imagen_content_type", length = 50)
+    private String imagenContentType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_id", nullable = false)
     private Estado estado;

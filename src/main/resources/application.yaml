@@ -23,6 +23,11 @@ spring:
     init:
       mode: always
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   security:
     # Spring Security auto-config deshabilitado para rutas públicas via SecurityConfig
     user:
@@ -52,6 +57,8 @@ app:
     refresh-expiration-ms: ${JWT_REFRESH_EXP:604800000}  # 7 días
   pin:
     expiration-minutes: ${PIN_EXPIRATION:15}
+  images:
+    dir: ${APP_IMAGES_DIR:/var/parqueaderos/images}
   security:
     max-intentos-fallidos: 5
     bloqueo-minutos: 30
