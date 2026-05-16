@@ -27,7 +27,7 @@ import java.nio.file.StandardCopyOption;
 @Slf4j
 public class FileSystemImageStorageService implements ImageStorageService {
 
-    @Value("${app.images.dir:/var/parqueaderos/images}")
+    @Value("${app.images.dir:/app/images}")
     private String rootDir;
 
     @PostConstruct

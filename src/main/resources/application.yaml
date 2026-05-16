@@ -58,7 +58,7 @@ app:
   pin:
     expiration-minutes: ${PIN_EXPIRATION:15}
   images:
-    dir: ${APP_IMAGES_DIR:/var/parqueaderos/images}
+    dir: ${APP_IMAGES_DIR:/app/images}
   security:
     max-intentos-fallidos: 5
     bloqueo-minutos: 30

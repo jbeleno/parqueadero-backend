@@ -15,11 +15,14 @@ RUN ./mvnw clean package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup -S spring && adduser -S spring -G spring
+# Create non-root user y carpeta de imagenes con ownership correcto
+RUN addgroup -S spring && adduser -S spring -G spring \
+ && mkdir -p /app/images \
+ && chown -R spring:spring /app /app/images
+
 USER spring:spring
 
-COPY --from=build /app/target/parqueaderos-api-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build --chown=spring:spring /app/target/parqueaderos-api-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
 
