@@ -7,10 +7,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -64,6 +66,33 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(ex.getMessage(), "ERR_UNAUTHENTICATED"));
+    }
+
+    /**
+     * Path/query param con tipo equivocado (ej. /api/camaras/abc/imagen cuando se esperaba Long).
+     * El front suele caer aqui cuando manda su slug temporal ("camera-...") en vez del DB id.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String required = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "valor valido";
+        String msg = String.format(
+                "El parametro '%s' recibio el valor '%s' pero se esperaba %s. "
+                + "Si estas trabajando con cameras/secciones/etc, usa el id numerico de BD que devuelve "
+                + "POST/PUT /api/parqueaderos/configuracion, no los slugs temporales del frontend.",
+                ex.getName(), ex.getValue(), required);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(msg, "ERR_INVALID_PARAM"));
+    }
+
+    /** Body JSON ilegible (sintaxis invalida o tipos incompatibles). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(
+                        "El body del request no se pudo leer. Verifica que sea JSON valido y que los tipos coincidan.",
+                        "ERR_INVALID_BODY"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
