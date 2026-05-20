@@ -131,6 +131,8 @@ public class ParkingConfigService {
 
         Estado activo = estadoRepo.findByNombreIgnoreCase(ACTIVO)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ACTIVO no encontrado"));
+        Estado archivado = estadoRepo.findByNombreIgnoreCase(ARCHIVADO)
+                .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
 
         // Multi-tenant: si es ADMIN y el parqueadero ya existe, validar ownership
         if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
@@ -153,11 +155,20 @@ public class ParkingConfigService {
         // 1) Parqueadero
         Parqueadero parqueadero = saveOrUpdateParqueadero(configDTO.getParkingLot(), activo);
 
-        // 2) Pisos (niveles)
+        // 2) DIFF: archivar floors activos que no vienen en el payload (cascade)
+        Set<Long> dtoFloorIds = collectDbIds(
+                configDTO.getFloors(), FloorConfigDTO::getId);
+        for (Nivel n : nivelRepo.findByParqueaderoIdAndEstadoNombreNot(parqueadero.getId(), ARCHIVADO)) {
+            if (!dtoFloorIds.contains(n.getId())) {
+                archivarNivelCascade(n, archivado);
+            }
+        }
+
+        // 3) Pisos (niveles)
         List<FloorConfigDTO> resultFloors = new ArrayList<>();
         if (configDTO.getFloors() != null) {
             for (FloorConfigDTO floorDTO : configDTO.getFloors()) {
-                resultFloors.add(saveFloor(floorDTO, parqueadero, activo));
+                resultFloors.add(saveFloor(floorDTO, parqueadero, activo, archivado));
             }
         }
 
@@ -206,7 +217,8 @@ public class ParkingConfigService {
         return parqueaderoRepo.save(p);
     }
 
-    private FloorConfigDTO saveFloor(FloorConfigDTO dto, Parqueadero parqueadero, Estado activo) {
+    private FloorConfigDTO saveFloor(FloorConfigDTO dto, Parqueadero parqueadero,
+                                      Estado activo, Estado archivado) {
         // ── Nivel ──
         Nivel nivel = resolveOrCreate(dto.getId(), nivelRepo, "Nivel", () -> {
             Nivel n = new Nivel();
@@ -216,8 +228,51 @@ public class ParkingConfigService {
         });
         nivel.setNombre(dto.getName());
         nivel.setParqueadero(parqueadero);
+        nivel.setEstado(activo); // reactivar si estaba archivado
         nivel = nivelRepo.save(nivel);
         Long nivelId = nivel.getId();
+
+        // ── DIFF: archivar hijos activos que no vienen en el payload ──
+        // (orden: puntos → subsecciones → secciones para respetar cascada lógica)
+        Set<Long> dtoSectionIds    = collectDbIds(dto.getSections(),    SectionConfigDTO::getId);
+        Set<Long> dtoSubsectionIds = collectDbIds(dto.getSubsections(), SubsectionConfigDTO::getId);
+        Set<Long> dtoSpotIds       = collectDbIds(dto.getParkingSpots(), ParkingSpotConfigDTO::getId);
+        Set<Long> dtoPathIds       = collectDbIds(dto.getPaths(),       PathConfigDTO::getId);
+        Set<Long> dtoCameraIds     = collectDbIds(dto.getCameras(),     CameraConfigDTO::getId);
+
+        List<Seccion> seccionesActivas = seccionRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO);
+        List<Long> seccionActivaIds = seccionesActivas.stream().map(Seccion::getId).collect(Collectors.toList());
+        List<SubSeccion> subsActivas = seccionActivaIds.isEmpty() ? List.of()
+                : subSeccionRepo.findBySeccionIdInAndEstadoNombreNot(seccionActivaIds, ARCHIVADO);
+        List<Long> subActivaIds = subsActivas.stream().map(SubSeccion::getId).collect(Collectors.toList());
+        List<PuntoParqueo> puntosActivos = subActivaIds.isEmpty() ? List.of()
+                : puntoParqueoRepo.findBySubSeccionIdInAndEstadoNombreNot(subActivaIds, ARCHIVADO);
+
+        for (PuntoParqueo pp : puntosActivos) {
+            if (!dtoSpotIds.contains(pp.getId())) {
+                pp.setEstado(archivado); puntoParqueoRepo.save(pp);
+            }
+        }
+        for (SubSeccion ss : subsActivas) {
+            if (!dtoSubsectionIds.contains(ss.getId())) {
+                ss.setEstado(archivado); subSeccionRepo.save(ss);
+            }
+        }
+        for (Seccion s : seccionesActivas) {
+            if (!dtoSectionIds.contains(s.getId())) {
+                s.setEstado(archivado); seccionRepo.save(s);
+            }
+        }
+        for (Camino c : caminoRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO)) {
+            if (!dtoPathIds.contains(c.getId())) {
+                c.setEstado(archivado); caminoRepo.save(c);
+            }
+        }
+        for (Camara c : camaraRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO)) {
+            if (!dtoCameraIds.contains(c.getId())) {
+                c.setEstado(archivado); camaraRepo.save(c);
+            }
+        }
 
         // Map para traducir refIds del frontend → DB ids
         Map<String, Long> sectionRefMap = new HashMap<>();
@@ -240,6 +295,7 @@ public class ParkingConfigService {
                 sec.setCoordenadas(serializeJson(secDTO.getCoordinates()));
                 sec.setParqueadero(parqueadero);
                 sec.setNivel(nivelRepo.getReferenceById(nivelId));
+                sec.setEstado(activo); // reactivar si estaba archivada
                 sec = seccionRepo.save(sec);
 
                 sectionRefMap.put(secDTO.getId(), sec.getId());
@@ -266,6 +322,7 @@ public class ParkingConfigService {
                 ss.setCoordenadas(serializeJson(ssDTO.getCoordinates()));
                 ss.setCantidadPuntos(ssDTO.getParkingSpots());
                 ss.setSeccion(parentSeccion);
+                ss.setEstado(activo);
                 ss = subSeccionRepo.save(ss);
 
                 subsectionRefMap.put(ssDTO.getId(), ss.getId());
@@ -290,6 +347,7 @@ public class ParkingConfigService {
                 pp.setDescripcion(spotDTO.getDescription());
                 pp.setCoordenadas(serializeJson(spotDTO.getCoordinates()));
                 pp.setSubSeccion(parentSub);
+                pp.setEstado(activo);
 
                 // Tipo punto parqueo — buscar por nombre o usar default
                 if (spotDTO.getType() != null) {
@@ -320,6 +378,7 @@ public class ParkingConfigService {
                 camino.setTipo(pathDTO.getType());
                 camino.setCoordenadas(serializeJson(pathDTO.getCoordinates()));
                 camino.setNivel(nivelRepo.getReferenceById(nivelId));
+                camino.setEstado(activo);
                 camino = caminoRepo.save(camino);
                 savedPaths.add(toPathConfig(camino));
             }
@@ -340,6 +399,7 @@ public class ParkingConfigService {
                 camara.setCoordenadas(serializeCameraCoords(camDTO));
                 camara.setAssignedSpots(serializeJson(camDTO.getAssignedSpots()));
                 camara.setNivel(nivelRepo.getReferenceById(nivelId));
+                camara.setEstado(activo);
                 // Resolver seccion padre si viene
                 if (camDTO.getParentSectionId() != null) {
                     try {
@@ -363,6 +423,22 @@ public class ParkingConfigService {
         result.setPaths(savedPaths);
         result.setCameras(savedCameras);
         return result;
+    }
+
+    /** Recolecta los DB ids (Long-parseable) que vienen en una lista de DTOs. */
+    private <T> Set<Long> collectDbIds(List<T> items, java.util.function.Function<T, String> idGetter) {
+        Set<Long> out = new HashSet<>();
+        if (items == null) return out;
+        for (T it : items) {
+            Long id = tryParseLong(idGetter.apply(it));
+            if (id != null) out.add(id);
+        }
+        return out;
+    }
+
+    private Long tryParseLong(String s) {
+        if (s == null) return null;
+        try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
     }
 
     // ═══════════════════════════════════════════════════════════════════
