@@ -400,6 +400,8 @@ public class ParkingConfigService {
                 camara.setAssignedSpots(serializeJson(camDTO.getAssignedSpots()));
                 camara.setNivel(nivelRepo.getReferenceById(nivelId));
                 camara.setEstado(activo);
+                // Tipo: ENTRADA | SALIDA | SEGURIDAD (default SEGURIDAD si no viene o invalido)
+                camara.setTipo(parseTipoCamara(camDTO.getTipo()));
                 // Resolver seccion padre si viene
                 if (camDTO.getParentSectionId() != null) {
                     try {
@@ -439,6 +441,17 @@ public class ParkingConfigService {
     private Long tryParseLong(String s) {
         if (s == null) return null;
         try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
+    }
+
+    /** Parsea el campo tipo del DTO de camara. Default SEGURIDAD si null o invalido. */
+    private TipoCamara parseTipoCamara(String s) {
+        if (s == null || s.isBlank()) return TipoCamara.SEGURIDAD;
+        try {
+            return TipoCamara.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("Tipo de camara invalido '{}', usando SEGURIDAD", s);
+            return TipoCamara.SEGURIDAD;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -605,6 +618,7 @@ public class ParkingConfigService {
         dto.setId(c.getId().toString());
         dto.setName(c.getNombre());
         dto.setColor(c.getColor());
+        dto.setTipo(c.getTipo() != null ? c.getTipo().name() : null);
         if (c.getSeccion() != null) {
             dto.setParentSectionId(c.getSeccion().getId().toString());
         }

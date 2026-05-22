@@ -40,6 +40,11 @@ public class Camara {
     @Column(length = 30)
     private String color;
 
+    /** Rol de la camara: ENTRADA, SALIDA o SEGURIDAD. Default SEGURIDAD para compatibilidad. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo", length = 20)
+    private TipoCamara tipo;
+
     /** Path relativo donde el ImageStorage guarda la ultima imagen. NULL si nunca se subio. */
     @Column(name = "imagen_path", length = 500)
     private String imagenPath;

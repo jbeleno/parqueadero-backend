@@ -59,6 +59,10 @@ app:
     expiration-minutes: ${PIN_EXPIRATION:15}
   images:
     dir: ${APP_IMAGES_DIR:/app/images}
+  ocr:
+    enabled: ${OCR_ENABLED:true}
+    url: ${OCR_URL:http://ocr:8001}
+    timeout-ms: ${OCR_TIMEOUT_MS:10000}
   security:
     max-intentos-fallidos: 5
     bloqueo-minutos: 30

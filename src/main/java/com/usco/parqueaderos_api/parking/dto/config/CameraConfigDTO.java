@@ -31,6 +31,9 @@ public class CameraConfigDTO {
     private List<CameraAssignedSpotDTO> assignedSpots;
     private String color;
 
+    /** Rol funcional: "ENTRADA" | "SALIDA" | "SEGURIDAD". Default SEGURIDAD si no viene. */
+    private String tipo;
+
     /** URL relativa para descargar la imagen. Null si la camara nunca recibio una. */
     private String imagenUrl;
     private LocalDateTime imagenTimestamp;
