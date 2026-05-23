@@ -39,8 +39,11 @@ public class OcrEventListener {
 
     @Async
     @EventListener
-    @Transactional(readOnly = true)
     public void onImagenActualizada(CamaraImagenActualizadaEvent event) {
+        // No anotamos @Transactional aqui: TicketAutoService.procesarPlacaDetectada
+        // abre su propia transaccion de escritura. Si el listener fuera readOnly,
+        // el TicketAutoService la heredaria via PROPAGATION_REQUIRED y los INSERT
+        // fallarian con "cannot execute INSERT in a read-only transaction".
         if (event.getCamaraId() == null) return;
 
         Camara camara = camaraRepo.findById(event.getCamaraId()).orElse(null);
