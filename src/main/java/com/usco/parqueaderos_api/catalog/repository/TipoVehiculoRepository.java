@@ -6,4 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TipoVehiculoRepository extends JpaRepository<TipoVehiculo, Long> {
+
+    /** Default para vehiculos invitados creados desde OCR. */
+    java.util.Optional<TipoVehiculo> findFirstByOrderByIdAsc();
 }

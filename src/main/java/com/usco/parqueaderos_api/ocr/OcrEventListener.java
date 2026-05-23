@@ -9,10 +9,10 @@ import com.usco.parqueaderos_api.parking.repository.CamaraRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
 
@@ -38,12 +38,12 @@ public class OcrEventListener {
     private final TicketAutoService ticketAutoService;
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onImagenActualizada(CamaraImagenActualizadaEvent event) {
-        // No anotamos @Transactional aqui: TicketAutoService.procesarPlacaDetectada
-        // abre su propia transaccion de escritura. Si el listener fuera readOnly,
-        // el TicketAutoService la heredaria via PROPAGATION_REQUIRED y los INSERT
-        // fallarian con "cannot execute INSERT in a read-only transaction".
+        // AFTER_COMMIT: solo se ejecuta si la transaccion que persistio la imagen
+        // hizo commit exitoso. Evita procesar imagenes fantasma en caso de rollback.
+        // No @Transactional aqui: TicketAutoService.procesarPlacaDetectada abre la
+        // suya propia (REQUIRED) y los INSERT funcionan sin heredar readOnly.
         if (event.getCamaraId() == null) return;
 
         Camara camara = camaraRepo.findById(event.getCamaraId()).orElse(null);

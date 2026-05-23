@@ -1,8 +1,6 @@
 package com.usco.parqueaderos_api.ocr;
 
-import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
-import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.catalog.repository.TipoVehiculoRepository;
 import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
 import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
@@ -47,7 +45,6 @@ import java.util.Optional;
 public class TicketAutoService {
 
     private static final String SISTEMA_INVITADO_DOC = "SISTEMA_INVITADO";
-    private static final String ESTADO_ACTIVO = "ACTIVO";
     private static final String ESTADO_EN_CURSO = "EN_CURSO";
 
     private final VehiculoRepository vehiculoRepo;
@@ -57,7 +54,6 @@ public class TicketAutoService {
     private final TarifaRepository tarifaRepo;
     private final TipoVehiculoRepository tipoVehiculoRepo;
     private final PersonaRepository personaRepo;
-    private final EstadoRepository estadoRepo;
     private final TarifaCalculatorService tarifaCalculator;
     private final ApplicationEventPublisher publisher;
 
@@ -71,8 +67,8 @@ public class TicketAutoService {
         ERROR
     }
 
-    /** Ventana para considerar que la salida fisica corresponde a un cierre manual reciente. */
-    private static final long SALIDA_FISICA_WINDOW_MIN = 5L;
+    /** Ventana en segundos para considerar que la salida fisica corresponde a un cierre manual reciente. */
+    private static final long SALIDA_FISICA_WINDOW_SEC = 5L * 60L;
 
     public record AutoActionResult(
             Accion accion,
@@ -126,23 +122,26 @@ public class TicketAutoService {
         boolean vehiculoCreado = false;
         Vehiculo vehiculo = vehiculoRepo.findByPlaca(placa).orElse(null);
         if (vehiculo == null) {
-            vehiculo = crearVehiculoInvitado(placa);
-            vehiculoCreado = true;
-            log.info("Creado vehiculo invitado para placa {}", placa);
+            try {
+                vehiculo = crearVehiculoInvitado(placa);
+                vehiculoCreado = true;
+                log.info("Creado vehiculo invitado para placa {}", placa);
+            } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+                // Race condition: otro thread con misma placa nos gano. Reusar.
+                vehiculo = vehiculoRepo.findByPlaca(placa).orElseThrow(() -> ex);
+            }
         }
 
-        // ¿Ya tiene ticket EN_CURSO en este parqueadero?
-        boolean yaAbierto = ticketRepo.findByVehiculoId(vehiculo.getId()).stream()
-                .anyMatch(t -> ESTADO_EN_CURSO.equals(t.getEstado())
-                        && t.getParqueadero() != null
-                        && parqueadero.getId().equals(t.getParqueadero().getId()));
-        if (yaAbierto) {
+        // ¿Ya tiene ticket EN_CURSO en este parqueadero? (query exacta, no carga historial)
+        if (ticketRepo.existsByVehiculoIdAndParqueaderoIdAndEstado(
+                vehiculo.getId(), parqueadero.getId(), ESTADO_EN_CURSO)) {
             return new AutoActionResult(Accion.ENTRADA_DUPLICADA, null, vehiculo.getId(),
                     vehiculoCreado, null, null,
                     "Vehiculo ya tiene ticket abierto en este parqueadero");
         }
 
-        PuntoParqueo puntoLibre = buscarPuntoLibre(parqueadero.getId());
+        // Buscar punto libre + lock pesimista para serializar entradas concurrentes
+        PuntoParqueo puntoLibre = buscarYLockearPuntoLibre(parqueadero.getId());
         if (puntoLibre == null) {
             return new AutoActionResult(Accion.ERROR, null, vehiculo.getId(), vehiculoCreado,
                     null, null, "No hay puntos de parqueo libres");
@@ -182,11 +181,9 @@ public class TicketAutoService {
         }
 
         // Caso 1: ticket EN_CURSO -> ciclo normal, cierra y cobra
-        Optional<Ticket> ticketAbierto = ticketRepo.findByVehiculoId(vehiculo.getId()).stream()
-                .filter(t -> ESTADO_EN_CURSO.equals(t.getEstado())
-                        && t.getParqueadero() != null
-                        && parqueadero.getId().equals(t.getParqueadero().getId()))
-                .findFirst();
+        Optional<Ticket> ticketAbierto = ticketRepo
+                .findFirstByVehiculoIdAndParqueaderoIdAndEstadoOrderByFechaHoraEntradaDesc(
+                        vehiculo.getId(), parqueadero.getId(), ESTADO_EN_CURSO);
 
         if (ticketAbierto.isPresent()) {
             Ticket t = ticketAbierto.get();
@@ -214,10 +211,10 @@ public class TicketAutoService {
                 && ultimo.get().getFechaHoraSalida() != null) {
             Ticket t = ultimo.get();
             LocalDateTime ahora = LocalDateTime.now();
-            long minutosDesdeCierre = java.time.Duration.between(
-                    t.getFechaHoraSalida(), ahora).toMinutes();
+            long segundosDesdeCierre = java.time.Duration.between(
+                    t.getFechaHoraSalida(), ahora).getSeconds();
 
-            if (minutosDesdeCierre <= SALIDA_FISICA_WINDOW_MIN) {
+            if (segundosDesdeCierre <= SALIDA_FISICA_WINDOW_SEC) {
                 // Si no se habia registrado salida fisica antes, la registramos
                 if (t.getFechaHoraSalidaFisica() == null) {
                     t.setFechaHoraSalidaFisica(ahora);
@@ -239,44 +236,37 @@ public class TicketAutoService {
     // ── HELPERS ────────────────────────────────────────────────────────────
 
     /**
-     * Busca el primer punto del parqueadero que sea tipo "publico" (no administrativo,
-     * no discapacitado), no este archivado y sin ticket EN_CURSO.
+     * Busca el primer punto del parqueadero tipo "publico" (no administrativo,
+     * no discapacitado), no archivado y sin ticket EN_CURSO, y le aplica
+     * lock pesimista (FOR UPDATE) para serializar entradas concurrentes.
      *
-     * Tipos auto-asignables (lower-case): "placas", "publico", "general", "normal".
-     * Si no hay punto de tipo publico libre, retorna null y el operador debe asignar
-     * manualmente via PATCH /api/tickets/{id}/punto.
+     * Tipos auto-asignables: nombre del TipoPuntoParqueo contiene "plac",
+     * "publi", "general" o "normal" (lower-case). Puntos sin tipo NO se
+     * autoasignan (conservador para no meter invitados en puntos especiales).
+     *
+     * Si dos cámaras ENTRADA disparan en paralelo: la primera obtiene el lock
+     * sobre el punto, hace existsBy=false, crea el ticket. La segunda espera
+     * el lock; cuando lo recibe, existsBy=true y pasa al siguiente punto.
      */
-    private PuntoParqueo buscarPuntoLibre(Long parqueaderoId) {
-        List<PuntoParqueo> puntos = puntoParqueoRepo.findBySubSeccionSeccionParqueaderoEmpresaId(
-                parqueaderoRepo.findById(parqueaderoId)
-                        .map(p -> p.getEmpresa() != null ? p.getEmpresa().getId() : null)
-                        .orElse(-1L));
-        for (PuntoParqueo pp : puntos) {
-            // mismo parqueadero
-            if (pp.getSubSeccion() == null
-                    || pp.getSubSeccion().getSeccion() == null
-                    || pp.getSubSeccion().getSeccion().getParqueadero() == null
-                    || !parqueaderoId.equals(pp.getSubSeccion().getSeccion().getParqueadero().getId())) {
-                continue;
-            }
-            // estado activo (no archivado)
-            if (pp.getEstado() != null && "ARCHIVADO".equals(pp.getEstado().getNombre())) {
-                continue;
-            }
-            // tipo publico (excluir administrativo / discapacitado / reservado)
+    private PuntoParqueo buscarYLockearPuntoLibre(Long parqueaderoId) {
+        List<PuntoParqueo> candidatos = puntoParqueoRepo.findActiveByParqueaderoId(parqueaderoId);
+        for (PuntoParqueo pp : candidatos) {
             if (!esTipoPublico(pp)) continue;
-            // sin ticket EN_CURSO
-            if (!ticketRepo.existsByPuntoParqueoIdAndEstado(pp.getId(), ESTADO_EN_CURSO)) {
-                return pp;
+            // Lock pesimista + re-verificacion bajo el lock
+            Optional<PuntoParqueo> locked = puntoParqueoRepo.findByIdForUpdate(pp.getId());
+            if (locked.isEmpty()) continue;
+            if (!ticketRepo.existsByPuntoParqueoIdAndEstado(locked.get().getId(), ESTADO_EN_CURSO)) {
+                return locked.get();
             }
         }
         return null;
     }
 
     private boolean esTipoPublico(PuntoParqueo pp) {
-        if (pp.getTipoPuntoParqueo() == null) return true; // sin tipo = asumir publico
+        // Conservador: punto sin tipo NO se autoasigna (puede ser reservado/admin sin etiquetar).
+        if (pp.getTipoPuntoParqueo() == null) return false;
         String n = pp.getTipoPuntoParqueo().getNombre();
-        if (n == null) return true;
+        if (n == null) return false;
         n = n.toLowerCase();
         return n.contains("plac") || n.contains("publi") || n.contains("general") || n.contains("normal");
     }
@@ -296,11 +286,9 @@ public class TicketAutoService {
         return tarifas.get(0);
     }
 
-    /** Crea un vehiculo "invitado" con persona generica y tipo AUTO. */
+    /** Crea un vehiculo "invitado" con persona generica y tipo default. */
     private Vehiculo crearVehiculoInvitado(String placa) {
-        Persona persona = personaRepo.findAll().stream()
-                .filter(p -> SISTEMA_INVITADO_DOC.equals(p.getNumeroDocumento()))
-                .findFirst()
+        Persona persona = personaRepo.findByNumeroDocumento(SISTEMA_INVITADO_DOC)
                 .orElseGet(() -> {
                     Persona nueva = new Persona();
                     nueva.setNombre("Invitado");
@@ -310,8 +298,7 @@ public class TicketAutoService {
                     return personaRepo.save(nueva);
                 });
 
-        TipoVehiculo tipo = tipoVehiculoRepo.findAll().stream()
-                .findFirst()
+        TipoVehiculo tipo = tipoVehiculoRepo.findFirstByOrderByIdAsc()
                 .orElseThrow(() -> new IllegalStateException("No hay tipos de vehiculo en BD"));
 
         Vehiculo v = new Vehiculo();

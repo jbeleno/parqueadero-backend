@@ -22,6 +22,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     boolean existsByPuntoParqueoIdAndEstado(Long puntoParqueoId, String estado);
 
+    /** Existe un ticket del vehiculo en el parqueadero con el estado dado (EN_CURSO tipico). */
+    boolean existsByVehiculoIdAndParqueaderoIdAndEstado(Long vehiculoId, Long parqueaderoId, String estado);
+
+    /** El ticket EN_CURSO mas reciente del vehiculo en el parqueadero. */
+    java.util.Optional<Ticket> findFirstByVehiculoIdAndParqueaderoIdAndEstadoOrderByFechaHoraEntradaDesc(
+            Long vehiculoId, Long parqueaderoId, String estado);
+
     /**
      * Ultimo ticket (de cualquier estado) del vehiculo en el parqueadero,
      * ordenado por fechaHoraEntrada desc. Sirve para diferenciar entre:
