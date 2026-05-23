@@ -1,4 +1,4 @@
-package com.usco.parqueaderos_api.common.event;
+package com.usco.parqueaderos_api.ticket.event;
 
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;

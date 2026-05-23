@@ -12,5 +12,15 @@ package com.usco.parqueaderos_api.parking.entity;
 public enum TipoCamara {
     ENTRADA,
     SALIDA,
-    SEGURIDAD
+    SEGURIDAD;
+
+    /** Default si no se reconoce. Conservador: SEGURIDAD (no dispara accion auto). */
+    public static TipoCamara fromString(String s) {
+        if (s == null || s.isBlank()) return SEGURIDAD;
+        try {
+            return TipoCamara.valueOf(s.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return SEGURIDAD;
+        }
+    }
 }

@@ -1,17 +1,12 @@
 package com.usco.parqueaderos_api.parking.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.usco.parqueaderos_api.catalog.entity.Estado;
-import com.usco.parqueaderos_api.catalog.entity.TipoParqueadero;
-import com.usco.parqueaderos_api.catalog.entity.TipoPuntoParqueo;
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
+import com.usco.parqueaderos_api.catalog.entity.Estado;
+import com.usco.parqueaderos_api.catalog.entity.TipoPuntoParqueo;
 import com.usco.parqueaderos_api.catalog.repository.EstadoRepository;
 import com.usco.parqueaderos_api.catalog.repository.TipoParqueaderoRepository;
 import com.usco.parqueaderos_api.catalog.repository.TipoPuntoParqueoRepository;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
-import com.usco.parqueaderos_api.location.entity.Ciudad;
 import com.usco.parqueaderos_api.location.repository.CiudadRepository;
 import com.usco.parqueaderos_api.parking.dto.config.*;
 import com.usco.parqueaderos_api.parking.entity.*;
@@ -22,18 +17,26 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Servicio maestro de configuración de parqueaderos.
- * Maneja el guardado/lectura del JSON completo que el frontend usa para dibujar.
+ * Configuracion completa del parqueadero (jerarquia: nivel/seccion/subseccion/punto + caminos + camaras).
+ *
+ * - GET: arma el ParkingLotConfigDTO leyendo BD + delegando mapeo a ParkingConfigMapper.
+ * - SAVE: diff estricto contra BD (archiva entidades faltantes) y persiste lo que vino en el DTO.
+ * - ARCHIVE: soft-delete cascada de un nivel o parqueadero entero.
+ *
+ * La serializacion JSON de campos custom (coords, assignedSpots) esta en ParkingConfigCodec.
+ * Los mappers entity -> DTO estan en ParkingConfigMapper.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ParkingConfigService {
+
+    private static final String ARCHIVADO = "ARCHIVADO";
+    private static final String ACTIVO    = "ACTIVO";
 
     private final ParqueaderoRepository parqueaderoRepo;
     private final NivelRepository nivelRepo;
@@ -48,15 +51,12 @@ public class ParkingConfigService {
     private final TipoPuntoParqueoRepository tipoPuntoParqueoRepo;
     private final EstadoRepository estadoRepo;
 
-    private final ObjectMapper objectMapper;
     private final CurrentUserService currentUser;
-
-    // ─── CONSTANTS ──────────────────────────────────────────────────────
-    private static final String ARCHIVADO = "ARCHIVADO";
-    private static final String ACTIVO    = "ACTIVO";
+    private final ParkingConfigCodec codec;
+    private final ParkingConfigMapper mapper;
 
     // ═══════════════════════════════════════════════════════════════════
-    //  GET — Devolver configuración completa para dibujar
+    //  GET
     // ═══════════════════════════════════════════════════════════════════
 
     @Transactional(readOnly = true)
@@ -64,66 +64,54 @@ public class ParkingConfigService {
         Parqueadero p = parqueaderoRepo.findById(parqueaderoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", parqueaderoId));
 
-        // Multi-tenant: solo SUPER_ADMIN ve cualquier parqueadero;
-        // ADMIN solo el de su empresa; USER puede leer (parqueaderos publicos)
-        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
-            if (p.getEmpresa() != null) {
-                currentUser.requireEmpresa(p.getEmpresa().getId());
-            }
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin() && p.getEmpresa() != null) {
+            currentUser.requireEmpresa(p.getEmpresa().getId());
         }
 
         ParkingLotConfigDTO config = new ParkingLotConfigDTO();
-        config.setParkingLot(toParkingLotInfo(p));
+        config.setParkingLot(mapper.toParkingLotInfo(p));
 
-        List<Nivel> niveles = nivelRepo.findByParqueaderoIdAndEstadoNombreNot(parqueaderoId, ARCHIVADO);
         List<FloorConfigDTO> floors = new ArrayList<>();
-
-        for (Nivel nivel : niveles) {
-            floors.add(buildFloorConfig(nivel, parqueaderoId));
+        for (Nivel nivel : nivelRepo.findByParqueaderoIdAndEstadoNombreNot(parqueaderoId, ARCHIVADO)) {
+            floors.add(buildFloorConfig(nivel));
         }
         config.setFloors(floors);
         return config;
     }
 
-    private FloorConfigDTO buildFloorConfig(Nivel nivel, Long parqueaderoId) {
+    private FloorConfigDTO buildFloorConfig(Nivel nivel) {
         FloorConfigDTO floor = new FloorConfigDTO();
         floor.setId(nivel.getId().toString());
         floor.setName(nivel.getNombre());
 
-        // Secciones
         List<Seccion> secciones = seccionRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO);
-        floor.setSections(secciones.stream().map(this::toSectionConfig).collect(Collectors.toList()));
+        floor.setSections(secciones.stream().map(mapper::toSectionConfig).collect(Collectors.toList()));
 
-        // SubSecciones (de todas las secciones del nivel)
         List<Long> seccionIds = secciones.stream().map(Seccion::getId).collect(Collectors.toList());
         List<SubSeccion> subSecciones = seccionIds.isEmpty() ? List.of()
                 : subSeccionRepo.findBySeccionIdInAndEstadoNombreNot(seccionIds, ARCHIVADO);
-        floor.setSubsections(subSecciones.stream().map(this::toSubsectionConfig).collect(Collectors.toList()));
+        floor.setSubsections(subSecciones.stream().map(mapper::toSubsectionConfig).collect(Collectors.toList()));
 
-        // Puntos de parqueo (de todas las subsecciones)
         List<Long> subSeccionIds = subSecciones.stream().map(SubSeccion::getId).collect(Collectors.toList());
         List<PuntoParqueo> puntos = subSeccionIds.isEmpty() ? List.of()
                 : puntoParqueoRepo.findBySubSeccionIdInAndEstadoNombreNot(subSeccionIds, ARCHIVADO);
-        floor.setParkingSpots(puntos.stream().map(this::toParkingSpotConfig).collect(Collectors.toList()));
+        floor.setParkingSpots(puntos.stream().map(mapper::toParkingSpotConfig).collect(Collectors.toList()));
 
-        // Caminos
-        List<Camino> caminos = caminoRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO);
-        floor.setPaths(caminos.stream().map(this::toPathConfig).collect(Collectors.toList()));
+        floor.setPaths(caminoRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO)
+                .stream().map(mapper::toPathConfig).collect(Collectors.toList()));
 
-        // Camaras
-        List<Camara> camaras = camaraRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO);
-        floor.setCameras(camaras.stream().map(this::toCameraConfig).collect(Collectors.toList()));
+        floor.setCameras(camaraRepo.findByNivelIdAndEstadoNombreNot(nivel.getId(), ARCHIVADO)
+                .stream().map(mapper::toCameraConfig).collect(Collectors.toList()));
 
         return floor;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  SAVE — Guardar configuración completa (crear o actualizar)
+    //  SAVE (con diff strict: archiva entidades faltantes)
     // ═══════════════════════════════════════════════════════════════════
 
     @Transactional
     public ParkingLotConfigDTO saveConfig(ParkingLotConfigDTO configDTO) {
-        // RBAC: solo ADMIN/SUPER_ADMIN pueden crear/modificar layouts
         if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "Solo ADMIN o SUPER_ADMIN pueden modificar la configuracion de un parqueadero");
@@ -134,37 +122,18 @@ public class ParkingConfigService {
         Estado archivado = estadoRepo.findByNombreIgnoreCase(ARCHIVADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
 
-        // Multi-tenant: si es ADMIN y el parqueadero ya existe, validar ownership
-        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
-                && configDTO.getParkingLot() != null && configDTO.getParkingLot().getId() != null) {
-            Parqueadero existente = parqueaderoRepo.findById(configDTO.getParkingLot().getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", configDTO.getParkingLot().getId()));
-            if (existente.getEmpresa() != null) {
-                currentUser.requireEmpresa(existente.getEmpresa().getId());
-            }
-        }
-        // Si es ADMIN y crea uno nuevo, debe asignarlo a su empresa
-        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
-                && configDTO.getParkingLot() != null && configDTO.getParkingLot().getId() == null) {
-            Long miEmpresa = currentUser.getCurrentEmpresaId().orElse(null);
-            if (miEmpresa != null) {
-                configDTO.getParkingLot().setEmpresaId(miEmpresa);
-            }
-        }
+        validarOwnership(configDTO);
 
-        // 1) Parqueadero
         Parqueadero parqueadero = saveOrUpdateParqueadero(configDTO.getParkingLot(), activo);
 
-        // 2) DIFF: archivar floors activos que no vienen en el payload (cascade)
-        Set<Long> dtoFloorIds = collectDbIds(
-                configDTO.getFloors(), FloorConfigDTO::getId);
+        // Archivar floors activos que no vienen en el payload (cascade)
+        Set<Long> dtoFloorIds = collectDbIds(configDTO.getFloors(), FloorConfigDTO::getId);
         for (Nivel n : nivelRepo.findByParqueaderoIdAndEstadoNombreNot(parqueadero.getId(), ARCHIVADO)) {
             if (!dtoFloorIds.contains(n.getId())) {
                 archivarNivelCascade(n, archivado);
             }
         }
 
-        // 3) Pisos (niveles)
         List<FloorConfigDTO> resultFloors = new ArrayList<>();
         if (configDTO.getFloors() != null) {
             for (FloorConfigDTO floorDTO : configDTO.getFloors()) {
@@ -173,20 +142,31 @@ public class ParkingConfigService {
         }
 
         ParkingLotConfigDTO result = new ParkingLotConfigDTO();
-        result.setParkingLot(toParkingLotInfo(parqueadero));
+        result.setParkingLot(mapper.toParkingLotInfo(parqueadero));
         result.setFloors(resultFloors);
         return result;
     }
 
-    private Parqueadero saveOrUpdateParqueadero(ParkingLotInfoDTO info, Estado activo) {
-        Parqueadero p;
-        if (info.getId() != null) {
-            p = parqueaderoRepo.findById(info.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", info.getId()));
+    private void validarOwnership(ParkingLotConfigDTO configDTO) {
+        if (!currentUser.isAdmin() || currentUser.isSuperAdmin()) return;
+        if (configDTO.getParkingLot() == null) return;
+        Long id = configDTO.getParkingLot().getId();
+        if (id != null) {
+            Parqueadero existente = parqueaderoRepo.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", id));
+            if (existente.getEmpresa() != null) {
+                currentUser.requireEmpresa(existente.getEmpresa().getId());
+            }
         } else {
-            p = new Parqueadero();
-            p.setEstado(activo);
+            currentUser.getCurrentEmpresaId().ifPresent(configDTO.getParkingLot()::setEmpresaId);
         }
+    }
+
+    private Parqueadero saveOrUpdateParqueadero(ParkingLotInfoDTO info, Estado activo) {
+        Parqueadero p = (info.getId() != null)
+                ? parqueaderoRepo.findById(info.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", info.getId()))
+                : nuevoParqueadero(activo);
 
         p.setNombre(info.getName());
         p.setDireccion(info.getDireccion());
@@ -197,7 +177,6 @@ public class ParkingConfigService {
         p.setZonaHoraria(info.getZonaHoraria());
         p.setTiempoGraciaMinutos(info.getTiempoGraciaMinutos());
         p.setModoCobro(info.getModoCobro());
-
         if (info.getHoraInicio() != null) p.setHoraInicio(LocalTime.parse(info.getHoraInicio()));
         if (info.getHoraFin() != null)    p.setHoraFin(LocalTime.parse(info.getHoraFin()));
 
@@ -217,10 +196,15 @@ public class ParkingConfigService {
         return parqueaderoRepo.save(p);
     }
 
+    private Parqueadero nuevoParqueadero(Estado activo) {
+        Parqueadero p = new Parqueadero();
+        p.setEstado(activo);
+        return p;
+    }
+
     private FloorConfigDTO saveFloor(FloorConfigDTO dto, Parqueadero parqueadero,
                                       Estado activo, Estado archivado) {
-        // ── Nivel ──
-        Nivel nivel = resolveOrCreate(dto.getId(), nivelRepo, "Nivel", () -> {
+        Nivel nivel = resolveOrCreate(dto.getId(), nivelRepo, () -> {
             Nivel n = new Nivel();
             n.setParqueadero(parqueadero);
             n.setEstado(activo);
@@ -228,12 +212,34 @@ public class ParkingConfigService {
         });
         nivel.setNombre(dto.getName());
         nivel.setParqueadero(parqueadero);
-        nivel.setEstado(activo); // reactivar si estaba archivado
+        nivel.setEstado(activo);
         nivel = nivelRepo.save(nivel);
         Long nivelId = nivel.getId();
 
-        // ── DIFF: archivar hijos activos que no vienen en el payload ──
-        // (orden: puntos → subsecciones → secciones para respetar cascada lógica)
+        archivarHijosFaltantes(dto, nivelId, archivado);
+
+        Map<String, Long> sectionRefMap = new HashMap<>();
+        Map<String, Long> subsectionRefMap = new HashMap<>();
+
+        List<SectionConfigDTO> savedSections = persistSections(dto, parqueadero, nivelId, activo, sectionRefMap);
+        List<SubsectionConfigDTO> savedSubsections = persistSubsections(dto, activo, sectionRefMap, subsectionRefMap);
+        List<ParkingSpotConfigDTO> savedSpots = persistSpots(dto, activo, subsectionRefMap);
+        List<PathConfigDTO> savedPaths = persistPaths(dto, nivelId, activo);
+        List<CameraConfigDTO> savedCameras = persistCameras(dto, nivelId, activo, sectionRefMap);
+
+        FloorConfigDTO result = new FloorConfigDTO();
+        result.setId(nivel.getId().toString());
+        result.setName(nivel.getNombre());
+        result.setSections(savedSections);
+        result.setSubsections(savedSubsections);
+        result.setParkingSpots(savedSpots);
+        result.setPaths(savedPaths);
+        result.setCameras(savedCameras);
+        return result;
+    }
+
+    /** Diff strict por nivel: archiva los hijos activos que no vienen en el payload. */
+    private void archivarHijosFaltantes(FloorConfigDTO dto, Long nivelId, Estado archivado) {
         Set<Long> dtoSectionIds    = collectDbIds(dto.getSections(),    SectionConfigDTO::getId);
         Set<Long> dtoSubsectionIds = collectDbIds(dto.getSubsections(), SubsectionConfigDTO::getId);
         Set<Long> dtoSpotIds       = collectDbIds(dto.getParkingSpots(), ParkingSpotConfigDTO::getId);
@@ -248,214 +254,176 @@ public class ParkingConfigService {
         List<PuntoParqueo> puntosActivos = subActivaIds.isEmpty() ? List.of()
                 : puntoParqueoRepo.findBySubSeccionIdInAndEstadoNombreNot(subActivaIds, ARCHIVADO);
 
-        for (PuntoParqueo pp : puntosActivos) {
-            if (!dtoSpotIds.contains(pp.getId())) {
-                pp.setEstado(archivado); puntoParqueoRepo.save(pp);
-            }
-        }
-        for (SubSeccion ss : subsActivas) {
-            if (!dtoSubsectionIds.contains(ss.getId())) {
-                ss.setEstado(archivado); subSeccionRepo.save(ss);
-            }
-        }
-        for (Seccion s : seccionesActivas) {
-            if (!dtoSectionIds.contains(s.getId())) {
-                s.setEstado(archivado); seccionRepo.save(s);
-            }
-        }
-        for (Camino c : caminoRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO)) {
-            if (!dtoPathIds.contains(c.getId())) {
-                c.setEstado(archivado); caminoRepo.save(c);
-            }
-        }
-        for (Camara c : camaraRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO)) {
-            if (!dtoCameraIds.contains(c.getId())) {
-                c.setEstado(archivado); camaraRepo.save(c);
-            }
-        }
-
-        // Map para traducir refIds del frontend → DB ids
-        Map<String, Long> sectionRefMap = new HashMap<>();
-        Map<String, Long> subsectionRefMap = new HashMap<>();
-
-        // ── Secciones ──
-        List<SectionConfigDTO> savedSections = new ArrayList<>();
-        if (dto.getSections() != null) {
-            for (SectionConfigDTO secDTO : dto.getSections()) {
-                Seccion sec = resolveOrCreate(secDTO.getId(), seccionRepo, "Seccion", () -> {
-                    Seccion s = new Seccion();
-                    s.setParqueadero(parqueadero);
-                    s.setNivel(nivelRepo.getReferenceById(nivelId));
-                    s.setEstado(activo);
-                    return s;
-                });
-                sec.setNombre(secDTO.getName());
-                sec.setDescripcion(secDTO.getDescription());
-                sec.setAcronimo(secDTO.getAcronym());
-                sec.setCoordenadas(serializeJson(secDTO.getCoordinates()));
-                sec.setParqueadero(parqueadero);
-                sec.setNivel(nivelRepo.getReferenceById(nivelId));
-                sec.setEstado(activo); // reactivar si estaba archivada
-                sec = seccionRepo.save(sec);
-
-                sectionRefMap.put(secDTO.getId(), sec.getId());
-                savedSections.add(toSectionConfig(sec));
-            }
-        }
-
-        // ── SubSecciones ──
-        List<SubsectionConfigDTO> savedSubsections = new ArrayList<>();
-        if (dto.getSubsections() != null) {
-            for (SubsectionConfigDTO ssDTO : dto.getSubsections()) {
-                // Resolver sección padre
-                Long parentSeccionId = resolveRef(ssDTO.getParentSectionId(), sectionRefMap, "parentSectionId");
-                Seccion parentSeccion = seccionRepo.getReferenceById(parentSeccionId);
-
-                SubSeccion ss = resolveOrCreate(ssDTO.getId(), subSeccionRepo, "SubSeccion", () -> {
-                    SubSeccion sub = new SubSeccion();
-                    sub.setEstado(activo);
-                    return sub;
-                });
-                ss.setNombre(ssDTO.getName());
-                ss.setDescripcion(ssDTO.getDescription());
-                ss.setAcronimo(ssDTO.getAcronym());
-                ss.setCoordenadas(serializeJson(ssDTO.getCoordinates()));
-                ss.setCantidadPuntos(ssDTO.getParkingSpots());
-                ss.setSeccion(parentSeccion);
-                ss.setEstado(activo);
-                ss = subSeccionRepo.save(ss);
-
-                subsectionRefMap.put(ssDTO.getId(), ss.getId());
-                savedSubsections.add(toSubsectionConfig(ss));
-            }
-        }
-
-        // ── Puntos de parqueo ──
-        List<ParkingSpotConfigDTO> savedSpots = new ArrayList<>();
-        if (dto.getParkingSpots() != null) {
-            for (ParkingSpotConfigDTO spotDTO : dto.getParkingSpots()) {
-                Long parentSubSeccionId = resolveRef(spotDTO.getSubsectionId(), subsectionRefMap, "subsectionId");
-                SubSeccion parentSub = subSeccionRepo.getReferenceById(parentSubSeccionId);
-
-                PuntoParqueo pp = resolveOrCreate(spotDTO.getId(), puntoParqueoRepo, "PuntoParqueo", () -> {
-                    PuntoParqueo punto = new PuntoParqueo();
-                    punto.setEstado(activo);
-                    return punto;
-                });
-                pp.setNombre(spotDTO.getAcronym() != null ? spotDTO.getAcronym() : "Punto");
-                pp.setAcronimo(spotDTO.getAcronym());
-                pp.setDescripcion(spotDTO.getDescription());
-                pp.setCoordenadas(serializeJson(spotDTO.getCoordinates()));
-                pp.setSubSeccion(parentSub);
-                pp.setEstado(activo);
-
-                // Tipo punto parqueo — buscar por nombre o usar default
-                if (spotDTO.getType() != null) {
-                    tipoPuntoParqueoRepo.findByNombreIgnoreCase(spotDTO.getType())
-                            .ifPresent(pp::setTipoPuntoParqueo);
-                }
-                if (pp.getTipoPuntoParqueo() == null) {
-                    // Asignar el primer tipo disponible como default
-                    tipoPuntoParqueoRepo.findAll().stream().findFirst()
-                            .ifPresent(pp::setTipoPuntoParqueo);
-                }
-
-                pp = puntoParqueoRepo.save(pp);
-                savedSpots.add(toParkingSpotConfig(pp));
-            }
-        }
-
-        // ── Caminos (paths) ──
-        List<PathConfigDTO> savedPaths = new ArrayList<>();
-        if (dto.getPaths() != null) {
-            for (PathConfigDTO pathDTO : dto.getPaths()) {
-                Camino camino = resolveOrCreate(pathDTO.getId(), caminoRepo, "Camino", () -> {
-                    Camino c = new Camino();
-                    c.setNivel(nivelRepo.getReferenceById(nivelId));
-                    c.setEstado(activo);
-                    return c;
-                });
-                camino.setTipo(pathDTO.getType());
-                camino.setCoordenadas(serializeJson(pathDTO.getCoordinates()));
-                camino.setNivel(nivelRepo.getReferenceById(nivelId));
-                camino.setEstado(activo);
-                camino = caminoRepo.save(camino);
-                savedPaths.add(toPathConfig(camino));
-            }
-        }
-
-        // ── Camaras ──
-        List<CameraConfigDTO> savedCameras = new ArrayList<>();
-        if (dto.getCameras() != null) {
-            for (CameraConfigDTO camDTO : dto.getCameras()) {
-                Camara camara = resolveOrCreate(camDTO.getId(), camaraRepo, "Camara", () -> {
-                    Camara c = new Camara();
-                    c.setNivel(nivelRepo.getReferenceById(nivelId));
-                    c.setEstado(activo);
-                    return c;
-                });
-                camara.setNombre(camDTO.getName());
-                camara.setColor(camDTO.getColor());
-                camara.setCoordenadas(serializeCameraCoords(camDTO));
-                camara.setAssignedSpots(serializeJson(camDTO.getAssignedSpots()));
-                camara.setNivel(nivelRepo.getReferenceById(nivelId));
-                camara.setEstado(activo);
-                // Tipo: ENTRADA | SALIDA | SEGURIDAD (default SEGURIDAD si no viene o invalido)
-                camara.setTipo(parseTipoCamara(camDTO.getTipo()));
-                // Resolver seccion padre si viene
-                if (camDTO.getParentSectionId() != null) {
-                    try {
-                        Long parentSeccionId = resolveRef(camDTO.getParentSectionId(), sectionRefMap, "parentSectionId");
-                        camara.setSeccion(seccionRepo.getReferenceById(parentSeccionId));
-                    } catch (IllegalArgumentException ignored) {
-                        // Si la ref no se puede resolver, dejar la seccion en null (camara global del nivel)
-                    }
-                }
-                camara = camaraRepo.save(camara);
-                savedCameras.add(toCameraConfig(camara));
-            }
-        }
-
-        FloorConfigDTO result = new FloorConfigDTO();
-        result.setId(nivel.getId().toString());
-        result.setName(nivel.getNombre());
-        result.setSections(savedSections);
-        result.setSubsections(savedSubsections);
-        result.setParkingSpots(savedSpots);
-        result.setPaths(savedPaths);
-        result.setCameras(savedCameras);
-        return result;
+        // orden: hijos antes que padres
+        archivarFaltantes(puntosActivos, PuntoParqueo::getId, dtoSpotIds, archivado, puntoParqueoRepo::save, PuntoParqueo::setEstado);
+        archivarFaltantes(subsActivas,    SubSeccion::getId,    dtoSubsectionIds, archivado, subSeccionRepo::save, SubSeccion::setEstado);
+        archivarFaltantes(seccionesActivas, Seccion::getId,     dtoSectionIds,    archivado, seccionRepo::save,    Seccion::setEstado);
+        archivarFaltantes(caminoRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO),
+                Camino::getId, dtoPathIds, archivado, caminoRepo::save, Camino::setEstado);
+        archivarFaltantes(camaraRepo.findByNivelIdAndEstadoNombreNot(nivelId, ARCHIVADO),
+                Camara::getId, dtoCameraIds, archivado, camaraRepo::save, Camara::setEstado);
     }
 
-    /** Recolecta los DB ids (Long-parseable) que vienen en una lista de DTOs. */
-    private <T> Set<Long> collectDbIds(List<T> items, java.util.function.Function<T, String> idGetter) {
-        Set<Long> out = new HashSet<>();
-        if (items == null) return out;
-        for (T it : items) {
-            Long id = tryParseLong(idGetter.apply(it));
-            if (id != null) out.add(id);
+    private <T> void archivarFaltantes(List<T> activos,
+                                        java.util.function.Function<T, Long> idGetter,
+                                        Set<Long> idsEnPayload,
+                                        Estado archivado,
+                                        java.util.function.Consumer<T> saver,
+                                        java.util.function.BiConsumer<T, Estado> setEstado) {
+        for (T entity : activos) {
+            if (!idsEnPayload.contains(idGetter.apply(entity))) {
+                setEstado.accept(entity, archivado);
+                saver.accept(entity);
+            }
+        }
+    }
+
+    private List<SectionConfigDTO> persistSections(FloorConfigDTO dto, Parqueadero parqueadero,
+                                                    Long nivelId, Estado activo,
+                                                    Map<String, Long> sectionRefMap) {
+        List<SectionConfigDTO> out = new ArrayList<>();
+        if (dto.getSections() == null) return out;
+        for (SectionConfigDTO secDTO : dto.getSections()) {
+            Seccion sec = resolveOrCreate(secDTO.getId(), seccionRepo, () -> {
+                Seccion s = new Seccion();
+                s.setParqueadero(parqueadero);
+                s.setNivel(nivelRepo.getReferenceById(nivelId));
+                s.setEstado(activo);
+                return s;
+            });
+            sec.setNombre(secDTO.getName());
+            sec.setDescripcion(secDTO.getDescription());
+            sec.setAcronimo(secDTO.getAcronym());
+            sec.setCoordenadas(codec.serializeJson(secDTO.getCoordinates()));
+            sec.setParqueadero(parqueadero);
+            sec.setNivel(nivelRepo.getReferenceById(nivelId));
+            sec.setEstado(activo);
+            sec = seccionRepo.save(sec);
+            sectionRefMap.put(secDTO.getId(), sec.getId());
+            out.add(mapper.toSectionConfig(sec));
         }
         return out;
     }
 
-    private Long tryParseLong(String s) {
-        if (s == null) return null;
-        try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
+    private List<SubsectionConfigDTO> persistSubsections(FloorConfigDTO dto, Estado activo,
+                                                          Map<String, Long> sectionRefMap,
+                                                          Map<String, Long> subsectionRefMap) {
+        List<SubsectionConfigDTO> out = new ArrayList<>();
+        if (dto.getSubsections() == null) return out;
+        for (SubsectionConfigDTO ssDTO : dto.getSubsections()) {
+            Long parentSeccionId = resolveRef(ssDTO.getParentSectionId(), sectionRefMap, "parentSectionId");
+            Seccion parentSeccion = seccionRepo.getReferenceById(parentSeccionId);
+
+            SubSeccion ss = resolveOrCreate(ssDTO.getId(), subSeccionRepo, () -> {
+                SubSeccion sub = new SubSeccion();
+                sub.setEstado(activo);
+                return sub;
+            });
+            ss.setNombre(ssDTO.getName());
+            ss.setDescripcion(ssDTO.getDescription());
+            ss.setAcronimo(ssDTO.getAcronym());
+            ss.setCoordenadas(codec.serializeJson(ssDTO.getCoordinates()));
+            ss.setCantidadPuntos(ssDTO.getParkingSpots());
+            ss.setSeccion(parentSeccion);
+            ss.setEstado(activo);
+            ss = subSeccionRepo.save(ss);
+            subsectionRefMap.put(ssDTO.getId(), ss.getId());
+            out.add(mapper.toSubsectionConfig(ss));
+        }
+        return out;
     }
 
-    /** Parsea el campo tipo del DTO de camara. Default SEGURIDAD si null o invalido. */
-    private TipoCamara parseTipoCamara(String s) {
-        if (s == null || s.isBlank()) return TipoCamara.SEGURIDAD;
-        try {
-            return TipoCamara.valueOf(s.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("Tipo de camara invalido '{}', usando SEGURIDAD", s);
-            return TipoCamara.SEGURIDAD;
+    private List<ParkingSpotConfigDTO> persistSpots(FloorConfigDTO dto, Estado activo,
+                                                    Map<String, Long> subsectionRefMap) {
+        List<ParkingSpotConfigDTO> out = new ArrayList<>();
+        if (dto.getParkingSpots() == null) return out;
+        // Cache del default tipo punto: una sola consulta independientemente del numero de spots
+        TipoPuntoParqueo defaultTipo = tipoPuntoParqueoRepo.findAll().stream().findFirst().orElse(null);
+
+        for (ParkingSpotConfigDTO spotDTO : dto.getParkingSpots()) {
+            Long parentSubSeccionId = resolveRef(spotDTO.getSubsectionId(), subsectionRefMap, "subsectionId");
+            SubSeccion parentSub = subSeccionRepo.getReferenceById(parentSubSeccionId);
+
+            PuntoParqueo pp = resolveOrCreate(spotDTO.getId(), puntoParqueoRepo, () -> {
+                PuntoParqueo punto = new PuntoParqueo();
+                punto.setEstado(activo);
+                return punto;
+            });
+            pp.setNombre(spotDTO.getAcronym() != null ? spotDTO.getAcronym() : "Punto");
+            pp.setAcronimo(spotDTO.getAcronym());
+            pp.setDescripcion(spotDTO.getDescription());
+            pp.setCoordenadas(codec.serializeJson(spotDTO.getCoordinates()));
+            pp.setSubSeccion(parentSub);
+            pp.setEstado(activo);
+
+            if (spotDTO.getType() != null) {
+                tipoPuntoParqueoRepo.findByNombreIgnoreCase(spotDTO.getType())
+                        .ifPresent(pp::setTipoPuntoParqueo);
+            }
+            if (pp.getTipoPuntoParqueo() == null && defaultTipo != null) {
+                pp.setTipoPuntoParqueo(defaultTipo);
+            }
+
+            pp = puntoParqueoRepo.save(pp);
+            out.add(mapper.toParkingSpotConfig(pp));
         }
+        return out;
+    }
+
+    private List<PathConfigDTO> persistPaths(FloorConfigDTO dto, Long nivelId, Estado activo) {
+        List<PathConfigDTO> out = new ArrayList<>();
+        if (dto.getPaths() == null) return out;
+        for (PathConfigDTO pathDTO : dto.getPaths()) {
+            Camino camino = resolveOrCreate(pathDTO.getId(), caminoRepo, () -> {
+                Camino c = new Camino();
+                c.setNivel(nivelRepo.getReferenceById(nivelId));
+                c.setEstado(activo);
+                return c;
+            });
+            camino.setTipo(pathDTO.getType());
+            camino.setCoordenadas(codec.serializeJson(pathDTO.getCoordinates()));
+            camino.setNivel(nivelRepo.getReferenceById(nivelId));
+            camino.setEstado(activo);
+            camino = caminoRepo.save(camino);
+            out.add(mapper.toPathConfig(camino));
+        }
+        return out;
+    }
+
+    private List<CameraConfigDTO> persistCameras(FloorConfigDTO dto, Long nivelId, Estado activo,
+                                                  Map<String, Long> sectionRefMap) {
+        List<CameraConfigDTO> out = new ArrayList<>();
+        if (dto.getCameras() == null) return out;
+        for (CameraConfigDTO camDTO : dto.getCameras()) {
+            Camara camara = resolveOrCreate(camDTO.getId(), camaraRepo, () -> {
+                Camara c = new Camara();
+                c.setNivel(nivelRepo.getReferenceById(nivelId));
+                c.setEstado(activo);
+                return c;
+            });
+            camara.setNombre(camDTO.getName());
+            camara.setColor(camDTO.getColor());
+            camara.setCoordenadas(codec.serializeCameraCoords(camDTO));
+            camara.setAssignedSpots(codec.serializeJson(camDTO.getAssignedSpots()));
+            camara.setNivel(nivelRepo.getReferenceById(nivelId));
+            camara.setEstado(activo);
+            camara.setTipo(TipoCamara.fromString(camDTO.getTipo()));
+            if (camDTO.getParentSectionId() != null) {
+                try {
+                    Long parentSeccionId = resolveRef(camDTO.getParentSectionId(), sectionRefMap, "parentSectionId");
+                    camara.setSeccion(seccionRepo.getReferenceById(parentSeccionId));
+                } catch (IllegalArgumentException ignored) {
+                    // Si no resuelve, queda null (camara global del nivel)
+                }
+            }
+            camara = camaraRepo.save(camara);
+            out.add(mapper.toCameraConfig(camara));
+        }
+        return out;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  ARCHIVAR — Soft-delete del parqueadero y toda su configuración
+    //  ARCHIVE
     // ═══════════════════════════════════════════════════════════════════
 
     @Transactional
@@ -465,12 +433,9 @@ public class ParkingConfigService {
         Estado archivado = estadoRepo.findByNombreIgnoreCase(ARCHIVADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
 
-        // Archivar niveles y todos los hijos
-        List<Nivel> niveles = nivelRepo.findByParqueaderoId(parqueaderoId);
-        for (Nivel nivel : niveles) {
+        for (Nivel nivel : nivelRepo.findByParqueaderoId(parqueaderoId)) {
             archivarNivelCascade(nivel, archivado);
         }
-
         p.setEstado(archivado);
         parqueaderoRepo.save(p);
     }
@@ -484,14 +449,6 @@ public class ParkingConfigService {
         archivarNivelCascade(nivel, archivado);
     }
 
-    /**
-     * Borra (soft-delete) toda la configuracion interna de un parqueadero:
-     * niveles, secciones, subsecciones, puntos de parqueo, caminos y camaras.
-     * El parqueadero en si NO se archiva, puede recibir una nueva configuracion.
-     *
-     * RBAC: solo ADMIN/SUPER_ADMIN. Multi-tenant: la empresa del parqueadero
-     * debe coincidir con la del operador (excepto SUPER_ADMIN).
-     */
     @Transactional
     public void deleteConfig(Long parqueaderoId) {
         if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
@@ -503,158 +460,38 @@ public class ParkingConfigService {
         if (p.getEmpresa() != null) {
             currentUser.requireEmpresa(p.getEmpresa().getId());
         }
-
         Estado archivado = estadoRepo.findByNombreIgnoreCase(ARCHIVADO)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
-
-        List<Nivel> niveles = nivelRepo.findByParqueaderoId(parqueaderoId);
-        for (Nivel nivel : niveles) {
+        for (Nivel nivel : nivelRepo.findByParqueaderoId(parqueaderoId)) {
             archivarNivelCascade(nivel, archivado);
         }
-        // El parqueadero permanece activo
     }
 
     private void archivarNivelCascade(Nivel nivel, Estado archivado) {
-        // Secciones del nivel
-        List<Seccion> secciones = seccionRepo.findByNivelId(nivel.getId());
-        List<Long> seccionIds = secciones.stream().map(Seccion::getId).collect(Collectors.toList());
-
-        // SubSecciones
-        List<SubSeccion> subSecciones = seccionIds.isEmpty() ? List.of()
-                : subSeccionRepo.findBySeccionIdIn(seccionIds);
-        List<Long> subSeccionIds = subSecciones.stream().map(SubSeccion::getId).collect(Collectors.toList());
-
-        // Puntos de parqueo
-        List<PuntoParqueo> puntos = subSeccionIds.isEmpty() ? List.of()
-                : puntoParqueoRepo.findBySubSeccionIdIn(subSeccionIds);
-        puntos.forEach(pp -> { pp.setEstado(archivado); puntoParqueoRepo.save(pp); });
-
-        subSecciones.forEach(ss -> { ss.setEstado(archivado); subSeccionRepo.save(ss); });
-        secciones.forEach(s -> { s.setEstado(archivado); seccionRepo.save(s); });
-
-        // Caminos
-        caminoRepo.findByNivelId(nivel.getId()).forEach(c -> { c.setEstado(archivado); caminoRepo.save(c); });
-
-        // Camaras
-        camaraRepo.findByNivelId(nivel.getId()).forEach(c -> { c.setEstado(archivado); camaraRepo.save(c); });
+        // Bulk via @Modifying @Query (1 UPDATE por tipo en vez de N)
+        seccionRepo.archivarPorNivelId(nivel.getId(), archivado.getId());
+        subSeccionRepo.archivarPorNivelId(nivel.getId(), archivado.getId());
+        puntoParqueoRepo.archivarPorNivelId(nivel.getId(), archivado.getId());
+        caminoRepo.archivarPorNivelId(nivel.getId(), archivado.getId());
+        camaraRepo.archivarPorNivelId(nivel.getId(), archivado.getId());
 
         nivel.setEstado(archivado);
         nivelRepo.save(nivel);
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Entity → Config DTO  mappers
-    // ═══════════════════════════════════════════════════════════════════
-
-    private ParkingLotInfoDTO toParkingLotInfo(Parqueadero p) {
-        ParkingLotInfoDTO dto = new ParkingLotInfoDTO();
-        dto.setId(p.getId());
-        dto.setName(p.getNombre());
-        dto.setDireccion(p.getDireccion());
-        dto.setTelefono(p.getTelefono());
-        dto.setLatitud(p.getLatitud());
-        dto.setLongitud(p.getLongitud());
-        dto.setZonaHoraria(p.getZonaHoraria());
-        dto.setTiempoGraciaMinutos(p.getTiempoGraciaMinutos());
-        dto.setModoCobro(p.getModoCobro());
-        dto.setNumeroPuntosParqueo(p.getNumeroPuntosParqueo());
-        if (p.getHoraInicio() != null) dto.setHoraInicio(p.getHoraInicio().format(DateTimeFormatter.ofPattern("HH:mm")));
-        if (p.getHoraFin() != null) dto.setHoraFin(p.getHoraFin().format(DateTimeFormatter.ofPattern("HH:mm")));
-        if (p.getEmpresa() != null)  { dto.setEmpresaId(p.getEmpresa().getId()); dto.setEmpresaNombre(p.getEmpresa().getNombre()); }
-        if (p.getCiudad() != null)   { dto.setCiudadId(p.getCiudad().getId()); dto.setCiudadNombre(p.getCiudad().getNombre()); }
-        if (p.getTipoParqueadero() != null) { dto.setTipoParqueaderoId(p.getTipoParqueadero().getId()); dto.setTipoParqueaderoNombre(p.getTipoParqueadero().getNombre()); }
-        if (p.getEstado() != null) { dto.setEstadoId(p.getEstado().getId()); dto.setEstadoNombre(p.getEstado().getNombre()); }
-
-        // Contar pisos activos
-        dto.setNumeroPisos(
-            nivelRepo.findByParqueaderoIdAndEstadoNombreNot(p.getId(), ARCHIVADO).size()
-        );
-        return dto;
-    }
-
-    private SectionConfigDTO toSectionConfig(Seccion s) {
-        SectionConfigDTO dto = new SectionConfigDTO();
-        dto.setId(s.getId().toString());
-        dto.setName(s.getNombre());
-        dto.setDescription(s.getDescripcion());
-        dto.setAcronym(s.getAcronimo());
-        dto.setCoordinates(deserializeCoordList(s.getCoordenadas()));
-        return dto;
-    }
-
-    private SubsectionConfigDTO toSubsectionConfig(SubSeccion ss) {
-        SubsectionConfigDTO dto = new SubsectionConfigDTO();
-        dto.setId(ss.getId().toString());
-        dto.setName(ss.getNombre());
-        dto.setDescription(ss.getDescripcion());
-        dto.setAcronym(ss.getAcronimo());
-        dto.setParentSectionId(ss.getSeccion() != null ? ss.getSeccion().getId().toString() : null);
-        dto.setCoordinates(deserializeCoordList(ss.getCoordenadas()));
-        dto.setParkingSpots(ss.getCantidadPuntos());
-        return dto;
-    }
-
-    private ParkingSpotConfigDTO toParkingSpotConfig(PuntoParqueo pp) {
-        ParkingSpotConfigDTO dto = new ParkingSpotConfigDTO();
-        dto.setId(pp.getId().toString());
-        dto.setSubsectionId(pp.getSubSeccion() != null ? pp.getSubSeccion().getId().toString() : null);
-        dto.setAcronym(pp.getAcronimo());
-        dto.setDescription(pp.getDescripcion());
-        dto.setCoordinates(deserializeSpotCoords(pp.getCoordenadas()));
-        if (pp.getTipoPuntoParqueo() != null) dto.setType(pp.getTipoPuntoParqueo().getNombre());
-        return dto;
-    }
-
-    private PathConfigDTO toPathConfig(Camino c) {
-        PathConfigDTO dto = new PathConfigDTO();
-        dto.setId(c.getId().toString());
-        dto.setType(c.getTipo());
-        dto.setCoordinates(deserializeCoordList(c.getCoordenadas()));
-        return dto;
-    }
-
-    private CameraConfigDTO toCameraConfig(Camara c) {
-        CameraConfigDTO dto = new CameraConfigDTO();
-        dto.setId(c.getId().toString());
-        dto.setName(c.getNombre());
-        dto.setColor(c.getColor());
-        dto.setTipo(c.getTipo() != null ? c.getTipo().name() : null);
-        if (c.getSeccion() != null) {
-            dto.setParentSectionId(c.getSeccion().getId().toString());
-        }
-        // Coordenadas normalizadas
-        Map<String, Double> coords = deserializeCameraCoords(c.getCoordenadas());
-        if (coords != null) {
-            dto.setNx(coords.get("nx"));
-            dto.setNy(coords.get("ny"));
-            dto.setNw(coords.get("nw"));
-            dto.setNh(coords.get("nh"));
-        }
-        dto.setAssignedSpots(deserializeAssignedSpots(c.getAssignedSpots()));
-        // Imagen: URL relativa + timestamp para cache-busting
-        if (c.getImagenPath() != null && c.getImagenTimestamp() != null) {
-            dto.setImagenUrl("/api/camaras/" + c.getId() + "/imagen?t=" + c.getImagenTimestamp());
-            dto.setImagenTimestamp(c.getImagenTimestamp());
-        }
-        return dto;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
     //  Utilidades
     // ═══════════════════════════════════════════════════════════════════
 
-    /** Intenta parsear el id como Long → busca en BD. Si no, crea nuevo con el supplier. */
-    @SuppressWarnings("unchecked")
-    private <T> T resolveOrCreate(String idStr,
-                                   org.springframework.data.jpa.repository.JpaRepository<T, Long> repo,
-                                   String entityName,
-                                   java.util.function.Supplier<T> newEntitySupplier) {
+    /** Intenta parsear el id como Long -> busca en BD. Si no, crea nuevo con el supplier. */
+    private <T, R extends org.springframework.data.jpa.repository.JpaRepository<T, Long>> T resolveOrCreate(
+            String idStr, R repo, java.util.function.Supplier<T> newEntitySupplier) {
         if (idStr != null) {
             try {
                 Long dbId = Long.parseLong(idStr);
-                return repo.findById(dbId).orElse(newEntitySupplier.get());
+                return repo.findById(dbId).orElseGet(newEntitySupplier);
             } catch (NumberFormatException ignored) {
-                // Es un UUID del frontend → nuevo
+                // Es UUID del frontend -> nuevo
             }
         }
         return newEntitySupplier.get();
@@ -663,11 +500,7 @@ public class ParkingConfigService {
     /** Resuelve una referencia: intenta como Long directo o busca en el refMap. */
     private Long resolveRef(String ref, Map<String, Long> refMap, String fieldName) {
         if (ref == null) throw new IllegalArgumentException(fieldName + " es requerido");
-
-        // Si ya está en el mapa (fue guardado previamente en esta request)
         if (refMap.containsKey(ref)) return refMap.get(ref);
-
-        // Intentar parsear como Long (DB id existente)
         try {
             return Long.parseLong(ref);
         } catch (NumberFormatException e) {
@@ -676,98 +509,18 @@ public class ParkingConfigService {
         }
     }
 
-    private String serializeJson(Object obj) {
-        if (obj == null) return null;
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            log.warn("Error serializando coordenadas: {}", e.getMessage());
-            return null;
+    private <T> Set<Long> collectDbIds(List<T> items, java.util.function.Function<T, String> idGetter) {
+        Set<Long> out = new HashSet<>();
+        if (items == null) return out;
+        for (T it : items) {
+            Long id = tryParseLong(idGetter.apply(it));
+            if (id != null) out.add(id);
         }
+        return out;
     }
 
-    private List<CoordinateDTO> deserializeCoordList(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<CoordinateDTO>>() {});
-        } catch (JsonProcessingException e) {
-            log.warn("Error deserializando coordenadas: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private ParkingSpotCoordsDTO deserializeSpotCoords(String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, ParkingSpotCoordsDTO.class);
-        } catch (JsonProcessingException e) {
-            log.warn("Error deserializando coordenadas de punto: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    /** Serializa nx,ny,nw,nh a JSON. */
-    private String serializeCameraCoords(CameraConfigDTO dto) {
-        if (dto.getNx() == null && dto.getNy() == null && dto.getNw() == null && dto.getNh() == null) {
-            return null;
-        }
-        Map<String, Double> map = new HashMap<>();
-        if (dto.getNx() != null) map.put("nx", dto.getNx());
-        if (dto.getNy() != null) map.put("ny", dto.getNy());
-        if (dto.getNw() != null) map.put("nw", dto.getNw());
-        if (dto.getNh() != null) map.put("nh", dto.getNh());
-        return serializeJson(map);
-    }
-
-    private Map<String, Double> deserializeCameraCoords(String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, new TypeReference<Map<String, Double>>() {});
-        } catch (JsonProcessingException e) {
-            log.warn("Error deserializando coordenadas de camara: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    private List<String> deserializeStringList(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
-        } catch (JsonProcessingException e) {
-            log.warn("Error deserializando lista de strings: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    /**
-     * Reader tolerante para assignedSpots de una camara. En BD puede haber:
-     * - Formato legacy: ["117","118"]  -> se promueve a [{spotId:"117",imageBox:null},...]
-     * - Formato nuevo:  [{"spotId":"117","imageBox":{"x":0.1,"y":0.2,"w":0.1,"h":0.1}}]
-     *
-     * Detecta el formato leyendo como JsonNode y bifurca segun el tipo
-     * del primer elemento.
-     */
-    private List<CameraAssignedSpotDTO> deserializeAssignedSpots(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        try {
-            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(json);
-            if (!root.isArray()) return List.of();
-            if (root.isEmpty()) return List.of();
-            com.fasterxml.jackson.databind.JsonNode first = root.get(0);
-            if (first.isTextual()) {
-                // Legacy: array de strings
-                List<CameraAssignedSpotDTO> out = new ArrayList<>();
-                for (com.fasterxml.jackson.databind.JsonNode n : root) {
-                    out.add(new CameraAssignedSpotDTO(n.asText(), null));
-                }
-                return out;
-            }
-            // Nuevo formato
-            return objectMapper.readValue(json,
-                    new TypeReference<List<CameraAssignedSpotDTO>>() {});
-        } catch (JsonProcessingException e) {
-            log.warn("Error deserializando assignedSpots: {}", e.getMessage());
-            return List.of();
-        }
+    private Long tryParseLong(String s) {
+        if (s == null) return null;
+        try { return Long.parseLong(s); } catch (NumberFormatException e) { return null; }
     }
 }

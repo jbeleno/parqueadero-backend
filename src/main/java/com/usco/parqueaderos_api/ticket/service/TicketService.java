@@ -1,9 +1,9 @@
 package com.usco.parqueaderos_api.ticket.service;
 
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
-import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
-import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
-import com.usco.parqueaderos_api.common.event.TicketPuntoCambiadoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketCerradoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketCreadoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketPuntoCambiadoEvent;
 import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;

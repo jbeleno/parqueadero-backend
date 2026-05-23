@@ -1,8 +1,8 @@
 package com.usco.parqueaderos_api.reservation.service;
 
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
-import com.usco.parqueaderos_api.common.event.ReservaCanceladaEvent;
-import com.usco.parqueaderos_api.common.event.ReservaCreadaEvent;
+import com.usco.parqueaderos_api.reservation.event.ReservaCanceladaEvent;
+import com.usco.parqueaderos_api.reservation.event.ReservaCreadaEvent;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.parking.entity.PuntoParqueo;

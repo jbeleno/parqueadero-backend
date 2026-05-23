@@ -221,4 +221,123 @@ class TicketServiceTest {
                 () -> ticketService.update(50L, dto));
         assertEquals("ERR_INVALID_TRANSITION", ex.getErrorCode());
     }
+
+    // ───────────────── cambiarPunto ─────────────────
+
+    private Ticket ticketEnCursoConPunto() {
+        Ticket t = new Ticket();
+        t.setId(60L);
+        t.setEstado("EN_CURSO");
+        t.setParqueadero(parqueadero);
+        t.setPuntoParqueo(punto);
+        return t;
+    }
+
+    private PuntoParqueo puntoEnMismoParqueadero(Long id) {
+        PuntoParqueo destino = new PuntoParqueo();
+        destino.setId(id);
+        // estructura subSeccion -> seccion -> parqueadero requerida por validacion
+        com.usco.parqueaderos_api.parking.entity.SubSeccion ss = new com.usco.parqueaderos_api.parking.entity.SubSeccion();
+        com.usco.parqueaderos_api.parking.entity.Seccion sec = new com.usco.parqueaderos_api.parking.entity.Seccion();
+        sec.setParqueadero(parqueadero);
+        ss.setSeccion(sec);
+        destino.setSubSeccion(ss);
+        return destino;
+    }
+
+    @Test
+    @DisplayName("cambiarPunto: USER recibe AccessDenied")
+    void cambiarPunto_user_403() {
+        when(currentUser.isAdmin()).thenReturn(false);
+        when(currentUser.isSuperAdmin()).thenReturn(false);
+        assertThrows(AccessDeniedException.class,
+                () -> ticketService.cambiarPunto(60L, 99L));
+    }
+
+    @Test
+    @DisplayName("cambiarPunto: ticket CERRADO no se puede mover")
+    void cambiarPunto_ticketCerrado_lanza() {
+        Ticket cerrado = new Ticket();
+        cerrado.setId(60L); cerrado.setEstado("CERRADO");
+        cerrado.setParqueadero(parqueadero); cerrado.setPuntoParqueo(punto);
+
+        when(currentUser.isAdmin()).thenReturn(true);
+        when(ticketRepository.findById(60L)).thenReturn(Optional.of(cerrado));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.cambiarPunto(60L, 99L));
+        assertEquals("ERR_INVALID_TRANSITION", ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("cambiarPunto: punto destino ocupado por otro ticket -> ERR_POINT_OCCUPIED")
+    void cambiarPunto_destinoOcupado_lanza() {
+        Ticket abierto = ticketEnCursoConPunto();
+        PuntoParqueo destino = puntoEnMismoParqueadero(99L);
+
+        when(currentUser.isAdmin()).thenReturn(true);
+        when(ticketRepository.findById(60L)).thenReturn(Optional.of(abierto));
+        when(puntoParqueoRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(destino));
+        when(ticketRepository.existsByPuntoParqueoIdAndEstado(99L, "EN_CURSO")).thenReturn(true);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.cambiarPunto(60L, 99L));
+        assertEquals("ERR_POINT_OCCUPIED", ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("cambiarPunto: punto destino de OTRO parqueadero -> ERR_INVALID_STATE")
+    void cambiarPunto_destinoOtroParqueadero_lanza() {
+        Ticket abierto = ticketEnCursoConPunto();
+        // Destino con parqueadero distinto
+        PuntoParqueo destino = new PuntoParqueo();
+        destino.setId(99L);
+        com.usco.parqueaderos_api.parking.entity.SubSeccion ss = new com.usco.parqueaderos_api.parking.entity.SubSeccion();
+        com.usco.parqueaderos_api.parking.entity.Seccion sec = new com.usco.parqueaderos_api.parking.entity.Seccion();
+        Parqueadero otroParq = new Parqueadero(); otroParq.setId(99L);
+        sec.setParqueadero(otroParq);
+        ss.setSeccion(sec);
+        destino.setSubSeccion(ss);
+
+        when(currentUser.isAdmin()).thenReturn(true);
+        when(ticketRepository.findById(60L)).thenReturn(Optional.of(abierto));
+        when(puntoParqueoRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(destino));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ticketService.cambiarPunto(60L, 99L));
+        assertEquals("ERR_INVALID_STATE", ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("cambiarPunto: mismo punto = no-op (sin cambios)")
+    void cambiarPunto_mismoPunto_noop() {
+        Ticket abierto = ticketEnCursoConPunto();
+        when(currentUser.isAdmin()).thenReturn(true);
+        when(ticketRepository.findById(60L)).thenReturn(Optional.of(abierto));
+
+        TicketDTO res = ticketService.cambiarPunto(60L, 5L); // mismo id que punto actual
+
+        assertEquals(5L, res.getPuntoParqueoId());
+        verify(ticketRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("cambiarPunto: caso feliz -> save + publishEvent(TicketPuntoCambiadoEvent)")
+    void cambiarPunto_ok() {
+        Ticket abierto = ticketEnCursoConPunto();
+        PuntoParqueo destino = puntoEnMismoParqueadero(99L);
+
+        when(currentUser.isAdmin()).thenReturn(true);
+        when(ticketRepository.findById(60L)).thenReturn(Optional.of(abierto));
+        when(puntoParqueoRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(destino));
+        when(ticketRepository.existsByPuntoParqueoIdAndEstado(99L, "EN_CURSO")).thenReturn(false);
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketDTO res = ticketService.cambiarPunto(60L, 99L);
+
+        assertEquals(99L, res.getPuntoParqueoId());
+        verify(ticketRepository).save(abierto);
+        verify(eventPublisher).publishEvent(any());
+    }
 }

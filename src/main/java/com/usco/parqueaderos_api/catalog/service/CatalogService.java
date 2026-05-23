@@ -76,6 +76,7 @@ public class CatalogService {
 
     // ---- Estado (sin lazy, se devuelve directo) ----
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("estados")
     public List<Estado> findAllEstados() { return estadoRepository.findAll(); }
 
     @Transactional(readOnly = true)
@@ -103,6 +104,7 @@ public class CatalogService {
 
     // ---- TipoParqueadero ----
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("tiposParqueadero")
     public List<TipoParqueaderoDTO> findAllTiposParqueadero() {
         return tipoParqueaderoRepository.findAll().stream()
                 .map(this::toTipoParqueaderoDTO)
@@ -146,6 +148,7 @@ public class CatalogService {
 
     // ---- TipoPuntoParqueo ----
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("tiposPuntoParqueo")
     public List<TipoPuntoParqueoDTO> findAllTiposPuntoParqueo() {
         return tipoPuntoParqueoRepository.findAll().stream()
                 .map(this::toTipoPuntoParqueoDTO)
@@ -189,6 +192,7 @@ public class CatalogService {
 
     // ---- TipoVehiculo (sin lazy, se devuelve directo) ----
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("tiposVehiculo")
     public List<TipoVehiculo> findAllTiposVehiculo() { return tipoVehiculoRepository.findAll(); }
 
     @Transactional(readOnly = true)
@@ -216,6 +220,7 @@ public class CatalogService {
 
     // ---- TipoDispositivo ----
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("tiposDispositivo")
     public List<TipoDispositivoDTO> findAllTiposDispositivo() {
         return tipoDispositivoRepository.findAll().stream()
                 .map(this::toTipoDispositivoDTO)
@@ -259,6 +264,7 @@ public class CatalogService {
 
     // ---- Rol ----
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("roles")
     public List<RolDTO> findAllRoles() {
         return rolRepository.findAll().stream()
                 .map(this::toRolDTO)

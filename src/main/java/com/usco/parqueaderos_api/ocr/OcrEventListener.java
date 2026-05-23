@@ -1,11 +1,12 @@
 package com.usco.parqueaderos_api.ocr;
 
-import com.usco.parqueaderos_api.common.event.CamaraImagenActualizadaEvent;
-import com.usco.parqueaderos_api.common.event.PlacaDetectadaEvent;
+import com.usco.parqueaderos_api.parking.event.CamaraImagenActualizadaEvent;
+import com.usco.parqueaderos_api.ocr.event.PlacaDetectadaEvent;
 import com.usco.parqueaderos_api.common.storage.ImageStorageService;
 import com.usco.parqueaderos_api.parking.entity.Camara;
 import com.usco.parqueaderos_api.parking.entity.TipoCamara;
 import com.usco.parqueaderos_api.parking.repository.CamaraRepository;
+import com.usco.parqueaderos_api.ticket.service.TicketAutoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

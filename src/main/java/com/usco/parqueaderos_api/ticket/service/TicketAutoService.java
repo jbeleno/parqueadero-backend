@@ -1,9 +1,9 @@
-package com.usco.parqueaderos_api.ocr;
+package com.usco.parqueaderos_api.ticket.service;
 
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
 import com.usco.parqueaderos_api.catalog.repository.TipoVehiculoRepository;
-import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
-import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketCerradoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketCreadoEvent;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.parking.entity.PuntoParqueo;
 import com.usco.parqueaderos_api.parking.repository.ParqueaderoRepository;

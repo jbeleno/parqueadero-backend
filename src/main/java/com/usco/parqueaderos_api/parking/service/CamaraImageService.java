@@ -1,7 +1,7 @@
 package com.usco.parqueaderos_api.parking.service;
 
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
-import com.usco.parqueaderos_api.common.event.CamaraImagenActualizadaEvent;
+import com.usco.parqueaderos_api.parking.event.CamaraImagenActualizadaEvent;
 import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.common.storage.ImageStorageService;

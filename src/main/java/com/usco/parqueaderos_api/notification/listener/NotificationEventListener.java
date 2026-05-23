@@ -1,12 +1,12 @@
 package com.usco.parqueaderos_api.notification.listener;
 
-import com.usco.parqueaderos_api.common.event.CamaraImagenActualizadaEvent;
-import com.usco.parqueaderos_api.common.event.PlacaDetectadaEvent;
-import com.usco.parqueaderos_api.common.event.ReservaCanceladaEvent;
-import com.usco.parqueaderos_api.common.event.ReservaCreadaEvent;
-import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
-import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
-import com.usco.parqueaderos_api.common.event.TicketPuntoCambiadoEvent;
+import com.usco.parqueaderos_api.parking.event.CamaraImagenActualizadaEvent;
+import com.usco.parqueaderos_api.ocr.event.PlacaDetectadaEvent;
+import com.usco.parqueaderos_api.reservation.event.ReservaCanceladaEvent;
+import com.usco.parqueaderos_api.reservation.event.ReservaCreadaEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketCerradoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketCreadoEvent;
+import com.usco.parqueaderos_api.ticket.event.TicketPuntoCambiadoEvent;
 import com.usco.parqueaderos_api.notification.dto.NotificacionDTO;
 import com.usco.parqueaderos_api.notification.service.NotificationService;
 import com.usco.parqueaderos_api.parking.dto.DisponibilidadDTO;

@@ -4,6 +4,7 @@ import com.usco.parqueaderos_api.parking.entity.PuntoParqueo;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -43,6 +44,12 @@ public interface PuntoParqueoRepository extends JpaRepository<PuntoParqueo, Long
     @Query("SELECT t.puntoParqueo.id FROM Ticket t " +
            "WHERE t.puntoParqueo.id IN :puntoIds AND t.estado = 'EN_CURSO'")
     java.util.Set<Long> idsOcupadosEntre(@Param("puntoIds") java.util.Collection<Long> puntoIds);
+
+    /** Bulk soft-delete: archiva todos los puntos del nivel via subquery por subseccion->seccion. */
+    @Modifying
+    @Query("UPDATE PuntoParqueo pp SET pp.estado.id = :archivadoId WHERE pp.subSeccion.id IN " +
+           "(SELECT ss.id FROM SubSeccion ss WHERE ss.seccion.nivel.id = :nivelId)")
+    int archivarPorNivelId(@Param("nivelId") Long nivelId, @Param("archivadoId") Long archivadoId);
 
     /** IDs de puntos RESERVADOS activos entre los dados. */
     @Query("SELECT r.puntoParqueo.id FROM Reserva r " +
