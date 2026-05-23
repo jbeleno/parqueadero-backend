@@ -42,7 +42,17 @@ class ParqueaderoOCR:
 
     def __init__(self, lang: str = "en"):
         from paddleocr import PaddleOCR
-        self.ocr = PaddleOCR(use_textline_orientation=True, lang=lang)
+        # enable_mkldnn=False evita "ConvertPirAttribute2RuntimeAttribute not support"
+        # que aparece en algunos CPUs con PaddleOCR 3.x + onednn (PIR + mkldnn).
+        try:
+            self.ocr = PaddleOCR(
+                use_textline_orientation=True,
+                lang=lang,
+                enable_mkldnn=False,
+            )
+        except TypeError:
+            # Fallback por si la version de PaddleOCR no acepta enable_mkldnn
+            self.ocr = PaddleOCR(use_textline_orientation=True, lang=lang)
 
     def read(self, image_path: str) -> Optional[str]:
         """Lee placa desde archivo. Devuelve string ABC123 o None."""

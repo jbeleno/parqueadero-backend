@@ -13,11 +13,17 @@ Variables de entorno:
   DETECTOR_CONF    (default 0.25)
   MIN_VOTING_CONF  (default 0.66)
 """
-import io
-import logging
 import os
+
+# Flags para evitar bugs de PaddleOCR 3.x con el executor PIR + onednn en algunos CPUs.
+# Deben setearse ANTES de cualquier import de paddle/paddleocr.
+os.environ.setdefault("FLAGS_enable_pir_in_executor", "false")
+os.environ.setdefault("FLAGS_enable_pir_api", "false")
+os.environ.setdefault("FLAGS_use_mkldnn", "false")
+
+import logging
 import time
-from typing import List, Optional, Tuple
+from typing import List
 
 import cv2
 import numpy as np
