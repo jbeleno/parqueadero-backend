@@ -21,4 +21,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     long countOcupadosEnParqueadero(@Param("parqueaderoId") Long parqueaderoId);
 
     boolean existsByPuntoParqueoIdAndEstado(Long puntoParqueoId, String estado);
+
+    /**
+     * Ultimo ticket (de cualquier estado) del vehiculo en el parqueadero,
+     * ordenado por fechaHoraEntrada desc. Sirve para diferenciar entre:
+     * - salida fisica esperada (ticket recien cerrado),
+     * - alerta de salida fantasma (sin ticket reciente).
+     */
+    java.util.Optional<Ticket> findFirstByVehiculoIdAndParqueaderoIdOrderByFechaHoraEntradaDesc(
+            Long vehiculoId, Long parqueaderoId);
 }

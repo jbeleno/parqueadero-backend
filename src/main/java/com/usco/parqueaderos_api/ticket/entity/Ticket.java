@@ -44,6 +44,16 @@ public class Ticket {
     @Column(name = "fecha_hora_salida")
     private LocalDateTime fechaHoraSalida;
 
+    /**
+     * Cuando la camara SALIDA confirma fisicamente que el vehiculo cruzo.
+     * Puede ser igual o posterior a fechaHoraSalida si el ticket se cerro
+     * manualmente antes de que el carro pasara por la camara. Solo se setea
+     * la primera vez que la camara lo ve; reentradas en la ventana de
+     * cooldown no la sobreescriben.
+     */
+    @Column(name = "fecha_hora_salida_fisica")
+    private LocalDateTime fechaHoraSalidaFisica;
+
     @Column(length = 50)
     private String estado; // EN_CURSO, CERRADO, ANULADO
 

@@ -65,10 +65,14 @@ public class TicketAutoService {
         ENTRADA_REGISTRADA,
         ENTRADA_DUPLICADA,
         SALIDA_REGISTRADA,
+        SALIDA_CONFIRMADA_FISICA,  // ticket ya estaba cerrado por el admin; la camara confirma la salida fisica
         SALIDA_SIN_TICKET,
-        SOLO_DETECCION,        // tipo SEGURIDAD
+        SOLO_DETECCION,            // tipo SEGURIDAD
         ERROR
     }
+
+    /** Ventana para considerar que la salida fisica corresponde a un cierre manual reciente. */
+    private static final long SALIDA_FISICA_WINDOW_MIN = 5L;
 
     public record AutoActionResult(
             Accion accion,
@@ -177,32 +181,59 @@ public class TicketAutoService {
                     "Vehiculo no registrado — no hay ticket de entrada para esta placa");
         }
 
+        // Caso 1: ticket EN_CURSO -> ciclo normal, cierra y cobra
         Optional<Ticket> ticketAbierto = ticketRepo.findByVehiculoId(vehiculo.getId()).stream()
                 .filter(t -> ESTADO_EN_CURSO.equals(t.getEstado())
                         && t.getParqueadero() != null
                         && parqueadero.getId().equals(t.getParqueadero().getId()))
                 .findFirst();
 
-        if (ticketAbierto.isEmpty()) {
-            return new AutoActionResult(Accion.SALIDA_SIN_TICKET, null, vehiculo.getId(),
-                    false, null, null,
-                    "No hay ticket abierto del vehiculo en este parqueadero");
+        if (ticketAbierto.isPresent()) {
+            Ticket t = ticketAbierto.get();
+            LocalDateTime salida = LocalDateTime.now();
+            double monto = tarifaCalculator.calcular(t, salida);
+            t.setFechaHoraSalida(salida);
+            t.setFechaHoraSalidaFisica(salida);
+            t.setMontoCalculado(monto);
+            t.setEstado("CERRADO");
+            Ticket saved = ticketRepo.save(t);
+
+            Long puntoId = saved.getPuntoParqueo() != null ? saved.getPuntoParqueo().getId() : null;
+            publisher.publishEvent(new TicketCerradoEvent(
+                    this, saved.getId(), parqueadero.getId(), puntoId));
+
+            return new AutoActionResult(Accion.SALIDA_REGISTRADA, saved.getId(),
+                    vehiculo.getId(), false, puntoId, monto, "Salida registrada automaticamente");
         }
 
-        Ticket t = ticketAbierto.get();
-        LocalDateTime salida = LocalDateTime.now();
-        double monto = tarifaCalculator.calcular(t, salida);
-        t.setFechaHoraSalida(salida);
-        t.setMontoCalculado(monto);
-        t.setEstado("CERRADO");
-        Ticket saved = ticketRepo.save(t);
+        // Caso 2: ticket CERRADO recientemente (cierre manual del admin) -> salida fisica esperada
+        Optional<Ticket> ultimo = ticketRepo
+                .findFirstByVehiculoIdAndParqueaderoIdOrderByFechaHoraEntradaDesc(
+                        vehiculo.getId(), parqueadero.getId());
+        if (ultimo.isPresent() && "CERRADO".equals(ultimo.get().getEstado())
+                && ultimo.get().getFechaHoraSalida() != null) {
+            Ticket t = ultimo.get();
+            LocalDateTime ahora = LocalDateTime.now();
+            long minutosDesdeCierre = java.time.Duration.between(
+                    t.getFechaHoraSalida(), ahora).toMinutes();
 
-        Long puntoId = saved.getPuntoParqueo() != null ? saved.getPuntoParqueo().getId() : null;
-        publisher.publishEvent(new TicketCerradoEvent(
-                this, saved.getId(), parqueadero.getId(), puntoId));
+            if (minutosDesdeCierre <= SALIDA_FISICA_WINDOW_MIN) {
+                // Si no se habia registrado salida fisica antes, la registramos
+                if (t.getFechaHoraSalidaFisica() == null) {
+                    t.setFechaHoraSalidaFisica(ahora);
+                    ticketRepo.save(t);
+                }
+                Long puntoId = t.getPuntoParqueo() != null ? t.getPuntoParqueo().getId() : null;
+                return new AutoActionResult(Accion.SALIDA_CONFIRMADA_FISICA, t.getId(),
+                        vehiculo.getId(), false, puntoId, t.getMontoCalculado(),
+                        "Salida fisica confirmada — ticket ya estaba cerrado");
+            }
+        }
 
-        return new AutoActionResult(Accion.SALIDA_REGISTRADA, saved.getId(),
-                vehiculo.getId(), false, puntoId, monto, "Salida registrada automaticamente");
+        // Caso 3: sin ticket reciente -> alerta de salida fantasma
+        return new AutoActionResult(Accion.SALIDA_SIN_TICKET, null, vehiculo.getId(),
+                false, null, null,
+                "No hay ticket reciente del vehiculo en este parqueadero");
     }
 
     // ── HELPERS ────────────────────────────────────────────────────────────
