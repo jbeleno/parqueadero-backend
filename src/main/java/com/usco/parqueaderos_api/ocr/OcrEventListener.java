@@ -35,6 +35,7 @@ public class OcrEventListener {
     private final CamaraRepository camaraRepo;
     private final ImageStorageService imageStorage;
     private final ApplicationEventPublisher publisher;
+    private final TicketAutoService ticketAutoService;
 
     @Async
     @EventListener
@@ -76,6 +77,14 @@ public class OcrEventListener {
         for (var p : placas) {
             log.info("OCR: camara {} ({}) detecto placa {} conf={}",
                     camara.getId(), tipoCamaraStr, p.placa(), p.confianza());
+
+            // Aplicar logica de negocio (crear/cerrar ticket auto)
+            TicketAutoService.AutoActionResult result = ticketAutoService.procesarPlacaDetectada(
+                    camara.getId(), event.getParqueaderoId(), tipoCamaraStr, p.placa());
+
+            log.info("OCR: accion={} ticket={} vehiculo={} mensaje={}",
+                    result.accion(), result.ticketId(), result.vehiculoId(), result.mensaje());
+
             publisher.publishEvent(new PlacaDetectadaEvent(
                     this,
                     camara.getId(),
@@ -83,7 +92,14 @@ public class OcrEventListener {
                     tipoCamaraStr,
                     p.placa(),
                     p.confianza(),
-                    now
+                    now,
+                    result.accion().name(),
+                    result.ticketId(),
+                    result.vehiculoId(),
+                    result.vehiculoCreado(),
+                    result.puntoParqueoId(),
+                    result.montoCalculado(),
+                    result.mensaje()
             ));
         }
     }

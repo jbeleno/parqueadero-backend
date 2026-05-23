@@ -115,10 +115,18 @@ public class NotificationEventListener {
         data.put("placa", event.getPlaca());
         data.put("confianza", event.getConfianza());
         data.put("detectedAt", event.getDetectedAt() != null ? event.getDetectedAt().toString() : null);
+        // Resultado de la accion automatica
+        data.put("accion", event.getAccion());
+        data.put("ticketId", event.getTicketId());
+        data.put("vehiculoId", event.getVehiculoId());
+        data.put("vehiculoCreado", event.getVehiculoCreado());
+        data.put("puntoParqueoId", event.getPuntoParqueoId());
+        data.put("montoCalculado", event.getMontoCalculado());
+        data.put("mensaje", event.getMensaje());
 
         NotificacionDTO notif = NotificacionDTO.builder()
                 .tipo("PLACA_DETECTADA")
-                .mensaje("Placa detectada por camara")
+                .mensaje(event.getMensaje() != null ? event.getMensaje() : "Placa detectada por camara")
                 .parqueaderoId(event.getParqueaderoId())
                 .data(data)
                 .build();
