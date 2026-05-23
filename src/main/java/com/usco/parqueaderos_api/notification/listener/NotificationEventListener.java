@@ -6,6 +6,7 @@ import com.usco.parqueaderos_api.common.event.ReservaCanceladaEvent;
 import com.usco.parqueaderos_api.common.event.ReservaCreadaEvent;
 import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
 import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
+import com.usco.parqueaderos_api.common.event.TicketPuntoCambiadoEvent;
 import com.usco.parqueaderos_api.notification.dto.NotificacionDTO;
 import com.usco.parqueaderos_api.notification.service.NotificationService;
 import com.usco.parqueaderos_api.parking.dto.DisponibilidadDTO;
@@ -131,6 +132,41 @@ public class NotificationEventListener {
                 .data(data)
                 .build();
         notificationService.notificarParqueadero(event.getParqueaderoId(), notif);
+    }
+
+    @Async
+    @EventListener
+    public void onTicketPuntoCambiado(TicketPuntoCambiadoEvent event) {
+        if (event.getParqueaderoId() == null) return;
+
+        // 1) Libera el punto anterior
+        if (event.getPuntoParqueoAnteriorId() != null) {
+            emitirSpotStatusChange(event.getPuntoParqueoAnteriorId(), "free",
+                    event.getTicketId(), event.getParqueaderoId());
+        }
+        // 2) Ocupa el nuevo punto
+        if (event.getPuntoParqueoNuevoId() != null) {
+            emitirSpotStatusChange(event.getPuntoParqueoNuevoId(), "occupied",
+                    event.getTicketId(), event.getParqueaderoId());
+        }
+        // 3) Notifica el cambio puntual para que el front actualice referencias
+        Map<String, Object> data = new HashMap<>();
+        data.put("ticketId", event.getTicketId());
+        data.put("puntoParqueoAnteriorId", event.getPuntoParqueoAnteriorId() != null
+                ? event.getPuntoParqueoAnteriorId().toString() : null);
+        data.put("puntoParqueoNuevoId", event.getPuntoParqueoNuevoId() != null
+                ? event.getPuntoParqueoNuevoId().toString() : null);
+        NotificacionDTO notif = NotificacionDTO.builder()
+                .tipo("TICKET_PUNTO_CAMBIADO")
+                .mensaje("Ticket movido a otro punto")
+                .referenciaId(event.getTicketId())
+                .parqueaderoId(event.getParqueaderoId())
+                .data(data)
+                .build();
+        notificationService.notificarParqueadero(event.getParqueaderoId(), notif);
+
+        // 4) Conteos no cambian (sigue 1 ocupado), pero emitimos OCUPACION para refrescar
+        emitirOcupacionActualizada(event.getParqueaderoId());
     }
 
     @Async

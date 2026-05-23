@@ -207,7 +207,14 @@ public class TicketAutoService {
 
     // ── HELPERS ────────────────────────────────────────────────────────────
 
-    /** Busca el primer punto del parqueadero que no este archivado y sin ticket EN_CURSO. */
+    /**
+     * Busca el primer punto del parqueadero que sea tipo "publico" (no administrativo,
+     * no discapacitado), no este archivado y sin ticket EN_CURSO.
+     *
+     * Tipos auto-asignables (lower-case): "placas", "publico", "general", "normal".
+     * Si no hay punto de tipo publico libre, retorna null y el operador debe asignar
+     * manualmente via PATCH /api/tickets/{id}/punto.
+     */
     private PuntoParqueo buscarPuntoLibre(Long parqueaderoId) {
         List<PuntoParqueo> puntos = puntoParqueoRepo.findBySubSeccionSeccionParqueaderoEmpresaId(
                 parqueaderoRepo.findById(parqueaderoId)
@@ -225,12 +232,22 @@ public class TicketAutoService {
             if (pp.getEstado() != null && "ARCHIVADO".equals(pp.getEstado().getNombre())) {
                 continue;
             }
+            // tipo publico (excluir administrativo / discapacitado / reservado)
+            if (!esTipoPublico(pp)) continue;
             // sin ticket EN_CURSO
             if (!ticketRepo.existsByPuntoParqueoIdAndEstado(pp.getId(), ESTADO_EN_CURSO)) {
                 return pp;
             }
         }
         return null;
+    }
+
+    private boolean esTipoPublico(PuntoParqueo pp) {
+        if (pp.getTipoPuntoParqueo() == null) return true; // sin tipo = asumir publico
+        String n = pp.getTipoPuntoParqueo().getNombre();
+        if (n == null) return true;
+        n = n.toLowerCase();
+        return n.contains("plac") || n.contains("publi") || n.contains("general") || n.contains("normal");
     }
 
     /** Busca primera tarifa del parqueadero, preferentemente del tipo de vehiculo del veh. */

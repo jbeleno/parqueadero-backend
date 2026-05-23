@@ -50,6 +50,21 @@ public class TicketController {
                 ApiResponse.ok(ticketService.registrarSalida(id), "Salida registrada y monto calculado"));
     }
 
+    /**
+     * Mueve un ticket EN_CURSO a otro punto de parqueo del mismo parqueadero.
+     * Util cuando el OCR asigno auto un punto y el operador necesita corregir
+     * a donde realmente se estaciono el vehiculo. Body: { "puntoParqueoId": X }.
+     */
+    @PatchMapping("/{id}/punto")
+    public ResponseEntity<ApiResponse<TicketDTO>> cambiarPunto(
+            @PathVariable Long id, @RequestBody CambiarPuntoRequest body) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                ticketService.cambiarPunto(id, body.puntoParqueoId()),
+                "Ticket movido al nuevo punto"));
+    }
+
+    public record CambiarPuntoRequest(Long puntoParqueoId) {}
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         ticketService.delete(id);

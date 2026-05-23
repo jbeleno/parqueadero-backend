@@ -3,6 +3,7 @@ package com.usco.parqueaderos_api.ticket.service;
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.common.event.TicketCerradoEvent;
 import com.usco.parqueaderos_api.common.event.TicketCreadoEvent;
+import com.usco.parqueaderos_api.common.event.TicketPuntoCambiadoEvent;
 import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
@@ -236,6 +237,80 @@ public class TicketService {
         Long parqueaderoId = saved.getParqueadero() != null ? saved.getParqueadero().getId() : null;
         Long puntoId = saved.getPuntoParqueo() != null ? saved.getPuntoParqueo().getId() : null;
         eventPublisher.publishEvent(new TicketCerradoEvent(this, saved.getId(), parqueaderoId, puntoId));
+
+        return toDTO(saved);
+    }
+
+    /**
+     * Mueve un ticket EN_CURSO a otro punto de parqueo del mismo parqueadero.
+     * Util cuando el OCR asigno automaticamente un punto y el operador necesita
+     * indicar donde se estaciono realmente el vehiculo (sin sensores).
+     *
+     * - Solo ADMIN/SUPER_ADMIN
+     * - El ticket debe estar EN_CURSO
+     * - El nuevo punto debe estar en el mismo parqueadero, no archivado, sin otro ticket EN_CURSO
+     * - Lock pesimista sobre el nuevo punto para evitar race conditions
+     */
+    @Transactional
+    public TicketDTO cambiarPunto(Long ticketId, Long nuevoPuntoId) {
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo el operador puede mover tickets");
+        }
+        if (nuevoPuntoId == null) {
+            throw new BusinessException("puntoParqueoId es obligatorio", "ERR_MISSING_FIELDS");
+        }
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId));
+
+        if (ticket.getParqueadero() != null && ticket.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(ticket.getParqueadero().getEmpresa().getId());
+        }
+        if (!"EN_CURSO".equals(ticket.getEstado())) {
+            throw new BusinessException(
+                    "Solo se puede mover un ticket EN_CURSO. Estado actual: " + ticket.getEstado(),
+                    "ERR_INVALID_TRANSITION");
+        }
+
+        Long puntoAnteriorId = ticket.getPuntoParqueo() != null ? ticket.getPuntoParqueo().getId() : null;
+        if (nuevoPuntoId.equals(puntoAnteriorId)) {
+            return toDTO(ticket); // no-op
+        }
+
+        // Lock pesimista sobre el nuevo punto
+        PuntoParqueo nuevoPunto = puntoParqueoRepository.findByIdForUpdate(nuevoPuntoId)
+                .orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", nuevoPuntoId));
+
+        // Mismo parqueadero
+        Long parqueaderoTicket = ticket.getParqueadero() != null ? ticket.getParqueadero().getId() : null;
+        Long parqueaderoPunto = nuevoPunto.getSubSeccion() != null
+                && nuevoPunto.getSubSeccion().getSeccion() != null
+                && nuevoPunto.getSubSeccion().getSeccion().getParqueadero() != null
+                ? nuevoPunto.getSubSeccion().getSeccion().getParqueadero().getId()
+                : null;
+        if (parqueaderoTicket == null || !parqueaderoTicket.equals(parqueaderoPunto)) {
+            throw new BusinessException(
+                    "El punto destino debe pertenecer al mismo parqueadero del ticket",
+                    "ERR_INVALID_STATE");
+        }
+
+        // Punto no archivado
+        if (nuevoPunto.getEstado() != null && "ARCHIVADO".equals(nuevoPunto.getEstado().getNombre())) {
+            throw new BusinessException("El punto destino esta archivado", "ERR_INVALID_STATE");
+        }
+
+        // Punto destino libre
+        if (ticketRepository.existsByPuntoParqueoIdAndEstado(nuevoPuntoId, "EN_CURSO")) {
+            throw new BusinessException(
+                    "El punto destino ya esta ocupado por otro vehiculo",
+                    "ERR_POINT_OCCUPIED");
+        }
+
+        ticket.setPuntoParqueo(nuevoPunto);
+        Ticket saved = ticketRepository.save(ticket);
+
+        eventPublisher.publishEvent(new TicketPuntoCambiadoEvent(
+                this, saved.getId(), parqueaderoTicket, puntoAnteriorId, nuevoPuntoId));
 
         return toDTO(saved);
     }
