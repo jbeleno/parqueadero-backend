@@ -130,6 +130,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_ticket_punto_en_curso
   ON ticket (punto_parqueo_id)
   WHERE estado = 'EN_CURSO';
 
+-- Cleanup defensivo: si ya hay duplicados historicos (de antes del indice),
+-- cierra los mas recientes y deja solo el mas antiguo de cada (vehiculo, parqueadero).
+-- Idempotente: si no hay duplicados, el UPDATE no afecta filas.
+UPDATE ticket SET
+    estado = 'CERRADO',
+    fecha_hora_salida = COALESCE(fecha_hora_salida, NOW())
+WHERE estado = 'EN_CURSO'
+  AND id NOT IN (
+    SELECT MIN(id) FROM ticket
+    WHERE estado = 'EN_CURSO'
+    GROUP BY vehiculo_id, parqueadero_id
+  );
+
 -- Anti-duplicado de placa: el mismo vehiculo no puede tener dos tickets
 -- EN_CURSO en el mismo parqueadero. Funciona como defensa en profundidad
 -- ante race conditions: si la verificacion existsBy del service pasa por
