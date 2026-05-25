@@ -53,3 +53,8 @@ CLAUDE.md
 docs/figures/
 # Markdown temporal del build
 docs/*_render.md
+
+### Documentación académica — fuentes (locales, no versionar) ###
+# Los anexos y el script de build viven solo en la copia local del autor
+docs/ANEXO_*.md
+docs/build-anexo.sh
