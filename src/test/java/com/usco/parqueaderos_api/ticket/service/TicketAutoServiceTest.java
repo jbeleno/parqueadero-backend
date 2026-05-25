@@ -139,6 +139,31 @@ class TicketAutoServiceTest {
     }
 
     @Test
+    @DisplayName("ENTRADA con race condition: el INSERT viola el indice unico -> ENTRADA_DUPLICADA")
+    void entrada_race_condition_indice_unico() {
+        // existsBy retorna false (otro thread aun no commiteo) pero al hacer
+        // save+flush, el indice unico parcial dispara DataIntegrityViolationException.
+        when(parqueaderoRepo.findById(7L)).thenReturn(Optional.of(parq));
+        when(vehiculoRepo.findByPlaca("KJV807")).thenReturn(Optional.of(vehiculoExistente));
+        when(ticketRepo.existsByVehiculoIdAndParqueaderoIdAndEstado(10L, 7L, "EN_CURSO")).thenReturn(false);
+        when(puntoParqueoRepo.findActiveByParqueaderoId(7L)).thenReturn(List.of(puntoLibrePublico));
+        when(puntoParqueoRepo.findByIdForUpdate(100L)).thenReturn(Optional.of(puntoLibrePublico));
+        when(ticketRepo.existsByPuntoParqueoIdAndEstado(100L, "EN_CURSO")).thenReturn(false);
+        when(tarifaRepo.findByParqueaderoId(7L)).thenReturn(List.of(tarifa));
+        when(ticketRepo.save(any(Ticket.class))).thenAnswer(inv -> { Ticket t = inv.getArgument(0); t.setId(999L); return t; });
+        // El flush dispara la violacion del indice unico
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException(
+                "uniq_ticket_vehiculo_parqueadero_en_curso"))
+                .when(ticketRepo).flush();
+
+        TicketAutoService.AutoActionResult r = service.procesarPlacaDetectada(5L, 7L, "ENTRADA", "KJV807");
+
+        assertEquals(TicketAutoService.Accion.ENTRADA_DUPLICADA, r.accion());
+        assertNull(r.ticketId(), "no debe quedar ticketId del save fallido");
+        verify(publisher, never()).publishEvent(any());
+    }
+
+    @Test
     @DisplayName("ENTRADA con ticket EN_CURSO ya abierto -> ENTRADA_DUPLICADA (no crea otro ticket)")
     void entrada_duplicada() {
         when(parqueaderoRepo.findById(7L)).thenReturn(Optional.of(parq));

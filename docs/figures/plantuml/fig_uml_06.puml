@@ -1,0 +1,8 @@
+@startuml
+[*] --> EN_CURSO : POST /api/tickets\n(manual o automático)
+EN_CURSO --> CERRADO : PATCH /api/tickets/{id}/salida\n(manual) o\nOCR salida (automático)
+EN_CURSO --> ANULADO : PATCH /api/tickets/{id}/anular
+CERRADO --> CERRADO : OCR salida confirmada físicamente\n(registra fechaHoraSalidaFisica)
+CERRADO --> [*]
+ANULADO --> [*]
+@enduml

@@ -1,0 +1,27 @@
+@startuml
+actor Cliente
+participant "WebSocket /ws" as WS
+participant "Spring SimpMessagingTemplate" as STT
+participant "NotificationListener\n(@Async)" as NL
+participant "ApplicationEventPublisher" as EVT
+participant "TicketService" as TS
+
+== Suscripción inicial ==
+Cliente -> WS : CONNECT (Authorization: Bearer ...)
+WS --> Cliente : CONNECTED
+Cliente -> WS : SUBSCRIBE /topic/parqueadero/7
+WS --> Cliente : ack
+
+== Acción en otro cliente (entrada de vehículo) ==
+"Otro cliente" -> TS : POST /api/tickets (parqueadero 7)
+TS -> EVT : publish(TicketCreadoEvent)
+TS --> "Otro cliente" : 201 OK
+EVT -> NL : onTicketCreadoEvent (after commit)
+NL -> STT : convertAndSend(/topic/parqueadero/7, TICKET_CREADO)
+NL -> STT : convertAndSend(/topic/parqueadero/7, SPOT_STATUS_CHANGE occupied)
+NL -> STT : convertAndSend(/topic/parqueadero/7, OCUPACION_ACTUALIZADA)
+STT -> WS : push
+WS -> Cliente : MESSAGE TICKET_CREADO
+WS -> Cliente : MESSAGE SPOT_STATUS_CHANGE
+WS -> Cliente : MESSAGE OCUPACION_ACTUALIZADA
+@enduml

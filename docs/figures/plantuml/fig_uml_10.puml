@@ -1,0 +1,19 @@
+@startuml
+skinparam shadowing false
+skinparam rectangle {
+  RoundCorner 10
+}
+
+rectangle "Cámara Tapo\n(RTSP / HTTP)" as CAM
+rectangle "YOLOv11n\ndetector\nmAP50 0.987" as YOLO
+rectangle "Recorte placa\n+ padding 6%" as CROP
+rectangle "PaddleOCR ×3\n(original + bright + smooth)" as POCR
+rectangle "Voting + regex\nABC123" as VOTE
+rectangle "Match contra BD\n→ entrada / salida" as MATCH
+
+CAM --> YOLO
+YOLO --> CROP
+CROP --> POCR
+POCR --> VOTE
+VOTE --> MATCH
+@enduml

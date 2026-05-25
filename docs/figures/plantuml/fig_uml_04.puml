@@ -1,0 +1,34 @@
+@startuml
+skinparam packageStyle folder
+skinparam shadowing false
+
+package "Backend Spring Boot — com.usco.parqueaderos_api" as BACKEND {
+  package "auth" as P_AUTH
+  package "user" as P_USER
+  package "parking" as P_PARK
+  package "ticket" as P_TICK
+  package "reservation" as P_RES
+  package "tariff" as P_TAR
+  package "billing" as P_BILL
+  package "vehicle" as P_VEH
+  package "device" as P_DEV
+  package "catalog" as P_CAT
+  package "location" as P_LOC
+  package "notification" as P_NOTIF
+  package "ocr (cliente HTTP)" as P_OCR
+  package "common" as P_COM
+}
+
+package "Sidecar Python (directorio ocr/)" as SIDECAR {
+  component "main_py" as MAIN
+  component "yolo_detector_py" as YOLO
+  component "paddle_ocr_voting_py" as POCR
+  component "Dockerfile_sidecar" as DSC
+}
+
+package "Raíz del repositorio" as ROOT {
+  component "Dockerfile_prod" as DPROD
+  component "docker_compose_yml" as DC
+  component "pom_xml" as POM
+}
+@enduml

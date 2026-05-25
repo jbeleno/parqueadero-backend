@@ -161,7 +161,22 @@ public class TicketAutoService {
         t.setTarifa(tarifa);
         t.setFechaHoraEntrada(LocalDateTime.now());
         t.setEstado(ESTADO_EN_CURSO);
-        Ticket saved = ticketRepo.save(t);
+
+        Ticket saved;
+        try {
+            saved = ticketRepo.save(t);
+            // Force flush para que la violacion del indice unico se dispare AQUI y no en commit
+            ticketRepo.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            // Race condition: otro thread creo el ticket en paralelo. El indice
+            // uniq_ticket_vehiculo_parqueadero_en_curso o uniq_ticket_punto_en_curso
+            // bloqueo la insercion. Retornamos ENTRADA_DUPLICADA en lugar de propagar.
+            log.warn("Race condition al crear ticket (placa={}, parq={}): {}",
+                    placa, parqueadero.getId(), ex.getMostSpecificCause().getMessage());
+            return new AutoActionResult(Accion.ENTRADA_DUPLICADA, null, vehiculo.getId(),
+                    vehiculoCreado, null, null,
+                    "Vehiculo ya tiene ticket abierto (detectado via constraint)");
+        }
 
         publisher.publishEvent(new TicketCreadoEvent(
                 this, saved.getId(), parqueadero.getId(), puntoLibre.getId()));

@@ -125,6 +125,7 @@ public class GlobalExceptionHandler {
         if (code == null) return HttpStatus.UNPROCESSABLE_ENTITY;
         switch (code) {
             case "ERR_POINT_OCCUPIED":
+            case "ERR_TICKET_DUPLICADO":
             case "ERR_INVOICE_DUPLICATE":
             case "ERR_INVOICE_ALREADY_PAID":
                 return HttpStatus.CONFLICT;

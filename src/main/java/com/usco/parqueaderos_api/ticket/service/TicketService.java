@@ -116,6 +116,15 @@ public class TicketService {
         Vehiculo vehiculo = findVehiculo(dto.getVehiculoId());
         Tarifa tarifa = findTarifa(dto.getTarifaId());
 
+        // 5.b) Validar que el vehiculo no tenga ya un ticket EN_CURSO en este parqueadero.
+        //      Defensa programatica + indice unico parcial en BD como red de seguridad.
+        if (ticketRepository.existsByVehiculoIdAndParqueaderoIdAndEstado(
+                vehiculo.getId(), parqueadero.getId(), "EN_CURSO")) {
+            throw new BusinessException(
+                    "El vehiculo ya tiene un ticket EN_CURSO en este parqueadero",
+                    "ERR_TICKET_DUPLICADO");
+        }
+
         Ticket entity = new Ticket();
         entity.setParqueadero(parqueadero);
         entity.setPuntoParqueo(punto);
@@ -126,7 +135,18 @@ public class TicketService {
         entity.setEstado("EN_CURSO");
         entity.setMontoCalculado(null); // se calcula al cerrar
 
-        Ticket saved = ticketRepository.save(entity);
+        Ticket saved;
+        try {
+            saved = ticketRepository.save(entity);
+            ticketRepository.flush(); // forzar la insercion AHORA para atrapar la violacion del indice
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            // Race condition: otro thread inserto en paralelo. El indice unico parcial bloqueo.
+            throw new BusinessException(
+                    "El vehiculo ya tiene un ticket EN_CURSO en este parqueadero "
+                    + "(detectado por constraint)",
+                    "ERR_TICKET_DUPLICADO");
+        }
+
         eventPublisher.publishEvent(
                 new TicketCreadoEvent(this, saved.getId(), parqueadero.getId(), punto.getId()));
         return toDTO(saved);

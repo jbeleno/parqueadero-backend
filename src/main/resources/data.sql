@@ -130,6 +130,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_ticket_punto_en_curso
   ON ticket (punto_parqueo_id)
   WHERE estado = 'EN_CURSO';
 
+-- Anti-duplicado de placa: el mismo vehiculo no puede tener dos tickets
+-- EN_CURSO en el mismo parqueadero. Funciona como defensa en profundidad
+-- ante race conditions: si la verificacion existsBy del service pasa por
+-- ambas transacciones concurrentes, el motor rechaza el segundo INSERT.
+-- El service captura DataIntegrityViolationException y retorna ENTRADA_DUPLICADA.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_ticket_vehiculo_parqueadero_en_curso
+  ON ticket (vehiculo_id, parqueadero_id)
+  WHERE estado = 'EN_CURSO';
+
 -- Indices hot-path para queries de filtrado/conteo
 CREATE INDEX IF NOT EXISTS idx_ticket_estado            ON ticket (estado);
 CREATE INDEX IF NOT EXISTS idx_ticket_parqueadero       ON ticket (parqueadero_id);
