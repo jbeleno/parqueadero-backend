@@ -45,3 +45,11 @@ CLAUDE.md
 ### macOS ###
 .DS_Store
 **/.DS_Store
+
+### Documentación académica — artefactos generados ###
+# Binarios derivados del Markdown (regenerables con docs/build-anexo.sh)
+*.docx
+# Imágenes y PUMLs intermedios renderizados por plantuml/silicon/matplotlib
+docs/figures/
+# Markdown temporal del build
+docs/*_render.md
