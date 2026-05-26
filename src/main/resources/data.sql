@@ -216,8 +216,9 @@ ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_pase_dia               DOUBLE
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS aplica_iva                    BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS iva_porcentaje                DOUBLE PRECISION NOT NULL DEFAULT 0;
 
--- Ticket: vinculo opcional con suscripcion (cobro mensual/pase/abono)
-ALTER TABLE ticket ADD COLUMN IF NOT EXISTS suscripcion_id BIGINT;
+-- Ticket: vinculo opcional con suscripcion + confirmacion fisica de salida
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS suscripcion_id          BIGINT;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS fecha_hora_salida_fisica TIMESTAMP;
 
 -- Parqueadero: tope legal por minuto (regulado en algunas ciudades)
 ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS tarifa_maxima_por_minuto DOUBLE PRECISION;
