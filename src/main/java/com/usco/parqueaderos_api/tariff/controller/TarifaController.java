@@ -43,4 +43,16 @@ public class TarifaController {
         tarifaService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    /** Soft-delete con motivo en query param (alternativa al body para PATCH simple). */
+    @PatchMapping("/{id}/archivar")
+    public ResponseEntity<ApiResponse<TarifaDTO>> archivar(@PathVariable Long id,
+                                                           @RequestParam String motivo) {
+        return ResponseEntity.ok(ApiResponse.ok(tarifaService.archivar(id, motivo)));
+    }
+
+    @PatchMapping("/{id}/desarchivar")
+    public ResponseEntity<ApiResponse<TarifaDTO>> desarchivar(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(tarifaService.desarchivar(id)));
+    }
 }

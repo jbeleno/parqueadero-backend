@@ -84,6 +84,19 @@ public class Tarifa {
     @Column(name = "valor_minimo_reemplaza")
     private Boolean valorMinimoReemplaza = false;
 
+    /** Soft-delete: false = archivada, no aparece en listados activos. */
+    @Column
+    private Boolean activo = true;
+
+    @Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
+
+    @Column(name = "motivo_archivado", length = 500)
+    private String motivoArchivado;
+
     /** Si TRUE el monto cobrado incluye IVA (se calcula y desagrega en la factura). */
     @Column(name = "aplica_iva")
     private Boolean aplicaIva = false;

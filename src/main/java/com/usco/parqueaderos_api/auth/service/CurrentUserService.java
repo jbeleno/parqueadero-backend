@@ -93,6 +93,46 @@ public class CurrentUserService {
         return hasRole("USER");
     }
 
+    public boolean isAdminParqueadero() {
+        return hasRole("ADMIN_PARQUEADERO");
+    }
+
+    public boolean isOperarioCaja() {
+        return hasRole("OPERARIO_CAJA");
+    }
+
+    /**
+     * Lista de parqueaderoIds permitidos al usuario (desde JWT).
+     * - SUPER_ADMIN / ADMIN: lista vacia (acceso global)
+     * - ADMIN_PARQUEADERO / OPERARIO_CAJA: lista explicita del JWT
+     * - USER: lista vacia (USER no esta asignado a parqueaderos)
+     */
+    public java.util.List<Long> getParqueaderoIds() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getDetails() instanceof JwtAuthDetails details) {
+            return details.parqueaderoIds() != null ? details.parqueaderoIds() : java.util.List.of();
+        }
+        return java.util.List.of();
+    }
+
+    /**
+     * Verifica que el usuario tenga acceso al parqueadero indicado.
+     * - SUPER_ADMIN: pasa
+     * - ADMIN: pasa si el parqueadero es de su empresa (no se valida aqui, usar requireEmpresa)
+     * - ADMIN_PARQUEADERO / OPERARIO_CAJA: solo si parqueaderoId esta en su lista
+     */
+    public void requireParqueadero(Long parqueaderoId) {
+        if (isSuperAdmin() || isAdmin()) return;
+        if (isAdminParqueadero() || isOperarioCaja()) {
+            if (!getParqueaderoIds().contains(parqueaderoId)) {
+                throw new AccessDeniedException(
+                        "No tienes acceso al parqueadero " + parqueaderoId);
+            }
+            return;
+        }
+        throw new AccessDeniedException("Sin rol con acceso a parqueaderos");
+    }
+
     // ─── Validaciones de ownership ──────────────────────────────────────
 
     /**

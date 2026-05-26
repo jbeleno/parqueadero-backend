@@ -40,10 +40,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt = authHeader.substring(7);
         final String username;
         final Long empresaIdClaim;
+        final java.util.List<Long> parqueaderoIdsClaim;
 
         try {
             username = jwtService.extractUsername(jwt);
             empresaIdClaim = jwtService.extractEmpresaId(jwt);
+            parqueaderoIdsClaim = jwtService.extractParqueaderoIds(jwt);
         } catch (Exception e) {
             filterChain.doFilter(request, response);
             return;
@@ -54,9 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                // Llevamos el empresaId en details para que CurrentUserService
-                // lo lea sin golpear la BD.
-                authToken.setDetails(new JwtAuthDetails(empresaIdClaim));
+                authToken.setDetails(new JwtAuthDetails(empresaIdClaim, parqueaderoIdsClaim));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }

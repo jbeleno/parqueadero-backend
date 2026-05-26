@@ -28,6 +28,11 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final FacturaRepository facturaRepository;
     private final CurrentUserService currentUser;
+    /** Opcional: si esta presente, los pagos EFECTIVO se ingresan a la caja abierta del operador. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.caja.service.CajaService cajaService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.audit.service.AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<PagoDTO> findAll() {
@@ -148,6 +153,24 @@ public class PagoService {
                 factura.setEstado("PAGADA");
                 facturaRepository.save(factura);
             }
+        }
+
+        // Auto-ingreso a la caja del operador si el pago es EFECTIVO completado
+        if (cajaService != null && "COMPLETADO".equals(estado) && "EFECTIVO".equals(saved.getMetodo())) {
+            try {
+                cajaService.ingresarPagoEfectivo(saved, currentUser.getCurrent());
+            } catch (Exception ex) {
+                // Si falla por no haber caja abierta, solo log (no rompe el pago)
+                org.slf4j.LoggerFactory.getLogger(PagoService.class)
+                        .warn("Pago EFECTIVO #{} no se ingreso en caja: {}", saved.getId(), ex.getMessage());
+            }
+        }
+
+        // Auditoria
+        if (auditService != null) {
+            auditService.log("pago", saved.getId(), "CREATE", null, saved,
+                    factura.getParqueadero() != null && factura.getParqueadero().getEmpresa() != null
+                            ? factura.getParqueadero().getEmpresa().getId() : null);
         }
 
         return toDTO(saved);

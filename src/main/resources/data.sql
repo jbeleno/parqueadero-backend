@@ -401,3 +401,101 @@ CREATE TABLE IF NOT EXISTS validacion_compra (
 );
 CREATE INDEX IF NOT EXISTS idx_validacion_ticket  ON validacion_compra (ticket_id);
 CREATE INDEX IF NOT EXISTS idx_validacion_conv    ON validacion_compra (convenio_id);
+
+-- ════════════════════════════════════════════════════════════════
+-- v43: AUDITORIA UNIVERSAL (append-only)
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    tabla            VARCHAR(80)  NOT NULL,
+    registro_id      BIGINT,
+    accion           VARCHAR(30)  NOT NULL,
+    usuario_id       BIGINT,
+    empresa_id       BIGINT,
+    origen           VARCHAR(30),
+    motivo           VARCHAR(500),
+    valores_antes    JSONB,
+    valores_despues  JSONB,
+    request_id       VARCHAR(80),
+    endpoint         VARCHAR(200),
+    ip               VARCHAR(45),
+    user_agent       VARCHAR(300),
+    fecha_hora       TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_tabla_registro ON audit_log (tabla, registro_id);
+CREATE INDEX IF NOT EXISTS idx_audit_usuario_fecha  ON audit_log (usuario_id, fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_empresa_fecha  ON audit_log (empresa_id, fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_fecha          ON audit_log (fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_accion         ON audit_log (accion);
+
+-- ════════════════════════════════════════════════════════════════
+-- v43: ROLES NUEVOS + asignacion granular
+-- ════════════════════════════════════════════════════════════════
+INSERT INTO rol (id, nombre, descripcion, estado_id) VALUES
+  (4, 'ADMIN_PARQUEADERO', 'Administrador de uno o varios parqueaderos de la empresa', 1),
+  (5, 'OPERARIO_CAJA',    'Cajero del turno: opera tickets, pagos y caja', 1)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval('rol_id_seq', (SELECT COALESCE(MAX(id),0) FROM rol));
+
+CREATE TABLE IF NOT EXISTS usuario_parqueadero (
+    usuario_id              BIGINT NOT NULL REFERENCES usuario(id),
+    parqueadero_id          BIGINT NOT NULL REFERENCES parqueadero(id),
+    rol_id                  BIGINT NOT NULL REFERENCES rol(id),
+    asignado_en             TIMESTAMP NOT NULL DEFAULT NOW(),
+    asignado_por_usuario_id BIGINT REFERENCES usuario(id),
+    activo                  BOOLEAN NOT NULL DEFAULT TRUE,
+    motivo_desasignacion    VARCHAR(500),
+    desasignado_en          TIMESTAMP,
+    PRIMARY KEY (usuario_id, parqueadero_id, rol_id)
+);
+CREATE INDEX IF NOT EXISTS idx_usrparq_usr  ON usuario_parqueadero (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_usrparq_parq ON usuario_parqueadero (parqueadero_id);
+
+-- ════════════════════════════════════════════════════════════════
+-- v43: GESTION DE CAJA (G13)
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS caja (
+    id BIGSERIAL PRIMARY KEY,
+    parqueadero_id  BIGINT NOT NULL REFERENCES parqueadero(id),
+    usuario_id      BIGINT NOT NULL REFERENCES usuario(id),
+    nombre          VARCHAR(100),
+    fondo_inicial   DOUBLE PRECISION NOT NULL,
+    saldo_calculado DOUBLE PRECISION NOT NULL,
+    saldo_contado   DOUBLE PRECISION,
+    diferencia      DOUBLE PRECISION,
+    estado          VARCHAR(20) NOT NULL,
+    abierta_en      TIMESTAMP NOT NULL DEFAULT NOW(),
+    cerrada_en      TIMESTAMP,
+    observaciones_apertura TEXT,
+    observaciones_cierre   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_caja_parq_estado   ON caja (parqueadero_id, estado);
+CREATE INDEX IF NOT EXISTS idx_caja_usuario_estado ON caja (usuario_id, estado);
+-- Un usuario solo puede tener 1 caja ABIERTA a la vez
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_caja_abierta_por_usuario
+    ON caja (usuario_id) WHERE estado = 'ABIERTA';
+
+CREATE TABLE IF NOT EXISTS movimiento_caja (
+    id BIGSERIAL PRIMARY KEY,
+    caja_id          BIGINT NOT NULL REFERENCES caja(id),
+    tipo             VARCHAR(30) NOT NULL,
+    monto            DOUBLE PRECISION NOT NULL,
+    pago_id          BIGINT REFERENCES pago(id),
+    motivo           VARCHAR(500),
+    usuario_id       BIGINT NOT NULL REFERENCES usuario(id),
+    saldo_resultante DOUBLE PRECISION NOT NULL,
+    fecha_hora       TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_movcaja_caja  ON movimiento_caja (caja_id, fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_movcaja_pago  ON movimiento_caja (pago_id);
+
+-- ════════════════════════════════════════════════════════════════
+-- v43: SOFT-DELETE en Tarifa (era unica con DELETE fisico)
+-- ════════════════════════════════════════════════════════════════
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS activo                 BOOLEAN DEFAULT TRUE;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS archivado_en           TIMESTAMP;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS archivado_por_usuario_id BIGINT REFERENCES usuario(id);
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS motivo_archivado       VARCHAR(500);
+UPDATE tarifa SET activo = TRUE WHERE activo IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tarifa_activo ON tarifa (activo);

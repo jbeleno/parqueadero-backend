@@ -42,6 +42,7 @@ public class AuthService {
     private final EstadoRepository estadoRepository;
     private final EmpresaRepository empresaRepository;
     private final JwtService jwtService;
+    private final com.usco.parqueaderos_api.auth.repository.UsuarioParqueaderoRepository usuarioParqueaderoRepository;
     private final RefreshTokenService refreshTokenService;
     private final PinService pinService;
     private final UserDetailsServiceImpl userDetailsService;
@@ -172,7 +173,9 @@ public class AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getCorreo());
         Long empresaId = usuario.getEmpresa() != null ? usuario.getEmpresa().getId() : null;
         String empresaNombre = usuario.getEmpresa() != null ? usuario.getEmpresa().getNombre() : null;
-        String accessToken = jwtService.generateToken(userDetails, empresaId);
+        java.util.List<Long> parqueaderoIds = usuarioParqueaderoRepository
+                .findParqueaderoIdsByUsuario(usuario.getId());
+        String accessToken = jwtService.generateToken(userDetails, empresaId, parqueaderoIds);
         RefreshToken refreshToken = refreshTokenService.crearRefreshToken(usuario);
 
         List<String> roles = userDetails.getAuthorities().stream()
@@ -206,7 +209,9 @@ public class AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(rt.getUsuario().getCorreo());
         Long empresaId = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getId() : null;
         String empresaNombre = rt.getUsuario().getEmpresa() != null ? rt.getUsuario().getEmpresa().getNombre() : null;
-        String newAccessToken = jwtService.generateToken(userDetails, empresaId);
+        java.util.List<Long> parqueaderoIds = usuarioParqueaderoRepository
+                .findParqueaderoIdsByUsuario(rt.getUsuario().getId());
+        String newAccessToken = jwtService.generateToken(userDetails, empresaId, parqueaderoIds);
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(a -> a.getAuthority())

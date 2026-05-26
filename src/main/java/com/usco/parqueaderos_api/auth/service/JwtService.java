@@ -51,16 +51,37 @@ public class JwtService {
         });
     }
 
+    /** Lista de parqueaderoIds permitidos al usuario (OPERARIO/ADMIN_PARQUEADERO). */
+    @SuppressWarnings("unchecked")
+    public List<Long> extractParqueaderoIds(String token) {
+        return extractClaim(token, claims -> {
+            Object v = claims.get("parqueaderoIds");
+            if (v == null) return java.util.Collections.<Long>emptyList();
+            if (v instanceof List<?> l) {
+                List<Long> out = new java.util.ArrayList<>();
+                for (Object o : l) {
+                    if (o instanceof Number n) out.add(n.longValue());
+                    else try { out.add(Long.parseLong(o.toString())); } catch (Exception ignored) {}
+                }
+                return out;
+            }
+            return java.util.Collections.<Long>emptyList();
+        });
+    }
+
     public String generateToken(UserDetails userDetails) {
-        return generateToken(userDetails, null);
+        return generateToken(userDetails, null, null);
+    }
+    public String generateToken(UserDetails userDetails, Long empresaId) {
+        return generateToken(userDetails, empresaId, null);
     }
 
     /**
-     * Genera el access token con los claims del usuario y opcionalmente
-     * el empresaId. Permite a CurrentUserService leer la empresa sin
-     * golpear la BD en cada request.
+     * Genera el access token con claims del usuario.
+     * - empresaId: para ADMIN (acceso global a su empresa) o como denormalizacion.
+     * - parqueaderoIds: para OPERARIO_CAJA y ADMIN_PARQUEADERO (asignacion granular).
      */
-    public String generateToken(UserDetails userDetails, Long empresaId) {
+    public String generateToken(UserDetails userDetails, Long empresaId, List<Long> parqueaderoIds) {
         Map<String, Object> extraClaims = new HashMap<>();
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -68,6 +89,9 @@ public class JwtService {
         extraClaims.put("roles", roles);
         if (empresaId != null) {
             extraClaims.put("empresaId", empresaId);
+        }
+        if (parqueaderoIds != null && !parqueaderoIds.isEmpty()) {
+            extraClaims.put("parqueaderoIds", parqueaderoIds);
         }
         return Jwts.builder()
                 .claims(extraClaims)

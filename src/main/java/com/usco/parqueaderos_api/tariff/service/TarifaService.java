@@ -86,10 +86,45 @@ public class TarifaService {
         e.setPrecioPaseDia(dto.getPrecioPaseDia());
     }
 
+    /** DELETE fisico: solo SUPER_ADMIN. Otros roles deben usar /archivar. */
     @Transactional
     public void delete(Long id) {
+        if (!currentUser.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Solo SUPER_ADMIN puede borrar fisicamente. Usa PATCH /{id}/archivar.");
+        }
         tarifaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Tarifa", id));
         tarifaRepository.deleteById(id);
+    }
+
+    /** Soft-delete con motivo (>=10 chars). */
+    @Transactional
+    public TarifaDTO archivar(Long id, String motivo) {
+        if (motivo == null || motivo.trim().length() < 10) {
+            throw new com.usco.parqueaderos_api.common.exception.BusinessException(
+                    "motivo obligatorio (min 10 chars)", "ERR_MISSING_FIELDS");
+        }
+        Tarifa t = tarifaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tarifa", id));
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && t.getParqueadero() != null && t.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(t.getParqueadero().getEmpresa().getId());
+        }
+        t.setActivo(false);
+        t.setArchivadoEn(java.time.LocalDateTime.now());
+        t.setArchivadoPorUsuarioId(currentUser.getCurrentUserId());
+        t.setMotivoArchivado(motivo);
+        return toDTO(tarifaRepository.save(t));
+    }
+
+    @Transactional
+    public TarifaDTO desarchivar(Long id) {
+        Tarifa t = tarifaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tarifa", id));
+        t.setActivo(true);
+        t.setArchivadoEn(null);
+        t.setMotivoArchivado(null);
+        return toDTO(tarifaRepository.save(t));
     }
 
     private TarifaDTO toDTO(Tarifa e) {
