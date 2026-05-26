@@ -349,8 +349,10 @@ public class TicketService {
         dto.setId(e.getId());
         dto.setFechaHoraEntrada(e.getFechaHoraEntrada());
         dto.setFechaHoraSalida(e.getFechaHoraSalida());
+        dto.setFechaHoraSalidaFisica(e.getFechaHoraSalidaFisica());
         dto.setEstado(e.getEstado());
         dto.setMontoCalculado(e.getMontoCalculado());
+        dto.setSuscripcionId(e.getSuscripcionId());
         if (e.getParqueadero() != null) { dto.setParqueaderoId(e.getParqueadero().getId()); dto.setParqueaderoNombre(e.getParqueadero().getNombre()); }
         if (e.getVehiculo() != null) { dto.setVehiculoId(e.getVehiculo().getId()); dto.setVehiculoPlaca(e.getVehiculo().getPlaca()); }
         if (e.getPuntoParqueo() != null) { dto.setPuntoParqueoId(e.getPuntoParqueo().getId()); dto.setPuntoParqueoNombre(e.getPuntoParqueo().getNombre()); }

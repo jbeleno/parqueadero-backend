@@ -30,4 +30,10 @@ public class TicketDTO {
 
     private String estado;
     private Double montoCalculado;
+
+    /** Cuando la camara de salida confirmo el cruce fisico. Null si aun no. */
+    private LocalDateTime fechaHoraSalidaFisica;
+
+    /** Suscripcion que cubrio el ticket (MENSUAL/PASE_DIA/ABONO_PREPAGO). Null = cobro normal. */
+    private Long suscripcionId;
 }

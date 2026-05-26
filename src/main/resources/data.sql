@@ -239,6 +239,11 @@ ALTER TABLE empresa ADD COLUMN IF NOT EXISTS modo_operacion VARCHAR(20) DEFAULT 
 ALTER TABLE empresa ADD COLUMN IF NOT EXISTS nit            VARCHAR(30);
 UPDATE empresa SET modo_operacion = 'INFORMAL' WHERE modo_operacion IS NULL;
 
+-- Factura: desagregado de IVA (formal -> base + iva + total).
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS base_imponible  DOUBLE PRECISION;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS iva_monto       DOUBLE PRECISION;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS iva_porcentaje  DOUBLE PRECISION;
+
 -- Tarifa franja horaria (entidad nueva)
 CREATE TABLE IF NOT EXISTS tarifa_franja (
     id BIGSERIAL PRIMARY KEY,
@@ -268,19 +273,25 @@ CREATE TABLE IF NOT EXISTS suscripcion (
     fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- MovimientoSaldo (Event Sourcing del saldo)
+-- MovimientoSaldo (Event Sourcing del saldo). Debe matchear exactamente la
+-- entidad MovimientoSaldo.java. Si Hibernate ya creo la tabla con ddl-auto,
+-- los ALTER posteriores aseguran columnas adicionales sin pisar datos.
 CREATE TABLE IF NOT EXISTS movimiento_saldo (
     id BIGSERIAL PRIMARY KEY,
-    suscripcion_id BIGINT NOT NULL REFERENCES suscripcion(id),
-    ticket_id      BIGINT,
-    tipo           VARCHAR(20) NOT NULL,
-    monto          DOUBLE PRECISION NOT NULL,
-    saldo_antes    DOUBLE PRECISION,
-    saldo_despues  DOUBLE PRECISION,
-    fecha_hora     TIMESTAMP NOT NULL DEFAULT NOW(),
-    descripcion    VARCHAR(500)
+    suscripcion_id   BIGINT NOT NULL REFERENCES suscripcion(id),
+    monto            DOUBLE PRECISION NOT NULL,
+    ticket_id        BIGINT REFERENCES ticket(id),
+    pago_id          BIGINT REFERENCES pago(id),
+    saldo_resultante DOUBLE PRECISION NOT NULL,
+    motivo           VARCHAR(200),
+    fecha            TIMESTAMP NOT NULL DEFAULT NOW()
 );
+ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS pago_id          BIGINT REFERENCES pago(id);
+ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS saldo_resultante DOUBLE PRECISION;
+ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS motivo           VARCHAR(200);
+ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS fecha            TIMESTAMP DEFAULT NOW();
 CREATE INDEX IF NOT EXISTS idx_mov_saldo_susc ON movimiento_saldo (suscripcion_id);
+CREATE INDEX IF NOT EXISTS idx_mov_saldo_ticket ON movimiento_saldo (ticket_id);
 
 -- Convenios y validacion de compras (descuento por ticket de comercio)
 CREATE TABLE IF NOT EXISTS convenio (

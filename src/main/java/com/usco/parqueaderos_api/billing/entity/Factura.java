@@ -41,4 +41,16 @@ public class Factura {
 
     @Column(length = 50)
     private String estado; // PENDIENTE, PAGADA, ANULADA
+
+    /** Base imponible (sin IVA). Solo se setea si la tarifa aplicaba IVA. NULL = no aplica. */
+    @Column(name = "base_imponible")
+    private Double baseImponible;
+
+    /** Monto de IVA cobrado. NULL = no aplica. */
+    @Column(name = "iva_monto")
+    private Double ivaMonto;
+
+    /** Porcentaje de IVA usado al calcular. NULL si no aplica. */
+    @Column(name = "iva_porcentaje")
+    private Double ivaPorcentaje;
 }

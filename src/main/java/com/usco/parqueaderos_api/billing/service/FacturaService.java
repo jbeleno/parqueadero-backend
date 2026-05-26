@@ -8,6 +8,8 @@ import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.parking.repository.ParqueaderoRepository;
+import com.usco.parqueaderos_api.tariff.service.TarifaCalculatorService;
+import com.usco.parqueaderos_api.tariff.service.TarifaCalculatorService.BreakdownIva;
 import com.usco.parqueaderos_api.ticket.entity.Ticket;
 import com.usco.parqueaderos_api.ticket.repository.TicketRepository;
 import com.usco.parqueaderos_api.vehicle.entity.Vehiculo;
@@ -30,6 +32,7 @@ public class FacturaService {
     private final TicketRepository ticketRepository;
     private final ParqueaderoRepository parqueaderoRepository;
     private final VehiculoRepository vehiculoRepository;
+    private final TarifaCalculatorService tarifaCalculator;
     private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
@@ -114,6 +117,15 @@ public class FacturaService {
         entity.setValorTotal(ticket.getMontoCalculado());
         entity.setFechaHora(LocalDateTime.now());
         entity.setEstado("PENDIENTE");
+        // Desagregar IVA si la tarifa lo aplica
+        if (ticket.getTarifa() != null) {
+            BreakdownIva b = tarifaCalculator.desagregarIva(ticket.getTarifa(), ticket.getMontoCalculado());
+            if (b.iva() > 0.0) {
+                entity.setBaseImponible(b.base());
+                entity.setIvaMonto(b.iva());
+                entity.setIvaPorcentaje(ticket.getTarifa().getIvaPorcentaje());
+            }
+        }
         return toDTO(facturaRepository.save(entity));
     }
 
@@ -154,6 +166,9 @@ public class FacturaService {
         if (e.getTicket() != null) dto.setTicketId(e.getTicket().getId());
         if (e.getParqueadero() != null) { dto.setParqueaderoId(e.getParqueadero().getId()); dto.setParqueaderoNombre(e.getParqueadero().getNombre()); }
         if (e.getVehiculo() != null) { dto.setVehiculoId(e.getVehiculo().getId()); dto.setVehiculoPlaca(e.getVehiculo().getPlaca()); }
+        dto.setBaseImponible(e.getBaseImponible());
+        dto.setIvaMonto(e.getIvaMonto());
+        dto.setIvaPorcentaje(e.getIvaPorcentaje());
         return dto;
     }
 

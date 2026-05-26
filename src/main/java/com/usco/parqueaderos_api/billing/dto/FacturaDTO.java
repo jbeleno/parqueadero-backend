@@ -24,4 +24,8 @@ public class FacturaDTO {
 
     private Double valorTotal;
     private String estado;
+
+    private Double baseImponible;
+    private Double ivaMonto;
+    private Double ivaPorcentaje;
 }
