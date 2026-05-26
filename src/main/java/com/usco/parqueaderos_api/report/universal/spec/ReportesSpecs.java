@@ -46,10 +46,10 @@ public class ReportesSpecs {
                    "  FROM ticket t " +
                    "  JOIN vehiculo v ON v.id = t.vehiculo_id " +
                    "  JOIN parqueadero p ON p.id = t.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR t.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId    IS NULL OR p.empresa_id      = :empresaId)" +
-                   "   AND (:desde IS NULL OR t.fecha_hora_entrada >= :desde)" +
-                   "   AND (:hasta IS NULL OR t.fecha_hora_entrada <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR t.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id      = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR t.fecha_hora_entrada >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR t.fecha_hora_entrada <= :hasta)" +
                    " ORDER BY t.fecha_hora_entrada DESC";
         }
     }
@@ -76,11 +76,11 @@ public class ReportesSpecs {
         protected String sqlBase() {
             return "SELECT pa.id, pa.factura_id, pa.fecha_hora, pa.metodo, pa.monto, pa.estado, pa.motivo_anulacion " +
                    "  FROM pago pa JOIN factura f ON f.id = pa.factura_id " +
-                   " WHERE (:parqueaderoId IS NULL OR f.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR f.parqueadero_id IN " +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR f.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR f.parqueadero_id IN " +
                    "        (SELECT id FROM parqueadero WHERE empresa_id = :empresaId))" +
-                   "   AND (:desde IS NULL OR pa.fecha_hora >= :desde)" +
-                   "   AND (:hasta IS NULL OR pa.fecha_hora <= :hasta)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR pa.fecha_hora >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR pa.fecha_hora <= :hasta)" +
                    " ORDER BY pa.fecha_hora DESC";
         }
     }
@@ -110,11 +110,11 @@ public class ReportesSpecs {
             return "SELECT f.id, f.ticket_id, v.placa, f.fecha_hora, " +
                    "       f.base_imponible, f.iva_monto, f.valor_total, f.estado, f.origen " +
                    "  FROM factura f JOIN vehiculo v ON v.id = f.vehiculo_id " +
-                   " WHERE (:parqueaderoId IS NULL OR f.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR f.parqueadero_id IN " +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR f.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR f.parqueadero_id IN " +
                    "        (SELECT id FROM parqueadero WHERE empresa_id = :empresaId))" +
-                   "   AND (:desde IS NULL OR f.fecha_hora >= :desde)" +
-                   "   AND (:hasta IS NULL OR f.fecha_hora <= :hasta)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR f.fecha_hora >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR f.fecha_hora <= :hasta)" +
                    " ORDER BY f.fecha_hora DESC";
         }
     }
@@ -148,10 +148,10 @@ public class ReportesSpecs {
                    "  FROM caja c " +
                    "  JOIN parqueadero p ON p.id = c.parqueadero_id " +
                    "  JOIN usuario u ON u.id = c.usuario_id " +
-                   " WHERE (:parqueaderoId IS NULL OR c.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR c.abierta_en >= :desde)" +
-                   "   AND (:hasta IS NULL OR c.abierta_en <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR c.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR c.abierta_en >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR c.abierta_en <= :hasta)" +
                    " ORDER BY c.abierta_en DESC";
         }
     }
@@ -184,10 +184,10 @@ public class ReportesSpecs {
                    "  JOIN caja c ON c.id = m.caja_id " +
                    "  JOIN usuario u ON u.id = m.usuario_id " +
                    "  JOIN parqueadero p ON p.id = c.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR c.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR m.fecha_hora >= :desde)" +
-                   "   AND (:hasta IS NULL OR m.fecha_hora <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR c.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR m.fecha_hora >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR m.fecha_hora <= :hasta)" +
                    " ORDER BY m.fecha_hora DESC";
         }
     }
@@ -253,10 +253,10 @@ public class ReportesSpecs {
                    "  FROM suscripcion s " +
                    "  JOIN vehiculo v ON v.id = s.vehiculo_id " +
                    "  JOIN parqueadero p ON p.id = s.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR s.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR s.fecha_inicio >= :desde)" +
-                   "   AND (:hasta IS NULL OR s.fecha_inicio <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR s.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR s.fecha_inicio >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR s.fecha_inicio <= :hasta)" +
                    " ORDER BY s.fecha_inicio DESC";
         }
     }
@@ -287,10 +287,10 @@ public class ReportesSpecs {
                    "  FROM movimiento_saldo m " +
                    "  JOIN suscripcion s ON s.id = m.suscripcion_id " +
                    "  JOIN parqueadero p ON p.id = s.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR s.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR m.fecha >= :desde)" +
-                   "   AND (:hasta IS NULL OR m.fecha <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR s.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR m.fecha >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR m.fecha <= :hasta)" +
                    " ORDER BY m.fecha DESC";
         }
     }
@@ -326,8 +326,8 @@ public class ReportesSpecs {
                    "  FROM tarifa t " +
                    "  JOIN parqueadero p ON p.id = t.parqueadero_id " +
                    "  LEFT JOIN tipo_vehiculo tv ON tv.id = t.tipo_vehiculo_id " +
-                   " WHERE (:parqueaderoId IS NULL OR t.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR t.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
                    " ORDER BY t.id";
         }
     }
@@ -361,10 +361,10 @@ public class ReportesSpecs {
                    "       c.facturas_emitidas, c.total_pendiente, c.tickets_anulados " +
                    "  FROM cierre_dia c " +
                    "  JOIN parqueadero p ON p.id = c.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR c.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR c.fecha >= :desde)" +
-                   "   AND (:hasta IS NULL OR c.fecha <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR c.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR c.fecha >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR c.fecha <= :hasta)" +
                    " ORDER BY c.fecha DESC";
         }
     }
@@ -398,8 +398,8 @@ public class ReportesSpecs {
                    "       c.monto_minimo_compra, c.fecha_fin_vigencia, c.activo " +
                    "  FROM convenio c " +
                    "  JOIN parqueadero p ON p.id = c.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR c.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR c.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
                    " ORDER BY c.id DESC";
         }
     }
@@ -430,8 +430,8 @@ public class ReportesSpecs {
                    "  JOIN usuario u ON u.id = up.usuario_id " +
                    "  JOIN parqueadero p ON p.id = up.parqueadero_id " +
                    "  JOIN rol r ON r.id = up.rol_id " +
-                   " WHERE (:parqueaderoId IS NULL OR up.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR up.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
                    " ORDER BY up.asignado_en DESC";
         }
     }
@@ -460,9 +460,9 @@ public class ReportesSpecs {
         protected String sqlBase() {
             return "SELECT id, tabla, registro_id, accion, usuario_id, motivo, endpoint, ip, fecha_hora " +
                    "  FROM audit_log " +
-                   " WHERE (:empresaId IS NULL OR empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR fecha_hora >= :desde)" +
-                   "   AND (:hasta IS NULL OR fecha_hora <= :hasta)" +
+                   " WHERE (CAST(:empresaId AS BIGINT) IS NULL OR empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR fecha_hora >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR fecha_hora <= :hasta)" +
                    " ORDER BY fecha_hora DESC";
         }
     }
@@ -492,10 +492,10 @@ public class ReportesSpecs {
                    "  FROM validacion_compra vc " +
                    "  JOIN convenio c ON c.id = vc.convenio_id " +
                    "  JOIN parqueadero p ON p.id = c.parqueadero_id " +
-                   " WHERE (:parqueaderoId IS NULL OR c.parqueadero_id = :parqueaderoId)" +
-                   "   AND (:empresaId IS NULL OR p.empresa_id = :empresaId)" +
-                   "   AND (:desde IS NULL OR vc.fecha_aplicacion >= :desde)" +
-                   "   AND (:hasta IS NULL OR vc.fecha_aplicacion <= :hasta)" +
+                   " WHERE (CAST(:parqueaderoId AS BIGINT) IS NULL OR c.parqueadero_id = :parqueaderoId)" +
+                   "   AND (CAST(:empresaId AS BIGINT) IS NULL OR p.empresa_id = :empresaId)" +
+                   "   AND (CAST(:desde AS TIMESTAMP) IS NULL OR vc.fecha_aplicacion >= :desde)" +
+                   "   AND (CAST(:hasta AS TIMESTAMP) IS NULL OR vc.fecha_aplicacion <= :hasta)" +
                    " ORDER BY vc.fecha_aplicacion DESC";
         }
     }
