@@ -23,4 +23,9 @@ public class SuscripcionDTO {
     private Double montoPagado;
     private Double saldoRestante;
     private LocalDateTime fechaCreacion;
+
+    /** Id del punto reservado por esta suscripcion. Null si no reserva ninguno. */
+    private Long puntoParqueoReservadoId;
+    /** Nombre del punto reservado (read-only). */
+    private String puntoParqueoReservadoNombre;
 }

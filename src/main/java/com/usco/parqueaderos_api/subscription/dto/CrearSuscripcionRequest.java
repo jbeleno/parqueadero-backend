@@ -28,4 +28,11 @@ public class CrearSuscripcionRequest {
     @NotNull
     @Positive
     private Double montoPagado;
+
+    /**
+     * Opcional. Si se especifica, el punto queda reservado durante la vigencia
+     * de la suscripcion (G7). Solo aplica para MENSUAL. El punto NO debe estar
+     * ya reservado por otra suscripcion activa.
+     */
+    private Long puntoParqueoReservadoId;
 }

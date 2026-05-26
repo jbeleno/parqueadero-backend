@@ -27,7 +27,8 @@ public class SuscripcionController {
             @Valid @RequestBody CrearSuscripcionRequest req) {
         Suscripcion s = suscripcionService.crear(
                 req.getVehiculoId(), req.getParqueaderoId(), req.getTarifaId(),
-                req.getTipo(), req.getMontoPagado());
+                req.getTipo(), req.getMontoPagado(),
+                req.getPuntoParqueoReservadoId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(toDTO(s), "Suscripcion creada"));
     }
@@ -76,6 +77,10 @@ public class SuscripcionController {
                 .montoPagado(s.getMontoPagado())
                 .saldoRestante(s.getSaldoRestante())
                 .fechaCreacion(s.getFechaCreacion())
+                .puntoParqueoReservadoId(s.getPuntoParqueoReservado() != null
+                        ? s.getPuntoParqueoReservado().getId() : null)
+                .puntoParqueoReservadoNombre(s.getPuntoParqueoReservado() != null
+                        ? s.getPuntoParqueoReservado().getNombre() : null)
                 .build();
     }
 }
