@@ -2,11 +2,14 @@ package com.usco.parqueaderos_api.tariff.service;
 
 import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.tariff.entity.Tarifa;
+import com.usco.parqueaderos_api.tariff.entity.TarifaFranja;
 import com.usco.parqueaderos_api.ticket.entity.Ticket;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * Calcula el monto a cobrar por un ticket de forma autoritativa,
@@ -17,6 +20,16 @@ import java.time.LocalDateTime;
  */
 @Service
 public class TarifaCalculatorService {
+
+    /** Opcional para preservar compatibilidad con tests que instancian sin DI. */
+    @Autowired(required = false)
+    private TarifaFranjaSelector franjaSelector;
+
+    public TarifaCalculatorService() {}
+
+    public TarifaCalculatorService(TarifaFranjaSelector franjaSelector) {
+        this.franjaSelector = franjaSelector;
+    }
 
     /**
      * Calcula el monto a cobrar dado un ticket y la fecha/hora de salida.
@@ -68,17 +81,54 @@ public class TarifaCalculatorService {
             return minimo;
         }
 
-        // Paso 3: minimo + tarifa normal sobre los minutos EXCEDENTES
+        // Paso 3: minimo + tarifa normal sobre los minutos EXCEDENTES.
+        // Si hay franja horaria activa para la hora de entrada, su valor sustituye
+        // al valor base de la tarifa.
+        double valorEfectivo = tarifa.getValor();
+        if (franjaSelector != null) {
+            Optional<TarifaFranja> franja = franjaSelector.seleccionar(tarifa, ticket.getFechaHoraEntrada());
+            if (franja.isPresent()) {
+                valorEfectivo = franja.get().getValor();
+            }
+        }
         long minutosExcedentes = minutos - cubreMin;
-        double cobroExcedente = calcularPorUnidad(tarifa, minutosExcedentes);
-        return minimo + cobroExcedente;
+        double cobroExcedente = calcularPorUnidad(tarifa, valorEfectivo, minutosExcedentes);
+        double total = minimo + cobroExcedente;
+
+        // Paso 4: tope legal por minuto (ej. tarifa maxima regulada en Bogota).
+        // Trunca el total al maximo permitido sobre los minutos cobrados (sin gracia).
+        if (tarifa.getParqueadero() != null
+                && tarifa.getParqueadero().getTarifaMaximaPorMinuto() != null) {
+            double topeMin = tarifa.getParqueadero().getTarifaMaximaPorMinuto();
+            long minutosCobrables = minutos - gracia;
+            double tope = topeMin * minutosCobrables;
+            if (total > tope) {
+                return tope;
+            }
+        }
+        return total;
     }
 
+    /** Desagrega base + IVA a partir del total. Si tarifa no aplica IVA, devuelve base=total, iva=0. */
+    public BreakdownIva desagregarIva(Tarifa tarifa, double total) {
+        boolean aplica = tarifa.getAplicaIva() != null && tarifa.getAplicaIva();
+        double pct = tarifa.getIvaPorcentaje() != null ? tarifa.getIvaPorcentaje() : 0.0;
+        if (!aplica || pct <= 0.0) {
+            return new BreakdownIva(total, 0.0, total);
+        }
+        double base = total / (1.0 + pct / 100.0);
+        double iva = total - base;
+        return new BreakdownIva(base, iva, total);
+    }
+
+    public record BreakdownIva(double base, double iva, double total) {}
+
     /** Calcula cobro segun la unidad de la tarifa para una cantidad de minutos. */
-    private double calcularPorUnidad(Tarifa tarifa, long minutos) {
+    private double calcularPorUnidad(Tarifa tarifa, double valor, long minutos) {
         String unidadNormalizada = normalizarUnidad(tarifa.getUnidad());
-        double valor = tarifa.getValor();
         switch (unidadNormalizada) {
+            case "POR_MINUTO":
+                return minutos * valor;
             case "POR_HORA":
                 return Math.ceil(minutos / 60.0) * valor;
             case "POR_FRACCION":
@@ -114,6 +164,10 @@ public class TarifaCalculatorService {
                 .replace("ó", "o").replace("ú", "u")
                 .replace(" ", "").replace("_", "").replace("-", "");
 
+        // Minuto: "minuto", "porminuto", "minute", "byminute"
+        if (n.equals("minuto") || n.equals("porminuto") || n.equals("minute") || n.equals("byminute")) {
+            return "POR_MINUTO";
+        }
         // Hora: "hora", "porhora", "hour", "byhour"
         if (n.equals("hora") || n.equals("porhora") || n.equals("hour") || n.equals("byhour")) {
             return "POR_HORA";

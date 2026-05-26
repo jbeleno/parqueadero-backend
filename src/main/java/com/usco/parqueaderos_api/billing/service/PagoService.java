@@ -3,6 +3,7 @@ package com.usco.parqueaderos_api.billing.service;
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.billing.dto.PagoDTO;
 import com.usco.parqueaderos_api.billing.entity.Factura;
+import com.usco.parqueaderos_api.billing.entity.MetodoPago;
 import com.usco.parqueaderos_api.billing.entity.Pago;
 import com.usco.parqueaderos_api.billing.repository.FacturaRepository;
 import com.usco.parqueaderos_api.billing.repository.PagoRepository;
@@ -114,14 +115,21 @@ public class PagoService {
         }
 
         if (dto.getMetodo() == null || dto.getMetodo().isBlank()) {
-            throw new BusinessException("metodo es obligatorio (EFECTIVO, TARJETA, APP)", "ERR_MISSING_FIELDS");
+            throw new BusinessException(
+                    "metodo es obligatorio (EFECTIVO, TARJETA_CREDITO, TARJETA_DEBITO, NEQUI, DAVIPLATA, PSE, TRANSFERENCIA, FLYPASS, QR_BANCOLOMBIA, OTRO)",
+                    "ERR_MISSING_FIELDS");
+        }
+        if (!MetodoPago.esValido(dto.getMetodo())) {
+            throw new BusinessException(
+                    "Metodo de pago no valido: " + dto.getMetodo(),
+                    "ERR_INVALID_PAYMENT_METHOD");
         }
 
         // Sanitizacion: forzar fecha y estado por defecto
         Pago entity = new Pago();
         entity.setFactura(factura);
         entity.setMonto(dto.getMonto());
-        entity.setMetodo(dto.getMetodo());
+        entity.setMetodo(MetodoPago.normalizar(dto.getMetodo()));
         entity.setFechaHora(LocalDateTime.now()); // server time, ignorar dto
         // Estado por defecto COMPLETADO si no se especifica (registro manual del operador)
         // Si en el futuro se integra pasarela, deberia ser PENDIENTE hasta confirmar webhook.

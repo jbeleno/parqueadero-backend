@@ -26,4 +26,16 @@ public class Empresa {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_id", nullable = false)
     private Estado estado;
+
+    /**
+     * Modo de operacion: FORMAL (DIAN, IVA, factura electronica)
+     * o INFORMAL (parqueadero de barrio, sin IVA, recibo simple).
+     * Default INFORMAL para compatibilidad con datos existentes.
+     */
+    @Column(name = "modo_operacion", length = 20, nullable = false)
+    private String modoOperacion = "INFORMAL"; // FORMAL | INFORMAL
+
+    /** NIT o documento del responsable. Obligatorio si modoOperacion=FORMAL. */
+    @Column(length = 30)
+    private String nit;
 }

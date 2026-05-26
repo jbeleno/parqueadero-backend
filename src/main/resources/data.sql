@@ -201,3 +201,70 @@ CREATE INDEX IF NOT EXISTS idx_reserva_usuario          ON reserva (usuario_id);
 CREATE INDEX IF NOT EXISTS idx_reserva_parqueadero      ON reserva (parqueadero_id);
 CREATE INDEX IF NOT EXISTS idx_factura_parqueadero      ON factura (parqueadero_id);
 CREATE INDEX IF NOT EXISTS idx_factura_vehiculo         ON factura (vehiculo_id);
+
+-- ════════════════════════════════════════════════════════════════
+-- 12. MIGRACIONES IDEMPOTENTES (defensa contra ddl-auto en validate)
+-- Garantiza que columnas nuevas existan aunque Hibernate no las cree.
+-- ════════════════════════════════════════════════════════════════
+
+-- Tarifa: Modelo B + IVA configurable + suscripciones
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS minutos_gracia                INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS valor_minimo                  DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS minutos_cubiertos_por_minimo  INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_mensualidad            DOUBLE PRECISION;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_pase_dia               DOUBLE PRECISION;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS aplica_iva                    BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS iva_porcentaje                DOUBLE PRECISION NOT NULL DEFAULT 0;
+
+-- Ticket: vinculo opcional con suscripcion (cobro mensual/pase/abono)
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS suscripcion_id BIGINT;
+
+-- Parqueadero: tope legal por minuto (regulado en algunas ciudades)
+ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS tarifa_maxima_por_minuto DOUBLE PRECISION;
+
+-- Empresa: modo de operacion y NIT
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS modo_operacion VARCHAR(20) NOT NULL DEFAULT 'INFORMAL';
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS nit            VARCHAR(30);
+
+-- Tarifa franja horaria (entidad nueva)
+CREATE TABLE IF NOT EXISTS tarifa_franja (
+    id BIGSERIAL PRIMARY KEY,
+    tarifa_id BIGINT NOT NULL REFERENCES tarifa(id),
+    nombre VARCHAR(50) NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+    valor DOUBLE PRECISION NOT NULL,
+    solo_fines_de_semana BOOLEAN NOT NULL DEFAULT FALSE,
+    activa BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_tarifa_franja_tarifa ON tarifa_franja (tarifa_id);
+
+-- Suscripcion (por si Hibernate no la creo aun en algun entorno)
+CREATE TABLE IF NOT EXISTS suscripcion (
+    id BIGSERIAL PRIMARY KEY,
+    vehiculo_id    BIGINT NOT NULL REFERENCES vehiculo(id),
+    parqueadero_id BIGINT NOT NULL REFERENCES parqueadero(id),
+    tarifa_id      BIGINT NOT NULL REFERENCES tarifa(id),
+    tipo           VARCHAR(20) NOT NULL,
+    estado         VARCHAR(20) NOT NULL,
+    fecha_inicio   TIMESTAMP NOT NULL,
+    fecha_fin      TIMESTAMP NOT NULL,
+    monto_pagado   DOUBLE PRECISION NOT NULL,
+    saldo_restante DOUBLE PRECISION,
+    version        BIGINT NOT NULL DEFAULT 0,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- MovimientoSaldo (Event Sourcing del saldo)
+CREATE TABLE IF NOT EXISTS movimiento_saldo (
+    id BIGSERIAL PRIMARY KEY,
+    suscripcion_id BIGINT NOT NULL REFERENCES suscripcion(id),
+    ticket_id      BIGINT,
+    tipo           VARCHAR(20) NOT NULL,
+    monto          DOUBLE PRECISION NOT NULL,
+    saldo_antes    DOUBLE PRECISION,
+    saldo_despues  DOUBLE PRECISION,
+    fecha_hora     TIMESTAMP NOT NULL DEFAULT NOW(),
+    descripcion    VARCHAR(500)
+);
+CREATE INDEX IF NOT EXISTS idx_mov_saldo_susc ON movimiento_saldo (suscripcion_id);

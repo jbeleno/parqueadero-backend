@@ -68,5 +68,13 @@ public class Parqueadero {
     private Integer tiempoGraciaMinutos;
 
     @Column(name = "modo_cobro", length = 50)
-    private String modoCobro; // POR_HORA, POR_FRACCION, POR_DIA, PLANA
+    private String modoCobro; // POR_MINUTO, POR_HORA, POR_FRACCION, POR_DIA, PLANA
+
+    /**
+     * Tarifa maxima legal por minuto (ej. Bogota tope regulado).
+     * Si una tarifa configurada excede este tope, el calculador la trunca.
+     * NULL = sin tope.
+     */
+    @Column(name = "tarifa_maxima_por_minuto")
+    private Double tarifaMaximaPorMinuto;
 }

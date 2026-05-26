@@ -35,7 +35,7 @@ public class Tarifa {
     private Double valor;
 
     @Column(length = 50)
-    private String unidad; // POR_HORA, POR_FRACCION, POR_DIA, PLANA
+    private String unidad; // POR_MINUTO, POR_HORA, POR_FRACCION, POR_DIA, PLANA
 
     @Column(name = "minutos_fraccion")
     private Integer minutosFraccion;
@@ -68,4 +68,12 @@ public class Tarifa {
     /** Precio de un pase de dia (Suscripcion tipo PASE_DIA). NULL si no se ofrece. */
     @Column(name = "precio_pase_dia")
     private Double precioPaseDia;
+
+    /** Si TRUE el monto cobrado incluye IVA (se calcula y desagrega en la factura). */
+    @Column(name = "aplica_iva", nullable = false)
+    private Boolean aplicaIva = false;
+
+    /** Porcentaje de IVA (Colombia: 19.0 estandar). Solo se usa si aplicaIva=true. */
+    @Column(name = "iva_porcentaje", nullable = false)
+    private Double ivaPorcentaje = 0.0;
 }
