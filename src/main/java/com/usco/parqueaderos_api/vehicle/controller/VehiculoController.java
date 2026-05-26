@@ -28,8 +28,19 @@ public class VehiculoController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<VehiculoDTO>>> getAll(
-            @RequestParam(name = "soloMiEmpresa", required = false, defaultValue = "false") boolean soloMiEmpresa) {
-        return ResponseEntity.ok(ApiResponse.ok(vehiculoService.findAll(soloMiEmpresa)));
+            @RequestParam(name = "soloMiEmpresa", required = false, defaultValue = "false") boolean soloMiEmpresa,
+            @RequestParam(name = "incluirArchivados", required = false, defaultValue = "false") boolean incluirArchivados) {
+        return ResponseEntity.ok(ApiResponse.ok(vehiculoService.findAll(soloMiEmpresa, incluirArchivados)));
+    }
+
+    @PatchMapping("/{id}/archivar")
+    public ResponseEntity<ApiResponse<VehiculoDTO>> archivar(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(vehiculoService.archivar(id)));
+    }
+
+    @PatchMapping("/{id}/desarchivar")
+    public ResponseEntity<ApiResponse<VehiculoDTO>> desarchivar(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(vehiculoService.desarchivar(id)));
     }
 
     @GetMapping("/{id}")

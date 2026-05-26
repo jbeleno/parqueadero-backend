@@ -69,6 +69,19 @@ public class SuscripcionAvisoVencimientoJob {
                     .data(data)
                     .build();
             notificationService.notificarParqueadero(s.getParqueadero().getId(), n);
+
+            // Notificar tambien al cliente dueno del vehiculo si esta registrado
+            if (s.getVehiculo() != null && s.getVehiculo().getPersona() != null) {
+                Long usuarioId = obtenerUsuarioIdDeLaPersona(s.getVehiculo().getPersona().getId());
+                if (usuarioId != null) {
+                    notificationService.notificarUsuario(usuarioId, n);
+                }
+            }
         }
+    }
+
+    /** Stub minimo: si una persona tiene Usuario asociado, retorna su id. */
+    private Long obtenerUsuarioIdDeLaPersona(Long personaId) {
+        return personaId; // 1:1 personaId == usuarioId por convencion del proyecto
     }
 }

@@ -68,10 +68,17 @@ public class TarifaCalculatorService {
         }
         long minutos = Math.max(0L, Duration.between(ticket.getFechaHoraEntrada(), salida).toMinutes());
 
-        int gracia = tarifa.getMinutosGracia() != null ? tarifa.getMinutosGracia() : 0;
-        double minimo = tarifa.getValorMinimo() != null ? tarifa.getValorMinimo() : 0.0;
-        int cubreMin = tarifa.getMinutosCubiertosPorMinimo() != null
-                ? tarifa.getMinutosCubiertosPorMinimo() : 0;
+        // Si el ticket tiene snapshot de la tarifa al momento de la entrada,
+        // se respeta ese valor (anti-fraude por cambio de tarifa intermedio).
+        int gracia = ticket.getTarifaGraciaSnapshot() != null
+                ? ticket.getTarifaGraciaSnapshot()
+                : (tarifa.getMinutosGracia() != null ? tarifa.getMinutosGracia() : 0);
+        double minimo = ticket.getTarifaMinimoSnapshot() != null
+                ? ticket.getTarifaMinimoSnapshot()
+                : (tarifa.getValorMinimo() != null ? tarifa.getValorMinimo() : 0.0);
+        int cubreMin = ticket.getTarifaCubreSnapshot() != null
+                ? ticket.getTarifaCubreSnapshot()
+                : (tarifa.getMinutosCubiertosPorMinimo() != null ? tarifa.getMinutosCubiertosPorMinimo() : 0);
 
         // Paso 1: gracia
         if (minutos <= gracia) return 0.0;
@@ -83,8 +90,9 @@ public class TarifaCalculatorService {
 
         // Paso 3: minimo + tarifa normal sobre los minutos EXCEDENTES.
         // Si hay franja horaria activa para la hora de entrada, su valor sustituye
-        // al valor base de la tarifa.
-        double valorEfectivo = tarifa.getValor();
+        // al valor base de la tarifa. Snapshot tiene preferencia sobre tarifa actual.
+        double valorEfectivo = ticket.getTarifaValorSnapshot() != null
+                ? ticket.getTarifaValorSnapshot() : tarifa.getValor();
         if (franjaSelector != null) {
             Optional<TarifaFranja> franja = franjaSelector.seleccionar(tarifa, ticket.getFechaHoraEntrada());
             if (franja.isPresent()) {
@@ -92,7 +100,14 @@ public class TarifaCalculatorService {
             }
         }
         long minutosExcedentes = minutos - cubreMin;
-        double cobroExcedente = calcularPorUnidad(tarifa, valorEfectivo, minutosExcedentes);
+        // Si hay snapshot de unidad, crear tarifa "virtual" con esos valores
+        Tarifa tarifaEfectiva = tarifa;
+        if (ticket.getTarifaUnidadSnapshot() != null) {
+            tarifaEfectiva = new Tarifa();
+            tarifaEfectiva.setUnidad(ticket.getTarifaUnidadSnapshot());
+            tarifaEfectiva.setMinutosFraccion(tarifa.getMinutosFraccion());
+        }
+        double cobroExcedente = calcularPorUnidad(tarifaEfectiva, valorEfectivo, minutosExcedentes);
         double total = minimo + cobroExcedente;
 
         // Paso 4: tope legal por minuto (ej. tarifa maxima regulada en Bogota).

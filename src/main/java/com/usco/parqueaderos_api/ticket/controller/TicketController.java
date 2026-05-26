@@ -65,6 +65,16 @@ public class TicketController {
 
     public record CambiarPuntoRequest(Long puntoParqueoId) {}
 
+    /** Anula un ticket EN_CURSO o CERRADO. Body: { "motivo": "..." } */
+    @PatchMapping("/{id}/anular")
+    public ResponseEntity<ApiResponse<TicketDTO>> anular(
+            @PathVariable Long id, @RequestBody AnularTicketRequest body) {
+        return ResponseEntity.ok(
+                ApiResponse.ok(ticketService.anular(id, body.motivo()), "Ticket anulado"));
+    }
+
+    public record AnularTicketRequest(String motivo) {}
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         ticketService.delete(id);

@@ -42,6 +42,8 @@ public class TicketService {
     private final CurrentUserService currentUser;
     private final TarifaCalculatorService tarifaCalculator;
     private final CobroOrchestrator cobroOrchestrator;
+    private final com.usco.parqueaderos_api.billing.repository.FacturaRepository facturaRepository;
+    private final com.usco.parqueaderos_api.subscription.repository.SuscripcionRepository suscripcionRepository;
 
     @Transactional(readOnly = true)
     public List<TicketDTO> findAll() {
@@ -117,6 +119,22 @@ public class TicketService {
         Vehiculo vehiculo = findVehiculo(dto.getVehiculoId());
         Tarifa tarifa = findTarifa(dto.getTarifaId());
 
+        // 4.b) Si el punto esta reservado por una suscripcion ACTIVA, solo el
+        //      vehiculo de esa suscripcion puede usarlo.
+        com.usco.parqueaderos_api.subscription.repository.SuscripcionRepository suscRepo =
+                this.suscripcionRepository;
+        if (suscRepo != null) {
+            suscRepo.findActivaByPuntoReservado(punto.getId()).ifPresent(s -> {
+                if (s.getVehiculo() == null
+                        || !s.getVehiculo().getId().equals(vehiculo.getId())) {
+                    throw new BusinessException(
+                            "El punto esta reservado por la suscripcion #" + s.getId()
+                                    + " (placa " + (s.getVehiculo() != null ? s.getVehiculo().getPlaca() : "?") + ")",
+                            "ERR_PUNTO_RESERVADO_SUSCRIPCION");
+                }
+            });
+        }
+
         // 5.b) Validar que el vehiculo no tenga ya un ticket EN_CURSO en este parqueadero.
         //      Defensa programatica + indice unico parcial en BD como red de seguridad.
         if (ticketRepository.existsByVehiculoIdAndParqueaderoIdAndEstado(
@@ -135,6 +153,12 @@ public class TicketService {
         entity.setFechaHoraSalida(null);
         entity.setEstado("EN_CURSO");
         entity.setMontoCalculado(null); // se calcula al cerrar
+        // Snapshot economico de la tarifa al momento de la entrada (anti-fraude)
+        entity.setTarifaValorSnapshot(tarifa.getValor());
+        entity.setTarifaUnidadSnapshot(tarifa.getUnidad());
+        entity.setTarifaMinimoSnapshot(tarifa.getValorMinimo());
+        entity.setTarifaGraciaSnapshot(tarifa.getMinutosGracia());
+        entity.setTarifaCubreSnapshot(tarifa.getMinutosCubiertosPorMinimo());
 
         Ticket saved;
         try {
@@ -224,6 +248,58 @@ public class TicketService {
         ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket", id));
         ticketRepository.deleteById(id);
+    }
+
+    /**
+     * Anula un ticket EN_CURSO con motivo obligatorio. Si tiene factura
+     * asociada PENDIENTE, la anula tambien. Si el ticket fue cobrado contra
+     * un saldo ABONO_PREPAGO, ese descuento se reversa.
+     *
+     * Caso de uso: cliente perdio el ticket fisico, doble entrada por OCR, etc.
+     */
+    @Transactional
+    public TicketDTO anular(Long id, String motivo) {
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo operador puede anular tickets");
+        }
+        if (motivo == null || motivo.trim().length() < 10) {
+            throw new BusinessException(
+                    "Motivo obligatorio (min 10 caracteres)",
+                    "ERR_MISSING_FIELDS");
+        }
+        Ticket existing = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket", id));
+        if (existing.getParqueadero() != null && existing.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+        }
+        if (!"EN_CURSO".equals(existing.getEstado()) && !"CERRADO".equals(existing.getEstado())) {
+            throw new BusinessException(
+                    "Solo se puede anular un ticket EN_CURSO o CERRADO. Estado: " + existing.getEstado(),
+                    "ERR_INVALID_TRANSITION");
+        }
+        existing.setEstado("ANULADO");
+        existing.setMotivoAnulacion(motivo);
+        existing.setAnuladoEn(LocalDateTime.now());
+        existing.setAnuladoPorUsuarioId(currentUser.getCurrentUserId());
+        Ticket saved = ticketRepository.save(existing);
+
+        // Anular factura asociada PENDIENTE (no toca PAGADAs - esas requieren reverso de pago)
+        com.usco.parqueaderos_api.billing.repository.FacturaRepository facturaRepo =
+                facturaRepository;
+        if (facturaRepo != null) {
+            facturaRepo.findByTicketId(id).forEach(f -> {
+                if ("PENDIENTE".equals(f.getEstado())) {
+                    f.setEstado("ANULADA");
+                    facturaRepo.save(f);
+                }
+            });
+        }
+
+        // Publicar TicketCerradoEvent para liberar el punto (mismo efecto)
+        Long parqueaderoId = saved.getParqueadero() != null ? saved.getParqueadero().getId() : null;
+        Long puntoId = saved.getPuntoParqueo() != null ? saved.getPuntoParqueo().getId() : null;
+        eventPublisher.publishEvent(new TicketCerradoEvent(this, saved.getId(), parqueaderoId, puntoId));
+        return toDTO(saved);
     }
 
     /**

@@ -50,4 +50,9 @@ public interface SuscripcionRepository extends JpaRepository<Suscripcion, Long> 
             @Param("parqueaderoId") Long parqueaderoId);
 
     long countByParqueaderoIdAndEstado(Long parqueaderoId, EstadoSuscripcion estado);
+
+    /** Suscripcion ACTIVA que tiene reservado un punto especifico. */
+    @Query("SELECT s FROM Suscripcion s WHERE s.estado = 'ACTIVA' " +
+           "AND s.puntoParqueoReservado.id = :puntoId")
+    Optional<Suscripcion> findActivaByPuntoReservado(@Param("puntoId") Long puntoId);
 }

@@ -28,4 +28,12 @@ public interface VehiculoRepository extends JpaRepository<Vehiculo, Long> {
            "  WHERE r.parqueadero.empresa.id = :empresaId" +
            ")")
     List<Vehiculo> findByActividadEnEmpresa(@Param("empresaId") Long empresaId);
+
+    List<Vehiculo> findByActivoTrue();
+    List<Vehiculo> findByPersonaIdAndActivoTrue(Long personaId);
+
+    /** Visitantes inactivos hace X dias o mas (para limpieza). */
+    @Query("SELECT v FROM Vehiculo v WHERE v.esVisitante = TRUE " +
+           "AND (v.ultimaActividad IS NULL OR v.ultimaActividad < :corte)")
+    List<Vehiculo> findVisitantesInactivosDesde(@Param("corte") java.time.LocalDateTime corte);
 }

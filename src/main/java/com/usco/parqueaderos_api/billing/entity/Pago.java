@@ -32,5 +32,15 @@ public class Pago {
     private LocalDateTime fechaHora;
 
     @Column(length = 50)
-    private String estado; // PENDIENTE, COMPLETADO, FALLIDO
+    private String estado; // PENDIENTE, COMPLETADO, FALLIDO, ANULADO
+
+    /** Motivo de anulacion / reverso (chargeback, error operativo, etc). */
+    @Column(name = "motivo_anulacion", length = 300)
+    private String motivoAnulacion;
+
+    @Column(name = "anulado_en")
+    private LocalDateTime anuladoEn;
+
+    @Column(name = "anulado_por_usuario_id")
+    private Long anuladoPorUsuarioId;
 }

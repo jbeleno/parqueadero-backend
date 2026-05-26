@@ -1,5 +1,12 @@
 HELP.md
 target/
+
+# Documentos locales (auditorias, planes, docs academicos, frontend guides).
+# El repo es codigo; las notas viven en ~/Desktop/parqueaderos-docs-local/.
+AUDITORIA_*.md
+PLAN_*.md
+DOCUMENTO_ACADEMICO*.md
+FRONTEND_*.md
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

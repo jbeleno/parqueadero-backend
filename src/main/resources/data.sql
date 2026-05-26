@@ -244,6 +244,56 @@ ALTER TABLE factura ADD COLUMN IF NOT EXISTS base_imponible  DOUBLE PRECISION;
 ALTER TABLE factura ADD COLUMN IF NOT EXISTS iva_monto       DOUBLE PRECISION;
 ALTER TABLE factura ADD COLUMN IF NOT EXISTS iva_porcentaje  DOUBLE PRECISION;
 
+-- v39: Pago anulable (G1)
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS motivo_anulacion       VARCHAR(300);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS anulado_en             TIMESTAMP;
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS anulado_por_usuario_id BIGINT;
+
+-- v39: Ticket anulable con motivo (G2) + snapshot de tarifa (G11)
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS motivo_anulacion       VARCHAR(300);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS anulado_en             TIMESTAMP;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS anulado_por_usuario_id BIGINT;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_valor_snapshot  DOUBLE PRECISION;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_unidad_snapshot VARCHAR(50);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_minimo_snapshot DOUBLE PRECISION;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_gracia_snapshot INTEGER;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_cubre_snapshot  INTEGER;
+
+-- v39: Soft-delete + visitante en Vehiculo (G3, G5).
+-- IMPORTANTE: persona_id se permite NULL para visitantes.
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS activo            BOOLEAN DEFAULT TRUE;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS archivado_en      TIMESTAMP;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS es_visitante      BOOLEAN DEFAULT FALSE;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS ultima_actividad  TIMESTAMP;
+UPDATE vehiculo SET activo = TRUE       WHERE activo IS NULL;
+UPDATE vehiculo SET es_visitante = FALSE WHERE es_visitante IS NULL;
+ALTER TABLE vehiculo ALTER COLUMN persona_id DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_vehiculo_activo ON vehiculo (activo);
+
+-- v39: Suscripcion con punto reservado (G7)
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS punto_parqueo_reservado_id BIGINT
+    REFERENCES punto_parqueo(id);
+CREATE INDEX IF NOT EXISTS idx_suscripcion_punto_reservado
+    ON suscripcion (punto_parqueo_reservado_id);
+
+-- v39: Cierre diario (G12)
+CREATE TABLE IF NOT EXISTS cierre_dia (
+    id BIGSERIAL PRIMARY KEY,
+    parqueadero_id BIGINT NOT NULL REFERENCES parqueadero(id),
+    fecha DATE NOT NULL,
+    tickets_cerrados INTEGER,
+    total_cobrado    DOUBLE PRECISION,
+    total_efectivo   DOUBLE PRECISION,
+    total_tarjeta    DOUBLE PRECISION,
+    total_otros      DOUBLE PRECISION,
+    facturas_emitidas INTEGER,
+    total_pendiente  DOUBLE PRECISION,
+    tickets_anulados INTEGER,
+    generado_en      TIMESTAMP DEFAULT NOW(),
+    UNIQUE(parqueadero_id, fecha)
+);
+CREATE INDEX IF NOT EXISTS idx_cierre_dia_parq ON cierre_dia (parqueadero_id, fecha);
+
 -- Tarifa franja horaria (entidad nueva)
 CREATE TABLE IF NOT EXISTS tarifa_franja (
     id BIGSERIAL PRIMARY KEY,
@@ -290,6 +340,14 @@ ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS pago_id          BIGINT RE
 ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS saldo_resultante DOUBLE PRECISION;
 ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS motivo           VARCHAR(200);
 ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS fecha            TIMESTAMP DEFAULT NOW();
+ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS tipo VARCHAR(20);
+-- Backfill: heuristica por signo del monto
+UPDATE movimiento_saldo SET tipo = CASE
+  WHEN tipo IS NOT NULL THEN tipo
+  WHEN monto > 0 THEN 'ABONO'
+  WHEN monto < 0 THEN 'CONSUMO'
+  ELSE 'AJUSTE'
+END WHERE tipo IS NULL;
 CREATE INDEX IF NOT EXISTS idx_mov_saldo_susc ON movimiento_saldo (suscripcion_id);
 CREATE INDEX IF NOT EXISTS idx_mov_saldo_ticket ON movimiento_saldo (ticket_id);
 

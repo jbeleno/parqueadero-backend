@@ -59,7 +59,66 @@ public class SaldoService {
         m.setSuscripcion(suscripcion);
         m.setMonto(monto);
         m.setSaldoResultante(nuevoSaldo);
+        m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.ABONO);
         m.setMotivo(motivo != null ? motivo : "Abono manual");
+        m.setFecha(LocalDateTime.now());
+        return movimientoRepo.save(m);
+    }
+
+    /**
+     * Ajuste manual del operador (SUPER_ADMIN). monto puede ser positivo o
+     * negativo. NO toca estado AGOTADA -> es responsabilidad del operador.
+     */
+    @Transactional
+    public MovimientoSaldo ajustar(Long suscripcionId, double monto, String motivo) {
+        if (motivo == null || motivo.trim().length() < 10) {
+            throw new BusinessException(
+                    "El motivo de ajuste es obligatorio (min 10 caracteres)",
+                    "ERR_MISSING_FIELDS");
+        }
+        Suscripcion s = suscripcionRepo.findByIdForUpdate(suscripcionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", suscripcionId));
+        double saldoActual = s.getSaldoRestante() != null ? s.getSaldoRestante() : 0.0;
+        double nuevoSaldo = saldoActual + monto;
+        if (nuevoSaldo < 0) {
+            throw new BusinessException(
+                    "El ajuste dejaria saldo negativo (" + nuevoSaldo + ")",
+                    "ERR_INVALID_AMOUNT");
+        }
+        s.setSaldoRestante(nuevoSaldo);
+        suscripcionRepo.save(s);
+        MovimientoSaldo m = new MovimientoSaldo();
+        m.setSuscripcion(s);
+        m.setMonto(monto);
+        m.setSaldoResultante(nuevoSaldo);
+        m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.AJUSTE);
+        m.setMotivo(motivo);
+        m.setFecha(LocalDateTime.now());
+        return movimientoRepo.save(m);
+    }
+
+    /**
+     * Reversa un consumo previo (cuando se anula el ticket que descontó).
+     * Devuelve el monto al saldo.
+     */
+    @Transactional
+    public MovimientoSaldo reversar(Long suscripcionId, double montoARevertir, Long ticketId) {
+        Suscripcion s = suscripcionRepo.findByIdForUpdate(suscripcionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", suscripcionId));
+        double saldoActual = s.getSaldoRestante() != null ? s.getSaldoRestante() : 0.0;
+        double nuevoSaldo = saldoActual + Math.abs(montoARevertir);
+        s.setSaldoRestante(nuevoSaldo);
+        // Si estaba AGOTADA y entra saldo, volver a ACTIVA
+        if (s.getEstado() == EstadoSuscripcion.AGOTADA) {
+            s.setEstado(EstadoSuscripcion.ACTIVA);
+        }
+        suscripcionRepo.save(s);
+        MovimientoSaldo m = new MovimientoSaldo();
+        m.setSuscripcion(s);
+        m.setMonto(Math.abs(montoARevertir));
+        m.setSaldoResultante(nuevoSaldo);
+        m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.REVERSO);
+        m.setMotivo("Reverso por anulacion ticket #" + ticketId);
         m.setFecha(LocalDateTime.now());
         return movimientoRepo.save(m);
     }
@@ -102,6 +161,7 @@ public class SaldoService {
         m.setMonto(-descontado);
         m.setSaldoResultante(nuevoSaldo);
         m.setTicket(ticket);
+        m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.CONSUMO);
         m.setMotivo("Consumo ticket #" + (ticket != null ? ticket.getId() : "?"));
         m.setFecha(LocalDateTime.now());
         movimientoRepo.save(m);

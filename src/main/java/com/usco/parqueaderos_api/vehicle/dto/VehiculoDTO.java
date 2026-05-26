@@ -21,8 +21,13 @@ public class VehiculoDTO {
     private Long tipoVehiculoId;
     private String tipoVehiculoNombre;
 
-    @NotNull(message = "La persona es obligatoria")
+    /** Persona ya no es obligatoria (visitantes sin cuenta). */
     private Long personaId;
     private String personaNombre;
     private String personaDocumento;
+
+    private Boolean activo;
+    private Boolean esVisitante;
+    private java.time.LocalDateTime ultimaActividad;
+    private java.time.LocalDateTime archivadoEn;
 }

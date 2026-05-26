@@ -64,6 +64,15 @@ public class Suscripcion {
     @Column(name = "saldo_restante")
     private Double saldoRestante;
 
+    /**
+     * Punto fijo asignado al duenio de la suscripcion (oficinas, conjuntos).
+     * NULL = sin reserva (cliente entra a cualquier punto disponible).
+     * Si esta seteado, ese punto queda bloqueado para uso externo durante la vigencia.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "punto_parqueo_reservado_id")
+    private com.usco.parqueaderos_api.parking.entity.PuntoParqueo puntoParqueoReservado;
+
     /** Optimistic lock para evitar race en descuento de saldo. */
     @Version
     @Column

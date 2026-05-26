@@ -183,6 +183,52 @@ public class PagoService {
         pagoRepository.deleteById(id);
     }
 
+    /**
+     * Anula un pago (reverso). Solo SUPER_ADMIN. Marca el pago como ANULADO,
+     * registra motivo + usuario + fecha, y recalcula el estado de la factura:
+     * si la suma de COMPLETADOs deja de cubrir el valorTotal, la factura
+     * vuelve a PENDIENTE.
+     *
+     * Caso de uso: chargeback bancario, error operativo, devolucion.
+     */
+    @Transactional
+    public PagoDTO anular(Long id, String motivo) {
+        if (!currentUser.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo SUPER_ADMIN puede anular pagos");
+        }
+        if (motivo == null || motivo.trim().length() < 10) {
+            throw new BusinessException(
+                    "Motivo obligatorio para anular (min 10 caracteres)",
+                    "ERR_MISSING_FIELDS");
+        }
+        Pago p = pagoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pago", id));
+        if ("ANULADO".equals(p.getEstado()) || "FALLIDO".equals(p.getEstado())) {
+            throw new BusinessException(
+                    "El pago ya esta anulado o fallido",
+                    "ERR_PAGO_YA_ANULADO");
+        }
+        p.setEstado("ANULADO");
+        p.setMotivoAnulacion(motivo);
+        p.setAnuladoEn(LocalDateTime.now());
+        p.setAnuladoPorUsuarioId(currentUser.getCurrentUserId());
+        Pago saved = pagoRepository.save(p);
+
+        // Recalcular factura: si suma COMPLETADOs < valorTotal -> PENDIENTE
+        Factura factura = saved.getFactura();
+        if (factura != null && !"ANULADA".equals(factura.getEstado())) {
+            double sumaCompletados = pagoRepository.findByFacturaId(factura.getId()).stream()
+                    .filter(x -> "COMPLETADO".equals(x.getEstado()))
+                    .mapToDouble(Pago::getMonto)
+                    .sum();
+            if (sumaCompletados + TOLERANCIA_DECIMAL < factura.getValorTotal()) {
+                factura.setEstado("PENDIENTE");
+                facturaRepository.save(factura);
+            }
+        }
+        return toDTO(saved);
+    }
+
     private PagoDTO toDTO(Pago e) {
         PagoDTO dto = new PagoDTO();
         dto.setId(e.getId());

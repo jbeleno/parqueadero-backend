@@ -12,6 +12,7 @@ import com.usco.parqueaderos_api.subscription.repository.SuscripcionRepository;
 import com.usco.parqueaderos_api.subscription.service.SaldoService;
 import com.usco.parqueaderos_api.subscription.service.SuscripcionService;
 import jakarta.validation.Valid;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -85,8 +86,28 @@ public class SaldoController {
                 .ticketId(m.getTicket() != null ? m.getTicket().getId() : null)
                 .pagoId(m.getPago() != null ? m.getPago().getId() : null)
                 .saldoResultante(m.getSaldoResultante())
+                .tipo(m.getTipo())
                 .motivo(m.getMotivo())
                 .fecha(m.getFecha())
                 .build();
+    }
+
+    /**
+     * Ajuste manual de saldo por SUPER_ADMIN con motivo obligatorio (auditable).
+     * monto puede ser positivo (regalo/correccion +) o negativo (penalizacion/correccion -).
+     */
+    @PostMapping("/suscripcion/{id}/ajustar")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<MovimientoSaldoDTO>> ajustar(
+            @PathVariable Long id,
+            @RequestBody AjusteSaldoRequest req) {
+        MovimientoSaldo m = saldoService.ajustar(id, req.getMonto(), req.getMotivo());
+        return ResponseEntity.ok(ApiResponse.ok(toDTO(m), "Ajuste registrado"));
+    }
+
+    @Data
+    public static class AjusteSaldoRequest {
+        private Double monto;
+        private String motivo;
     }
 }

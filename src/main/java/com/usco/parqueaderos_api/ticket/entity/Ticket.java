@@ -67,4 +67,30 @@ public class Ticket {
      */
     @Column(name = "suscripcion_id")
     private Long suscripcionId;
+
+    /** Motivo justificado de anulacion del ticket (obligatorio al anular). */
+    @Column(name = "motivo_anulacion", length = 300)
+    private String motivoAnulacion;
+
+    @Column(name = "anulado_en")
+    private LocalDateTime anuladoEn;
+
+    @Column(name = "anulado_por_usuario_id")
+    private Long anuladoPorUsuarioId;
+
+    /**
+     * Snapshot del valor/unidad/Modelo B de la tarifa al momento de la entrada.
+     * Si el operador cambia la tarifa entre entrada y salida, el cobro respeta
+     * el valor de entrada (anti-fraude / consistencia regulatoria).
+     */
+    @Column(name = "tarifa_valor_snapshot")
+    private Double tarifaValorSnapshot;
+    @Column(name = "tarifa_unidad_snapshot", length = 50)
+    private String tarifaUnidadSnapshot;
+    @Column(name = "tarifa_minimo_snapshot")
+    private Double tarifaMinimoSnapshot;
+    @Column(name = "tarifa_gracia_snapshot")
+    private Integer tarifaGraciaSnapshot;
+    @Column(name = "tarifa_cubre_snapshot")
+    private Integer tarifaCubreSnapshot;
 }

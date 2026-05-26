@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "vehiculo")
 @Data
@@ -19,7 +21,7 @@ public class Vehiculo {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "persona_id", nullable = false)
+    @JoinColumn(name = "persona_id")
     private Persona persona;
 
     @Column(nullable = false, unique = true, length = 20)
@@ -31,4 +33,20 @@ public class Vehiculo {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tipo_vehiculo_id", nullable = false)
     private TipoVehiculo tipoVehiculo;
+
+    /** Soft-delete: false = archivado, no aparece en sugerencias. Default true. */
+    @Column
+    private Boolean activo = true;
+
+    /** Marca de tiempo del archivado. Null si esta activo. */
+    @Column(name = "archivado_en")
+    private LocalDateTime archivadoEn;
+
+    /** Marcado por OCR cuando crea vehiculo sin persona registrada. */
+    @Column(name = "es_visitante")
+    private Boolean esVisitante = false;
+
+    /** Ultima actividad (ticket o reserva). Para limpieza de visitantes inactivos. */
+    @Column(name = "ultima_actividad")
+    private LocalDateTime ultimaActividad;
 }

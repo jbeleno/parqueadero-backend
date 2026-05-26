@@ -51,6 +51,11 @@ public class MovimientoSaldo {
     @Column(name = "saldo_resultante", nullable = false)
     private Double saldoResultante;
 
+    /** Categoria para reportes (ABONO, CONSUMO, REVERSO, AJUSTE). */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private TipoMovimiento tipo;
+
     @Column(length = 200)
     private String motivo;
 

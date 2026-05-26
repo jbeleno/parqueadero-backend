@@ -35,7 +35,13 @@ public class VehiculoService {
 
     @Transactional(readOnly = true)
     public List<VehiculoDTO> findAll() {
-        return findAll(false);
+        return findAll(false, false);
+    }
+
+    /** Compat: deja la firma vieja apuntando a la nueva con flags por defecto. */
+    @Transactional(readOnly = true)
+    public List<VehiculoDTO> findAll(boolean soloMiEmpresa) {
+        return findAll(soloMiEmpresa, false);
     }
 
     /**
@@ -49,7 +55,7 @@ public class VehiculoService {
      * - USER: ignora el flag, solo ve sus propios vehiculos
      */
     @Transactional(readOnly = true)
-    public List<VehiculoDTO> findAll(boolean soloMiEmpresa) {
+    public List<VehiculoDTO> findAll(boolean soloMiEmpresa, boolean incluirArchivados) {
         List<Vehiculo> base;
         if (currentUser.isSuperAdmin()) {
             base = vehiculoRepository.findAll();
@@ -66,7 +72,45 @@ public class VehiculoService {
             Long personaId = currentUser.getCurrentPersonaId();
             base = vehiculoRepository.findByPersonaId(personaId);
         }
+        if (!incluirArchivados) {
+            base = base.stream()
+                    .filter(v -> v.getActivo() == null || v.getActivo())
+                    .toList();
+        }
         return base.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    /** Soft-delete: marca activo=false. No borra historial. */
+    @Transactional
+    public VehiculoDTO archivar(Long id) {
+        Vehiculo v = vehiculoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehiculo", id));
+        // No archivar si tiene ticket EN_CURSO
+        if (ticketRepository.existsByVehiculoIdAndParqueaderoIdAndEstado(id, 0L, "EN_CURSO")
+                || tieneTicketEnCurso(id)) {
+            throw new BusinessException(
+                    "No se puede archivar: el vehiculo tiene un ticket EN_CURSO",
+                    "ERR_VEHICULO_EN_CURSO");
+        }
+        v.setActivo(false);
+        v.setArchivadoEn(java.time.LocalDateTime.now());
+        return toDTO(vehiculoRepository.save(v));
+    }
+
+    private boolean tieneTicketEnCurso(Long vehiculoId) {
+        // existsByVehiculoIdAndParqueaderoIdAndEstado requiere parqueaderoId, evitamos
+        // buscando si countByVehiculoId del estado EN_CURSO en cualquier parqueadero.
+        return ticketRepository.findByVehiculoId(vehiculoId).stream()
+                .anyMatch(t -> "EN_CURSO".equals(t.getEstado()));
+    }
+
+    @Transactional
+    public VehiculoDTO desarchivar(Long id) {
+        Vehiculo v = vehiculoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehiculo", id));
+        v.setActivo(true);
+        v.setArchivadoEn(null);
+        return toDTO(vehiculoRepository.save(v));
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +174,10 @@ public class VehiculoService {
             dto.setPersonaDocumento(e.getPersona().getNumeroDocumento());
         }
         if (e.getTipoVehiculo() != null) { dto.setTipoVehiculoId(e.getTipoVehiculo().getId()); dto.setTipoVehiculoNombre(e.getTipoVehiculo().getNombre()); }
+        dto.setActivo(e.getActivo() == null || e.getActivo());
+        dto.setEsVisitante(e.getEsVisitante() != null && e.getEsVisitante());
+        dto.setUltimaActividad(e.getUltimaActividad());
+        dto.setArchivadoEn(e.getArchivadoEn());
         return dto;
     }
 

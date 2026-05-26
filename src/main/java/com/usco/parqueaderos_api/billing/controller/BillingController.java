@@ -6,6 +6,7 @@ import com.usco.parqueaderos_api.billing.service.FacturaService;
 import com.usco.parqueaderos_api.billing.service.PagoService;
 import com.usco.parqueaderos_api.common.dto.ApiResponse;
 import jakarta.validation.Valid;
+import com.usco.parqueaderos_api.billing.service.ReciboService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ public class BillingController {
 
     private final FacturaService facturaService;
     private final PagoService pagoService;
+    private final ReciboService reciboService;
+    private final com.usco.parqueaderos_api.billing.service.LinkPagoService linkPagoService;
 
     // ---- Facturas ----
     @GetMapping("/api/facturas")
@@ -72,5 +75,34 @@ public class BillingController {
     public ResponseEntity<Void> deletePago(@PathVariable Long id) {
         pagoService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Recibo en texto plano de la factura (para impresora termica o vista preview). */
+    @GetMapping(value = "/api/facturas/{id}/recibo.txt", produces = "text/plain")
+    public ResponseEntity<String> reciboTxt(@PathVariable Long id) {
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=recibo-" + id + ".txt")
+                .body(reciboService.generarTxt(id));
+    }
+
+    /** Anular pago (reverso/chargeback). Solo SUPER_ADMIN, motivo obligatorio. */
+    @PatchMapping("/api/pagos/{id}/anular")
+    public ResponseEntity<ApiResponse<PagoDTO>> anularPago(
+            @PathVariable Long id,
+            @RequestBody AnularPagoRequest req) {
+        return ResponseEntity.ok(ApiResponse.ok(pagoService.anular(id, req.getMotivo())));
+    }
+
+    @lombok.Data
+    public static class AnularPagoRequest {
+        private String motivo;
+    }
+
+    /** Genera link de pago (stub local; integracion real con pasarela queda en el webhook). */
+    @PostMapping("/api/pagos/link-pago")
+    public ResponseEntity<ApiResponse<com.usco.parqueaderos_api.billing.service.LinkPagoService.LinkPagoResponse>> linkPago(
+            @RequestBody com.usco.parqueaderos_api.billing.service.LinkPagoService.LinkPagoRequest req) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                linkPagoService.generar(req.getFacturaId(), req.getMonto())));
     }
 }

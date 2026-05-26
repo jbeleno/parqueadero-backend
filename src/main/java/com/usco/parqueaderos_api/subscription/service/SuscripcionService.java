@@ -42,6 +42,7 @@ public class SuscripcionService {
     private final VehiculoRepository vehiculoRepo;
     private final ParqueaderoRepository parqueaderoRepo;
     private final TarifaRepository tarifaRepo;
+    private final com.usco.parqueaderos_api.parking.repository.PuntoParqueoRepository puntoParqueoRepo;
 
     /**
      * Crea una suscripcion ACTIVA. Asume que el pago ya fue confirmado por el
@@ -50,6 +51,14 @@ public class SuscripcionService {
     @Transactional
     public Suscripcion crear(Long vehiculoId, Long parqueaderoId, Long tarifaId,
                               TipoSuscripcion tipo, Double montoPagado) {
+        return crear(vehiculoId, parqueaderoId, tarifaId, tipo, montoPagado, null);
+    }
+
+    /** Sobrecarga: permite reservar un punto especifico para la suscripcion. */
+    @Transactional
+    public Suscripcion crear(Long vehiculoId, Long parqueaderoId, Long tarifaId,
+                              TipoSuscripcion tipo, Double montoPagado,
+                              Long puntoParqueoReservadoId) {
         Vehiculo v = vehiculoRepo.findById(vehiculoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehiculo", vehiculoId));
         Parqueadero p = parqueaderoRepo.findById(parqueaderoId)
@@ -93,6 +102,28 @@ public class SuscripcionService {
         s.setMontoPagado(montoPagado);
         if (tipo == TipoSuscripcion.ABONO_PREPAGO) {
             s.setSaldoRestante(montoPagado); // saldo inicial = monto cargado
+        }
+        if (puntoParqueoReservadoId != null) {
+            com.usco.parqueaderos_api.parking.entity.PuntoParqueo punto =
+                    puntoParqueoRepo.findById(puntoParqueoReservadoId)
+                            .orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", puntoParqueoReservadoId));
+            // Validar que el punto sea del mismo parqueadero
+            if (punto.getSubSeccion() != null
+                    && punto.getSubSeccion().getSeccion() != null
+                    && punto.getSubSeccion().getSeccion().getParqueadero() != null
+                    && !punto.getSubSeccion().getSeccion().getParqueadero().getId().equals(parqueaderoId)) {
+                throw new BusinessException(
+                        "El punto reservado no pertenece al parqueadero",
+                        "ERR_PUNTO_OTRO_PARQUEADERO");
+            }
+            // No permitir doble reserva del mismo punto
+            Optional<Suscripcion> ya = suscripcionRepo.findActivaByPuntoReservado(puntoParqueoReservadoId);
+            if (ya.isPresent()) {
+                throw new BusinessException(
+                        "El punto ya esta reservado por la suscripcion #" + ya.get().getId(),
+                        "ERR_PUNTO_RESERVADO_OCUPADO");
+            }
+            s.setPuntoParqueoReservado(punto);
         }
         s.setFechaCreacion(inicio);
 

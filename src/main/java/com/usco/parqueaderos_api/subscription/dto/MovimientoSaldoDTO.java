@@ -14,6 +14,7 @@ public class MovimientoSaldoDTO {
     private Long ticketId;
     private Long pagoId;
     private Double saldoResultante;
+    private com.usco.parqueaderos_api.subscription.entity.TipoMovimiento tipo;
     private String motivo;
     private LocalDateTime fecha;
 }
