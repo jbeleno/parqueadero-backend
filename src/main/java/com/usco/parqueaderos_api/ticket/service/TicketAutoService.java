@@ -55,6 +55,7 @@ public class TicketAutoService {
     private final TipoVehiculoRepository tipoVehiculoRepo;
     private final PersonaRepository personaRepo;
     private final TarifaCalculatorService tarifaCalculator;
+    private final CobroOrchestrator cobroOrchestrator;
     private final ApplicationEventPublisher publisher;
 
     public enum Accion {
@@ -203,10 +204,12 @@ public class TicketAutoService {
         if (ticketAbierto.isPresent()) {
             Ticket t = ticketAbierto.get();
             LocalDateTime salida = LocalDateTime.now();
-            double monto = tarifaCalculator.calcular(t, salida);
+            com.usco.parqueaderos_api.ticket.service.strategy.CobroResult cobro =
+                    cobroOrchestrator.cobrar(t, salida);
             t.setFechaHoraSalida(salida);
             t.setFechaHoraSalidaFisica(salida);
-            t.setMontoCalculado(monto);
+            t.setMontoCalculado(cobro.montoCobrado());
+            t.setSuscripcionId(cobro.suscripcionId());
             t.setEstado("CERRADO");
             Ticket saved = ticketRepo.save(t);
 
@@ -215,7 +218,8 @@ public class TicketAutoService {
                     this, saved.getId(), parqueadero.getId(), puntoId));
 
             return new AutoActionResult(Accion.SALIDA_REGISTRADA, saved.getId(),
-                    vehiculo.getId(), false, puntoId, monto, "Salida registrada automaticamente");
+                    vehiculo.getId(), false, puntoId, cobro.montoCobrado(),
+                    cobro.mensaje() != null ? cobro.mensaje() : "Salida registrada automaticamente");
         }
 
         // Caso 2: ticket CERRADO recientemente (cierre manual del admin) -> salida fisica esperada

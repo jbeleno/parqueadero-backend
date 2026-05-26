@@ -45,4 +45,27 @@ public class Tarifa {
 
     @Column(name = "fecha_fin_vigencia")
     private LocalDate fechaFinVigencia;
+
+    /** Minutos gratuitos al inicio de cada ticket. Antes de este umbral, monto=0. */
+    @Column(name = "minutos_gracia", nullable = false)
+    private Integer minutosGracia = 0;
+
+    /** Cobro plano (fee de entrada) que cubre los primeros minutos_cubiertos_por_minimo. */
+    @Column(name = "valor_minimo", nullable = false)
+    private Double valorMinimo = 0.0;
+
+    /**
+     * Cuantos minutos cubre el valor_minimo. Despues de este umbral, se suma
+     * la tarifa normal (por hora/fraccion/dia) sobre los minutos excedentes.
+     */
+    @Column(name = "minutos_cubiertos_por_minimo", nullable = false)
+    private Integer minutosCubiertosPorMinimo = 0;
+
+    /** Precio de una mensualidad (Suscripcion tipo MENSUAL). NULL si no se ofrece. */
+    @Column(name = "precio_mensualidad")
+    private Double precioMensualidad;
+
+    /** Precio de un pase de dia (Suscripcion tipo PASE_DIA). NULL si no se ofrece. */
+    @Column(name = "precio_pase_dia")
+    private Double precioPaseDia;
 }

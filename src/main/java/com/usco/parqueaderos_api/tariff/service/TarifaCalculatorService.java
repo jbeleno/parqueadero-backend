@@ -28,6 +28,17 @@ public class TarifaCalculatorService {
      * - POR_DIA:      redondeo hacia arriba a dias completos (1 dia = 1440 min)
      * - PLANA:        valor fijo independiente de la duracion
      */
+    /**
+     * Calcula el monto a cobrar dado un ticket y la fecha/hora de salida.
+     *
+     * MODELO B (con gracia + valor minimo que cubre X minutos):
+     *   1. Si la estadia <= minutos_gracia -> 0 (gratis)
+     *   2. Si la estadia <= minutos_cubiertos_por_minimo -> valor_minimo
+     *   3. Si la estadia es mayor -> valor_minimo + tarifa_normal(excedente)
+     *
+     * Si la tarifa no usa gracia/minimo (campos = 0), se comporta como antes:
+     * cobro directo por unidad.
+     */
     public double calcular(Ticket ticket, LocalDateTime salida) {
         if (ticket == null) {
             throw new BusinessException("Ticket nulo en calculo de tarifa", "ERR_TICKET_NULL");
@@ -44,9 +55,29 @@ public class TarifaCalculatorService {
         }
         long minutos = Math.max(0L, Duration.between(ticket.getFechaHoraEntrada(), salida).toMinutes());
 
+        int gracia = tarifa.getMinutosGracia() != null ? tarifa.getMinutosGracia() : 0;
+        double minimo = tarifa.getValorMinimo() != null ? tarifa.getValorMinimo() : 0.0;
+        int cubreMin = tarifa.getMinutosCubiertosPorMinimo() != null
+                ? tarifa.getMinutosCubiertosPorMinimo() : 0;
+
+        // Paso 1: gracia
+        if (minutos <= gracia) return 0.0;
+
+        // Paso 2: ventana cubierta por el valor minimo
+        if (minutos <= cubreMin) {
+            return minimo;
+        }
+
+        // Paso 3: minimo + tarifa normal sobre los minutos EXCEDENTES
+        long minutosExcedentes = minutos - cubreMin;
+        double cobroExcedente = calcularPorUnidad(tarifa, minutosExcedentes);
+        return minimo + cobroExcedente;
+    }
+
+    /** Calcula cobro segun la unidad de la tarifa para una cantidad de minutos. */
+    private double calcularPorUnidad(Tarifa tarifa, long minutos) {
         String unidadNormalizada = normalizarUnidad(tarifa.getUnidad());
         double valor = tarifa.getValor();
-
         switch (unidadNormalizada) {
             case "POR_HORA":
                 return Math.ceil(minutos / 60.0) * valor;

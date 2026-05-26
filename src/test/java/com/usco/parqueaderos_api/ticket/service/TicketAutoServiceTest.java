@@ -47,6 +47,7 @@ class TicketAutoServiceTest {
     @Mock TipoVehiculoRepository tipoVehiculoRepo;
     @Mock PersonaRepository personaRepo;
     @Mock TarifaCalculatorService tarifaCalculator;
+    @Mock CobroOrchestrator cobroOrchestrator;
     @Mock ApplicationEventPublisher publisher;
 
     @InjectMocks TicketAutoService service;
@@ -256,7 +257,9 @@ class TicketAutoServiceTest {
         when(vehiculoRepo.findByPlaca("KJV807")).thenReturn(Optional.of(vehiculoExistente));
         when(ticketRepo.findFirstByVehiculoIdAndParqueaderoIdAndEstadoOrderByFechaHoraEntradaDesc(
                 10L, 7L, "EN_CURSO")).thenReturn(Optional.of(ticketAbierto));
-        when(tarifaCalculator.calcular(any(Ticket.class), any(LocalDateTime.class))).thenReturn(5000.0);
+        when(cobroOrchestrator.cobrar(any(Ticket.class), any(LocalDateTime.class)))
+                .thenReturn(new com.usco.parqueaderos_api.ticket.service.strategy.CobroResult(
+                        5000.0, null, true, "Cobro con tarifa normal"));
         when(ticketRepo.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TicketAutoService.AutoActionResult r = service.procesarPlacaDetectada(6L, 7L, "SALIDA", "KJV807");

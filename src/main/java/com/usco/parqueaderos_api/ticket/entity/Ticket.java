@@ -59,4 +59,12 @@ public class Ticket {
 
     @Column(name = "monto_calculado")
     private Double montoCalculado;
+
+    /**
+     * Suscripcion que cubrio el ticket (MENSUAL / PASE_DIA / ABONO_PREPAGO).
+     * NULL si fue cobro normal con tarifa. Util para reportes de fuente de
+     * ingresos: cuanto entro por suscripciones vs tickets esporadicos.
+     */
+    @Column(name = "suscripcion_id")
+    private Long suscripcionId;
 }

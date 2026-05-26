@@ -162,6 +162,27 @@ CREATE INDEX IF NOT EXISTS idx_factura_ticket           ON factura (ticket_id);
 CREATE INDEX IF NOT EXISTS idx_factura_estado           ON factura (estado);
 CREATE INDEX IF NOT EXISTS idx_pago_factura             ON pago (factura_id);
 
+-- ============================================================================
+-- Suscripciones (MENSUAL / PASE_DIA / ABONO_PREPAGO)
+-- ============================================================================
+
+-- Solo una Suscripcion ACTIVA del mismo tipo por (vehiculo, parqueadero).
+-- Defensa en profundidad contra race condition al crear suscripciones.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_suscripcion_activa
+  ON suscripcion (vehiculo_id, parqueadero_id, tipo)
+  WHERE estado = 'ACTIVA';
+
+CREATE INDEX IF NOT EXISTS idx_suscripcion_vehiculo  ON suscripcion (vehiculo_id);
+CREATE INDEX IF NOT EXISTS idx_suscripcion_parq      ON suscripcion (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_suscripcion_estado    ON suscripcion (estado);
+-- Job @Scheduled busca por (estado=ACTIVA, fecha_fin) para marcar VENCIDA
+CREATE INDEX IF NOT EXISTS idx_suscripcion_vence
+  ON suscripcion (fecha_fin)
+  WHERE estado = 'ACTIVA';
+
+CREATE INDEX IF NOT EXISTS idx_mov_saldo_suscripcion
+  ON movimiento_saldo (suscripcion_id, fecha DESC);
+
 -- Indices para queries multi-tenant (joins por empresa) y jerarquia
 CREATE INDEX IF NOT EXISTS idx_parqueadero_empresa      ON parqueadero (empresa_id);
 CREATE INDEX IF NOT EXISTS idx_nivel_parqueadero        ON nivel (parqueadero_id);

@@ -41,6 +41,7 @@ public class TicketService {
     private final ApplicationEventPublisher eventPublisher;
     private final CurrentUserService currentUser;
     private final TarifaCalculatorService tarifaCalculator;
+    private final CobroOrchestrator cobroOrchestrator;
 
     @Transactional(readOnly = true)
     public List<TicketDTO> findAll() {
@@ -191,9 +192,11 @@ public class TicketService {
 
         if ("CERRADO".equals(estadoNuevo)) {
             LocalDateTime salida = LocalDateTime.now();
-            double monto = tarifaCalculator.calcular(existing, salida);
+            com.usco.parqueaderos_api.ticket.service.strategy.CobroResult cobro =
+                    cobroOrchestrator.cobrar(existing, salida);
             existing.setFechaHoraSalida(salida);
-            existing.setMontoCalculado(monto);
+            existing.setMontoCalculado(cobro.montoCobrado());
+            existing.setSuscripcionId(cobro.suscripcionId());
             existing.setEstado("CERRADO");
         } else if ("ANULADO".equals(estadoNuevo)) {
             existing.setEstado("ANULADO");
@@ -249,8 +252,14 @@ public class TicketService {
         }
 
         LocalDateTime salida = LocalDateTime.now();
+
+        // Aplicar estrategia de cobro: suscripciones primero, fallback tarifa normal
+        com.usco.parqueaderos_api.ticket.service.strategy.CobroResult cobro =
+                cobroOrchestrator.cobrar(existing, salida);
+
         existing.setFechaHoraSalida(salida);
-        existing.setMontoCalculado(tarifaCalculator.calcular(existing, salida));
+        existing.setMontoCalculado(cobro.montoCobrado());
+        existing.setSuscripcionId(cobro.suscripcionId());
         existing.setEstado("CERRADO");
         Ticket saved = ticketRepository.save(existing);
 

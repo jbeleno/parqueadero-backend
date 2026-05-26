@@ -10,6 +10,7 @@ import com.usco.parqueaderos_api.parking.repository.PuntoParqueoRepository;
 import com.usco.parqueaderos_api.tariff.entity.Tarifa;
 import com.usco.parqueaderos_api.tariff.repository.TarifaRepository;
 import com.usco.parqueaderos_api.tariff.service.TarifaCalculatorService;
+import com.usco.parqueaderos_api.ticket.service.CobroOrchestrator;
 import com.usco.parqueaderos_api.ticket.dto.TicketDTO;
 import com.usco.parqueaderos_api.ticket.entity.Ticket;
 import com.usco.parqueaderos_api.ticket.repository.TicketRepository;
@@ -53,6 +54,7 @@ class TicketServiceTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock CurrentUserService currentUser;
     @Mock TarifaCalculatorService tarifaCalculator;
+    @Mock CobroOrchestrator cobroOrchestrator;
 
     @InjectMocks TicketService ticketService;
 
@@ -150,7 +152,9 @@ class TicketServiceTest {
 
         when(currentUser.isAdmin()).thenReturn(true);
         when(ticketRepository.findById(50L)).thenReturn(Optional.of(existente));
-        when(tarifaCalculator.calcular(eq(existente), any(LocalDateTime.class))).thenReturn(6000.0);
+        when(cobroOrchestrator.cobrar(eq(existente), any(LocalDateTime.class)))
+                .thenReturn(new com.usco.parqueaderos_api.ticket.service.strategy.CobroResult(
+                        6000.0, null, true, "Cobro con tarifa normal"));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TicketDTO dto = new TicketDTO();
@@ -159,14 +163,14 @@ class TicketServiceTest {
 
         ticketService.update(50L, dto);
 
-        // El monto persistido debe ser el calculado por el service, no el del DTO
+        // El monto persistido debe ser el calculado por el cobro orchestrator, no el del DTO
         verify(ticketRepository).save(argThat(saved ->
                 "CERRADO".equals(saved.getEstado())
                 && saved.getMontoCalculado() != null
                 && saved.getMontoCalculado() == 6000.0
                 && saved.getFechaHoraSalida() != null
         ));
-        verify(tarifaCalculator).calcular(eq(existente), any(LocalDateTime.class));
+        verify(cobroOrchestrator).cobrar(eq(existente), any(LocalDateTime.class));
     }
 
     @Test
