@@ -80,6 +80,7 @@ public class TarifaService {
         if (dto.getMinutosCubiertosPorMinimo() != null) e.setMinutosCubiertosPorMinimo(dto.getMinutosCubiertosPorMinimo());
         if (dto.getAplicaIva() != null) e.setAplicaIva(dto.getAplicaIva());
         if (dto.getIvaPorcentaje() != null) e.setIvaPorcentaje(dto.getIvaPorcentaje());
+        if (dto.getValorMinimoReemplaza() != null) e.setValorMinimoReemplaza(dto.getValorMinimoReemplaza());
         // Mensualidad/pase: permitir setear NULL desde el DTO para "deshabilitar"
         e.setPrecioMensualidad(dto.getPrecioMensualidad());
         e.setPrecioPaseDia(dto.getPrecioPaseDia());
@@ -107,6 +108,7 @@ public class TarifaService {
         dto.setMinutosCubiertosPorMinimo(e.getMinutosCubiertosPorMinimo());
         dto.setAplicaIva(e.getAplicaIva());
         dto.setIvaPorcentaje(e.getIvaPorcentaje());
+        dto.setValorMinimoReemplaza(e.getValorMinimoReemplaza());
         dto.setPrecioMensualidad(e.getPrecioMensualidad());
         dto.setPrecioPaseDia(e.getPrecioPaseDia());
         return dto;

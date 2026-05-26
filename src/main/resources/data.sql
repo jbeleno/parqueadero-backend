@@ -219,6 +219,7 @@ ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_mensualidad            DOUBLE
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_pase_dia               DOUBLE PRECISION;
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS aplica_iva                    BOOLEAN          DEFAULT FALSE;
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS iva_porcentaje                DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS valor_minimo_reemplaza        BOOLEAN          DEFAULT FALSE;
 
 -- Normalizar NULLs heredados (columnas que ya existian en prod con NULL).
 UPDATE tarifa SET minutos_gracia                = 0     WHERE minutos_gracia IS NULL;

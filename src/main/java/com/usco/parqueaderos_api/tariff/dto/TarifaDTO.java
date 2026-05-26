@@ -47,6 +47,12 @@ public class TarifaDTO {
     private Boolean aplicaIva;
     private Double ivaPorcentaje;
 
+    /**
+     * Si true, pasado minutosCubiertosPorMinimo se cobra la TARIFA NORMAL COMPLETA
+     * (el minimo desaparece). Si false (default) es ADITIVO: minimo + excedente.
+     */
+    private Boolean valorMinimoReemplaza;
+
     // Suscripciones (NULL si no se ofrecen)
     private Double precioMensualidad;
     private Double precioPaseDia;

@@ -69,6 +69,21 @@ public class Tarifa {
     @Column(name = "precio_pase_dia")
     private Double precioPaseDia;
 
+    /**
+     * Si TRUE: el valor minimo es la tarifa de estadia corta. Pasado
+     * minutos_cubiertos_por_minimo, se cobra la TARIFA NORMAL COMPLETA en su
+     * lugar (no se suma al minimo). Modo "umbral / reemplazo".
+     *
+     * Si FALSE (default): el minimo + tarifa_normal(excedente) se suman.
+     * Modelo aditivo clasico (Modelo B).
+     *
+     * Ejemplo con valorMinimo=2000, cubre=5, valor=3000/h:
+     *   modo aditivo (false): 60min -> 2000 + ceil(55/60)*3000 = 5000
+     *   modo reemplazo (true): 60min -> ceil(60/60)*3000 = 3000  (el minimo desaparece)
+     */
+    @Column(name = "valor_minimo_reemplaza")
+    private Boolean valorMinimoReemplaza = false;
+
     /** Si TRUE el monto cobrado incluye IVA (se calcula y desagrega en la factura). */
     @Column(name = "aplica_iva")
     private Boolean aplicaIva = false;

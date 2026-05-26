@@ -88,9 +88,9 @@ public class TarifaCalculatorService {
             return minimo;
         }
 
-        // Paso 3: minimo + tarifa normal sobre los minutos EXCEDENTES.
-        // Si hay franja horaria activa para la hora de entrada, su valor sustituye
-        // al valor base de la tarifa. Snapshot tiene preferencia sobre tarifa actual.
+        // Paso 3: monto por unidad. Dos modos:
+        //   ADITIVO (default): minimo + tarifa_normal(excedente)
+        //   REEMPLAZO: tarifa_normal(duracion COMPLETA), el minimo desaparece
         double valorEfectivo = ticket.getTarifaValorSnapshot() != null
                 ? ticket.getTarifaValorSnapshot() : tarifa.getValor();
         if (franjaSelector != null) {
@@ -99,16 +99,24 @@ public class TarifaCalculatorService {
                 valorEfectivo = franja.get().getValor();
             }
         }
-        long minutosExcedentes = minutos - cubreMin;
-        // Si hay snapshot de unidad, crear tarifa "virtual" con esos valores
         Tarifa tarifaEfectiva = tarifa;
         if (ticket.getTarifaUnidadSnapshot() != null) {
             tarifaEfectiva = new Tarifa();
             tarifaEfectiva.setUnidad(ticket.getTarifaUnidadSnapshot());
             tarifaEfectiva.setMinutosFraccion(tarifa.getMinutosFraccion());
         }
-        double cobroExcedente = calcularPorUnidad(tarifaEfectiva, valorEfectivo, minutosExcedentes);
-        double total = minimo + cobroExcedente;
+        boolean reemplazo = tarifa.getValorMinimoReemplaza() != null && tarifa.getValorMinimoReemplaza();
+        double total;
+        if (reemplazo) {
+            // El minimo solo aplica hasta cubreMin; pasado ese umbral se cobra
+            // la tarifa normal COMPLETA sobre los minutos totales (sin gracia).
+            long minutosCobrables = minutos - gracia;
+            total = calcularPorUnidad(tarifaEfectiva, valorEfectivo, minutosCobrables);
+        } else {
+            long minutosExcedentes = minutos - cubreMin;
+            double cobroExcedente = calcularPorUnidad(tarifaEfectiva, valorEfectivo, minutosExcedentes);
+            total = minimo + cobroExcedente;
+        }
 
         // Paso 4: tope legal por minuto (ej. tarifa maxima regulada en Bogota).
         // Trunca el total al maximo permitido sobre los minutos cobrados (sin gracia).
