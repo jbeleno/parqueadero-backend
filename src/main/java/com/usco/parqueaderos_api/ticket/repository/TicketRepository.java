@@ -37,4 +37,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
      */
     java.util.Optional<Ticket> findFirstByVehiculoIdAndParqueaderoIdOrderByFechaHoraEntradaDesc(
             Long vehiculoId, Long parqueaderoId);
+
+    /** Tickets EN_CURSO con entrada anterior a la fecha dada (candidatos a abandono). */
+    @Query("SELECT t FROM Ticket t WHERE t.estado = 'EN_CURSO' " +
+           "AND t.fechaHoraEntrada < :fechaCorte")
+    List<Ticket> findEnCursoEntradaAntesDe(@Param("fechaCorte") java.time.LocalDateTime fechaCorte);
 }

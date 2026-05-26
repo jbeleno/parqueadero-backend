@@ -281,3 +281,32 @@ CREATE TABLE IF NOT EXISTS movimiento_saldo (
     descripcion    VARCHAR(500)
 );
 CREATE INDEX IF NOT EXISTS idx_mov_saldo_susc ON movimiento_saldo (suscripcion_id);
+
+-- Convenios y validacion de compras (descuento por ticket de comercio)
+CREATE TABLE IF NOT EXISTS convenio (
+    id BIGSERIAL PRIMARY KEY,
+    parqueadero_id BIGINT NOT NULL REFERENCES parqueadero(id),
+    nombre_comercio VARCHAR(200) NOT NULL,
+    nit_comercio VARCHAR(30),
+    tipo_descuento VARCHAR(30) NOT NULL,
+    valor_descuento DOUBLE PRECISION,
+    porcentaje_descuento DOUBLE PRECISION,
+    minutos_gratis INTEGER,
+    monto_minimo_compra DOUBLE PRECISION,
+    fecha_inicio_vigencia TIMESTAMP,
+    fecha_fin_vigencia TIMESTAMP,
+    activo BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_convenio_parqueadero ON convenio (parqueadero_id);
+
+CREATE TABLE IF NOT EXISTS validacion_compra (
+    id BIGSERIAL PRIMARY KEY,
+    ticket_id BIGINT NOT NULL REFERENCES ticket(id),
+    convenio_id BIGINT NOT NULL REFERENCES convenio(id),
+    monto_compra DOUBLE PRECISION NOT NULL,
+    folio_externo VARCHAR(100),
+    fecha_aplicacion TIMESTAMP NOT NULL DEFAULT NOW(),
+    descuento_aplicado DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS idx_validacion_ticket  ON validacion_compra (ticket_id);
+CREATE INDEX IF NOT EXISTS idx_validacion_conv    ON validacion_compra (convenio_id);

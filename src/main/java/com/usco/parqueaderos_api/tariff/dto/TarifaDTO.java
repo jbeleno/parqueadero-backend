@@ -37,4 +37,17 @@ public class TarifaDTO {
     @NotNull(message = "El tipo de vehículo es obligatorio")
     private Long tipoVehiculoId;
     private String tipoVehiculoNombre;
+
+    // Modelo B: gracia + minimo + cubrimiento (todos opcionales)
+    private Integer minutosGracia;
+    private Double valorMinimo;
+    private Integer minutosCubiertosPorMinimo;
+
+    // IVA opcional (parqueaderos formales)
+    private Boolean aplicaIva;
+    private Double ivaPorcentaje;
+
+    // Suscripciones (NULL si no se ofrecen)
+    private Double precioMensualidad;
+    private Double precioPaseDia;
 }

@@ -69,7 +69,20 @@ public class TarifaService {
         if (dto.getFechaFinVigencia() != null) existing.setFechaFinVigencia(LocalDate.parse(dto.getFechaFinVigencia()));
         if (dto.getParqueaderoId() != null) existing.setParqueadero(findParqueadero(dto.getParqueaderoId()));
         if (dto.getTipoVehiculoId() != null) existing.setTipoVehiculo(findTipoVehiculo(dto.getTipoVehiculoId()));
+        aplicarCamposOpcionales(existing, dto);
         return toDTO(tarifaRepository.save(existing));
+    }
+
+    /** Aplica los campos opcionales (Modelo B, IVA, suscripciones) si vinieron en el DTO. */
+    private void aplicarCamposOpcionales(Tarifa e, TarifaDTO dto) {
+        if (dto.getMinutosGracia() != null) e.setMinutosGracia(dto.getMinutosGracia());
+        if (dto.getValorMinimo() != null) e.setValorMinimo(dto.getValorMinimo());
+        if (dto.getMinutosCubiertosPorMinimo() != null) e.setMinutosCubiertosPorMinimo(dto.getMinutosCubiertosPorMinimo());
+        if (dto.getAplicaIva() != null) e.setAplicaIva(dto.getAplicaIva());
+        if (dto.getIvaPorcentaje() != null) e.setIvaPorcentaje(dto.getIvaPorcentaje());
+        // Mensualidad/pase: permitir setear NULL desde el DTO para "deshabilitar"
+        e.setPrecioMensualidad(dto.getPrecioMensualidad());
+        e.setPrecioPaseDia(dto.getPrecioPaseDia());
     }
 
     @Transactional
@@ -89,6 +102,13 @@ public class TarifaService {
         if (e.getFechaFinVigencia() != null) dto.setFechaFinVigencia(e.getFechaFinVigencia().toString());
         if (e.getParqueadero() != null) { dto.setParqueaderoId(e.getParqueadero().getId()); dto.setParqueaderoNombre(e.getParqueadero().getNombre()); }
         if (e.getTipoVehiculo() != null) { dto.setTipoVehiculoId(e.getTipoVehiculo().getId()); dto.setTipoVehiculoNombre(e.getTipoVehiculo().getNombre()); }
+        dto.setMinutosGracia(e.getMinutosGracia());
+        dto.setValorMinimo(e.getValorMinimo());
+        dto.setMinutosCubiertosPorMinimo(e.getMinutosCubiertosPorMinimo());
+        dto.setAplicaIva(e.getAplicaIva());
+        dto.setIvaPorcentaje(e.getIvaPorcentaje());
+        dto.setPrecioMensualidad(e.getPrecioMensualidad());
+        dto.setPrecioPaseDia(e.getPrecioPaseDia());
         return dto;
     }
 
@@ -102,6 +122,7 @@ public class TarifaService {
         if (dto.getFechaFinVigencia() != null) e.setFechaFinVigencia(LocalDate.parse(dto.getFechaFinVigencia()));
         if (dto.getParqueaderoId() != null) e.setParqueadero(findParqueadero(dto.getParqueaderoId()));
         if (dto.getTipoVehiculoId() != null) e.setTipoVehiculo(findTipoVehiculo(dto.getTipoVehiculoId()));
+        aplicarCamposOpcionales(e, dto);
         return e;
     }
 
