@@ -102,10 +102,13 @@ public class FacturaService {
                     "ERR_TICKET_NO_AMOUNT");
         }
 
-        // Evitar duplicar facturas para el mismo ticket
-        if (!facturaRepository.findByTicketId(ticket.getId()).isEmpty()) {
+        // Evitar duplicar facturas vigentes (no-anuladas) para el mismo ticket.
+        // Consistente con UNIQUE INDEX parcial uniq_factura_ticket_no_anulada.
+        boolean yaTieneVigente = facturaRepository.findByTicketId(ticket.getId()).stream()
+                .anyMatch(f -> !"ANULADA".equals(f.getEstado()));
+        if (yaTieneVigente) {
             throw new BusinessException(
-                    "El ticket ya tiene una factura asociada",
+                    "El ticket ya tiene una factura vigente asociada",
                     "ERR_INVOICE_DUPLICATE");
         }
 
@@ -117,6 +120,7 @@ public class FacturaService {
         entity.setValorTotal(ticket.getMontoCalculado());
         entity.setFechaHora(LocalDateTime.now());
         entity.setEstado("PENDIENTE");
+        entity.setOrigen("MANUAL");
         // Desagregar IVA si la tarifa lo aplica
         if (ticket.getTarifa() != null) {
             BreakdownIva b = tarifaCalculator.desagregarIva(ticket.getTarifa(), ticket.getMontoCalculado());
@@ -169,6 +173,7 @@ public class FacturaService {
         dto.setBaseImponible(e.getBaseImponible());
         dto.setIvaMonto(e.getIvaMonto());
         dto.setIvaPorcentaje(e.getIvaPorcentaje());
+        dto.setOrigen(e.getOrigen());
         return dto;
     }
 

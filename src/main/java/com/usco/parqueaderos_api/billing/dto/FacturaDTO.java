@@ -28,4 +28,7 @@ public class FacturaDTO {
     private Double baseImponible;
     private Double ivaMonto;
     private Double ivaPorcentaje;
+
+    /** MANUAL, AUTO, BACKFILL_<timestamp>. Solo lectura desde el back. */
+    private String origen;
 }

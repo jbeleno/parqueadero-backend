@@ -53,4 +53,8 @@ public class Factura {
     /** Porcentaje de IVA usado al calcular. NULL si no aplica. */
     @Column(name = "iva_porcentaje")
     private Double ivaPorcentaje;
+
+    /** Origen de la factura: MANUAL (POST /api/facturas), AUTO (listener al cerrar ticket), BACKFILL_xxx. */
+    @Column(length = 50)
+    private String origen = "MANUAL";
 }

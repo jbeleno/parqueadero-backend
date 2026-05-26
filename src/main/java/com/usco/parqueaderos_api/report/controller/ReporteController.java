@@ -111,11 +111,18 @@ public class ReporteController {
         return ResponseEntity.ok(ApiResponse.ok(cierreDiaService.obtener(parqueaderoId, fecha)));
     }
 
-    /** Genera cierre del dia manualmente (idempotente). */
+    /**
+     * Genera cierre del dia manualmente.
+     * - Por defecto idempotente: si ya existe no lo recrea.
+     * - Si forzar=true (SUPER_ADMIN tipico), borra el cierre existente y lo
+     *   recalcula. Util tras un backfill de facturas que cambia los totales.
+     */
     @PostMapping("/cierre-dia/generar")
     public ResponseEntity<ApiResponse<com.usco.parqueaderos_api.report.dto.CierreDiaDTO>> generarCierre(
             @RequestParam Long parqueaderoId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        return ResponseEntity.ok(ApiResponse.ok(cierreDiaService.generarCierre(parqueaderoId, fecha)));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(defaultValue = "false") boolean forzar) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                cierreDiaService.generarCierre(parqueaderoId, fecha, forzar)));
     }
 }

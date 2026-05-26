@@ -44,4 +44,20 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findEnCursoEntradaAntesDe(@Param("fechaCorte") java.time.LocalDateTime fechaCorte);
 
     long countByVehiculoId(Long vehiculoId);
+
+    /**
+     * Tickets CERRADOS con monto > 0, sin suscripcion, cuyo fecha_hora_salida
+     * esta dentro del rango. Para backfill de facturas faltantes.
+     * Si parqueaderoId es null, busca en todos.
+     */
+    @Query("SELECT t FROM Ticket t WHERE t.estado = 'CERRADO' " +
+           "AND t.montoCalculado > 0 " +
+           "AND t.suscripcionId IS NULL " +
+           "AND (:parqueaderoId IS NULL OR t.parqueadero.id = :parqueaderoId) " +
+           "AND t.fechaHoraSalida BETWEEN :desde AND :hasta " +
+           "ORDER BY t.fechaHoraSalida ASC")
+    List<Ticket> findCerradosFacturables(
+            @Param("parqueaderoId") Long parqueaderoId,
+            @Param("desde") java.time.LocalDateTime desde,
+            @Param("hasta") java.time.LocalDateTime hasta);
 }

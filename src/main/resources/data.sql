@@ -245,6 +245,27 @@ ALTER TABLE factura ADD COLUMN IF NOT EXISTS base_imponible  DOUBLE PRECISION;
 ALTER TABLE factura ADD COLUMN IF NOT EXISTS iva_monto       DOUBLE PRECISION;
 ALTER TABLE factura ADD COLUMN IF NOT EXISTS iva_porcentaje  DOUBLE PRECISION;
 
+-- v41: trazabilidad de origen + UNIQUE INDEX parcial anti-duplicado.
+-- Cleanup defensivo PRIMERO: si por race historica hay >1 factura no-anulada
+-- para un mismo ticket, archiva los duplicados mas nuevos preservando el original.
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS origen VARCHAR(50) DEFAULT 'MANUAL';
+UPDATE factura SET origen = 'MANUAL' WHERE origen IS NULL;
+
+WITH duplicados AS (
+    SELECT id, ticket_id,
+           ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY id ASC) AS rn
+    FROM factura
+    WHERE estado <> 'ANULADA'
+)
+UPDATE factura
+SET estado = 'ANULADA'
+WHERE id IN (SELECT id FROM duplicados WHERE rn > 1);
+
+-- UNIQUE parcial: solo aplica a facturas vigentes. Permite que un ticket
+-- tenga 1 factura activa + N anuladas historicas (correccion contable).
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_factura_ticket_no_anulada
+    ON factura (ticket_id) WHERE estado <> 'ANULADA';
+
 -- v39: Pago anulable (G1)
 ALTER TABLE pago ADD COLUMN IF NOT EXISTS motivo_anulacion       VARCHAR(300);
 ALTER TABLE pago ADD COLUMN IF NOT EXISTS anulado_en             TIMESTAMP;

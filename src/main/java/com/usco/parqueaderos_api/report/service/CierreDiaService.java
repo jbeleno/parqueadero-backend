@@ -57,6 +57,24 @@ public class CierreDiaService {
      */
     @Transactional
     public CierreDiaDTO generarCierre(Long parqueaderoId, LocalDate fecha) {
+        return generarCierre(parqueaderoId, fecha, false);
+    }
+
+    /**
+     * Si forzar=true, borra el CierreDia existente y lo recalcula. Util cuando
+     * se hacen backfills de facturas y el cierre del dia quedo desactualizado.
+     */
+    @Transactional
+    public CierreDiaDTO generarCierre(Long parqueaderoId, LocalDate fecha, boolean forzar) {
+        if (forzar) {
+            repository.findByParqueaderoIdAndFecha(parqueaderoId, fecha)
+                    .ifPresent(existing -> {
+                        log.info("CierreDia forzar=true: borrando cierre #{} para regenerar",
+                                existing.getId());
+                        repository.delete(existing);
+                        repository.flush();
+                    });
+        }
         return toDTO(generarCierreEntity(parqueaderoId, fecha));
     }
 
