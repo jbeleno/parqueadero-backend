@@ -26,4 +26,6 @@ public interface FacturaRepository extends JpaRepository<Factura, Long> {
     @Query("SELECT DISTINCT f.vehiculo.id FROM Factura f " +
            "WHERE f.estado = 'PENDIENTE' AND f.parqueadero.empresa.id = :empresaId")
     List<Long> findVehiculosConDeudaEnEmpresa(@Param("empresaId") Long empresaId);
+
+    long countByVehiculoId(Long vehiculoId);
 }

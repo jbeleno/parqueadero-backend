@@ -1,10 +1,14 @@
 package com.usco.parqueaderos_api.vehicle.service;
 
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
+import com.usco.parqueaderos_api.billing.repository.FacturaRepository;
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
 import com.usco.parqueaderos_api.catalog.repository.TipoVehiculoRepository;
+import com.usco.parqueaderos_api.common.exception.BusinessException;
 import com.usco.parqueaderos_api.common.exception.DuplicateResourceException;
 import com.usco.parqueaderos_api.common.exception.ResourceNotFoundException;
+import com.usco.parqueaderos_api.reservation.repository.ReservaRepository;
+import com.usco.parqueaderos_api.ticket.repository.TicketRepository;
 import com.usco.parqueaderos_api.user.entity.Persona;
 import com.usco.parqueaderos_api.user.repository.PersonaRepository;
 import com.usco.parqueaderos_api.vehicle.dto.VehiculoDTO;
@@ -24,6 +28,9 @@ public class VehiculoService {
     private final VehiculoRepository vehiculoRepository;
     private final PersonaRepository personaRepository;
     private final TipoVehiculoRepository tipoVehiculoRepository;
+    private final TicketRepository ticketRepository;
+    private final ReservaRepository reservaRepository;
+    private final FacturaRepository facturaRepository;
     private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
@@ -90,9 +97,25 @@ public class VehiculoService {
         return toDTO(vehiculoRepository.save(existing));
     }
 
+    /**
+     * Borrado seguro: solo permite eliminar si el vehiculo no tiene historial
+     * (tickets, reservas ni facturas). Si lo tiene, devuelve un error legible
+     * en vez de dejar que la FK rompa con un 500 opaco. El front puede entonces
+     * sugerir "archivar"/marcar inactivo en lugar de borrar.
+     */
     @Transactional
     public void delete(Long id) {
         vehiculoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Vehiculo", id));
+        long tickets = ticketRepository.countByVehiculoId(id);
+        long reservas = reservaRepository.countByVehiculoId(id);
+        long facturas = facturaRepository.countByVehiculoId(id);
+        if (tickets > 0 || reservas > 0 || facturas > 0) {
+            throw new BusinessException(
+                    "No se puede eliminar el vehiculo: tiene historial ("
+                            + tickets + " tickets, " + reservas + " reservas, "
+                            + facturas + " facturas). Reasigne o archive el dato.",
+                    "ERR_VEHICULO_CON_HISTORIAL");
+        }
         vehiculoRepository.deleteById(id);
     }
 

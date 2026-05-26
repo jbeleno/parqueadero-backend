@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -107,6 +108,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Red de seguridad para FK / UNIQUE violations no anticipadas por el service.
+     * Devuelve 409 con codigo generico en vez de un 500 opaco.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String detalle = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        log.warn("Violacion de integridad referencial: {}", detalle);
+        String msg = "Operacion bloqueada por integridad de datos. " +
+                "Probable: el registro tiene dependencias o un valor duplicado.";
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(msg, "ERR_DATA_INTEGRITY"));
+    }
+
+    /**
      * Catch-all. NO expone ex.getMessage() ni stack traces al cliente.
      * El detalle queda en logs internos para diagnostico.
      */
@@ -128,6 +145,7 @@ public class GlobalExceptionHandler {
             case "ERR_TICKET_DUPLICADO":
             case "ERR_INVOICE_DUPLICATE":
             case "ERR_INVOICE_ALREADY_PAID":
+            case "ERR_VEHICULO_CON_HISTORIAL":
                 return HttpStatus.CONFLICT;
             case "ERR_MISSING_FIELDS":
             case "ERR_INVALID_AMOUNT":

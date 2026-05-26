@@ -42,4 +42,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Query("SELECT t FROM Ticket t WHERE t.estado = 'EN_CURSO' " +
            "AND t.fechaHoraEntrada < :fechaCorte")
     List<Ticket> findEnCursoEntradaAntesDe(@Param("fechaCorte") java.time.LocalDateTime fechaCorte);
+
+    long countByVehiculoId(Long vehiculoId);
 }

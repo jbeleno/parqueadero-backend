@@ -30,4 +30,6 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
            "AND :ahora BETWEEN r.fechaHoraInicio AND r.fechaHoraFin")
     boolean existsReservaActivaParaPunto(@Param("puntoId") Long puntoId,
                                           @Param("ahora") LocalDateTime ahora);
+
+    long countByVehiculoId(Long vehiculoId);
 }
