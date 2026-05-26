@@ -32,7 +32,7 @@ public class Empresa {
      * o INFORMAL (parqueadero de barrio, sin IVA, recibo simple).
      * Default INFORMAL para compatibilidad con datos existentes.
      */
-    @Column(name = "modo_operacion", length = 20, nullable = false)
+    @Column(name = "modo_operacion", length = 20)
     private String modoOperacion = "INFORMAL"; // FORMAL | INFORMAL
 
     /** NIT o documento del responsable. Obligatorio si modoOperacion=FORMAL. */

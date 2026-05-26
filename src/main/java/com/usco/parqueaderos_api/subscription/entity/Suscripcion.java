@@ -66,9 +66,9 @@ public class Suscripcion {
 
     /** Optimistic lock para evitar race en descuento de saldo. */
     @Version
-    @Column(nullable = false)
+    @Column
     private Long version = 0L;
 
-    @Column(name = "fecha_creacion", nullable = false)
+    @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 }

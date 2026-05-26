@@ -207,14 +207,25 @@ CREATE INDEX IF NOT EXISTS idx_factura_vehiculo         ON factura (vehiculo_id)
 -- Garantiza que columnas nuevas existan aunque Hibernate no las cree.
 -- ════════════════════════════════════════════════════════════════
 
--- Tarifa: Modelo B + IVA configurable + suscripciones
-ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS minutos_gracia                INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS valor_minimo                  DOUBLE PRECISION NOT NULL DEFAULT 0;
-ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS minutos_cubiertos_por_minimo  INTEGER NOT NULL DEFAULT 0;
+-- Tarifa: Modelo B + IVA configurable + suscripciones.
+-- IMPORTANTE: usar SIN NOT NULL aqui. Las columnas pueden existir ya en prod
+-- como nullable con valores NULL; el NOT NULL queda como default Java en la entity
+-- (relajado a nullable en JPA para no romper el arranque). El UPDATE posterior
+-- normaliza valores nulos a 0.
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS minutos_gracia                INTEGER          DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS valor_minimo                  DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS minutos_cubiertos_por_minimo  INTEGER          DEFAULT 0;
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_mensualidad            DOUBLE PRECISION;
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS precio_pase_dia               DOUBLE PRECISION;
-ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS aplica_iva                    BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS iva_porcentaje                DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS aplica_iva                    BOOLEAN          DEFAULT FALSE;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS iva_porcentaje                DOUBLE PRECISION DEFAULT 0;
+
+-- Normalizar NULLs heredados (columnas que ya existian en prod con NULL).
+UPDATE tarifa SET minutos_gracia                = 0     WHERE minutos_gracia IS NULL;
+UPDATE tarifa SET valor_minimo                  = 0     WHERE valor_minimo IS NULL;
+UPDATE tarifa SET minutos_cubiertos_por_minimo  = 0     WHERE minutos_cubiertos_por_minimo IS NULL;
+UPDATE tarifa SET aplica_iva                    = FALSE WHERE aplica_iva IS NULL;
+UPDATE tarifa SET iva_porcentaje                = 0     WHERE iva_porcentaje IS NULL;
 
 -- Ticket: vinculo opcional con suscripcion + confirmacion fisica de salida
 ALTER TABLE ticket ADD COLUMN IF NOT EXISTS suscripcion_id          BIGINT;
@@ -224,8 +235,9 @@ ALTER TABLE ticket ADD COLUMN IF NOT EXISTS fecha_hora_salida_fisica TIMESTAMP;
 ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS tarifa_maxima_por_minuto DOUBLE PRECISION;
 
 -- Empresa: modo de operacion y NIT
-ALTER TABLE empresa ADD COLUMN IF NOT EXISTS modo_operacion VARCHAR(20) NOT NULL DEFAULT 'INFORMAL';
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS modo_operacion VARCHAR(20) DEFAULT 'INFORMAL';
 ALTER TABLE empresa ADD COLUMN IF NOT EXISTS nit            VARCHAR(30);
+UPDATE empresa SET modo_operacion = 'INFORMAL' WHERE modo_operacion IS NULL;
 
 -- Tarifa franja horaria (entidad nueva)
 CREATE TABLE IF NOT EXISTS tarifa_franja (

@@ -47,18 +47,18 @@ public class Tarifa {
     private LocalDate fechaFinVigencia;
 
     /** Minutos gratuitos al inicio de cada ticket. Antes de este umbral, monto=0. */
-    @Column(name = "minutos_gracia", nullable = false)
+    @Column(name = "minutos_gracia")
     private Integer minutosGracia = 0;
 
     /** Cobro plano (fee de entrada) que cubre los primeros minutos_cubiertos_por_minimo. */
-    @Column(name = "valor_minimo", nullable = false)
+    @Column(name = "valor_minimo")
     private Double valorMinimo = 0.0;
 
     /**
      * Cuantos minutos cubre el valor_minimo. Despues de este umbral, se suma
      * la tarifa normal (por hora/fraccion/dia) sobre los minutos excedentes.
      */
-    @Column(name = "minutos_cubiertos_por_minimo", nullable = false)
+    @Column(name = "minutos_cubiertos_por_minimo")
     private Integer minutosCubiertosPorMinimo = 0;
 
     /** Precio de una mensualidad (Suscripcion tipo MENSUAL). NULL si no se ofrece. */
@@ -70,10 +70,10 @@ public class Tarifa {
     private Double precioPaseDia;
 
     /** Si TRUE el monto cobrado incluye IVA (se calcula y desagrega en la factura). */
-    @Column(name = "aplica_iva", nullable = false)
+    @Column(name = "aplica_iva")
     private Boolean aplicaIva = false;
 
     /** Porcentaje de IVA (Colombia: 19.0 estandar). Solo se usa si aplicaIva=true. */
-    @Column(name = "iva_porcentaje", nullable = false)
+    @Column(name = "iva_porcentaje")
     private Double ivaPorcentaje = 0.0;
 }
