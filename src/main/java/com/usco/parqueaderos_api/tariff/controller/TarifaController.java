@@ -19,8 +19,9 @@ public class TarifaController {
     private final TarifaService tarifaService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TarifaDTO>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(tarifaService.findAll()));
+    public ResponseEntity<ApiResponse<List<TarifaDTO>>> getAll(
+            @RequestParam(defaultValue = "false") boolean incluirArchivadas) {
+        return ResponseEntity.ok(ApiResponse.ok(tarifaService.findAll(incluirArchivadas)));
     }
 
     @GetMapping("/{id}")

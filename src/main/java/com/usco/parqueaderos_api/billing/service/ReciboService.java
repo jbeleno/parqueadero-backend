@@ -48,15 +48,27 @@ public class ReciboService {
 
         StringBuilder sb = new StringBuilder();
         line(sb, "");
-        center(sb, f.getParqueadero() != null && f.getParqueadero().getEmpresa() != null
-                ? f.getParqueadero().getEmpresa().getNombre() : "PARQUEADERO");
-        if (f.getParqueadero() != null && f.getParqueadero().getEmpresa() != null
-                && f.getParqueadero().getEmpresa().getNit() != null) {
-            center(sb, "NIT " + f.getParqueadero().getEmpresa().getNit());
+        com.usco.parqueaderos_api.parking.entity.Parqueadero parq = f.getParqueadero();
+        center(sb, parq != null && parq.getEmpresa() != null
+                ? parq.getEmpresa().getNombre() : "PARQUEADERO");
+        if (parq != null && parq.getEmpresa() != null && parq.getEmpresa().getNit() != null) {
+            center(sb, "NIT " + parq.getEmpresa().getNit());
         }
-        center(sb, f.getParqueadero() != null ? f.getParqueadero().getNombre() : "");
-        if (f.getParqueadero() != null && f.getParqueadero().getDireccion() != null) {
-            center(sb, f.getParqueadero().getDireccion());
+        center(sb, parq != null ? parq.getNombre() : "");
+        if (parq != null && parq.getDireccion() != null) {
+            center(sb, parq.getDireccion());
+        }
+        if (parq != null && parq.getTelefono() != null) {
+            center(sb, "Tel: " + parq.getTelefono());
+        }
+        // Regimen tributario (editable)
+        if (parq != null && parq.getRegimenTributario() != null && !parq.getRegimenTributario().isBlank()) {
+            center(sb, parq.getRegimenTributario());
+        }
+        // Encabezado personalizado (editable, multilinea)
+        if (parq != null && parq.getEncabezadoRecibo() != null && !parq.getEncabezadoRecibo().isBlank()) {
+            separator(sb);
+            for (String l : parq.getEncabezadoRecibo().split("\n")) center(sb, l);
         }
         separator(sb);
         center(sb, "RECIBO DE PARQUEO");
@@ -105,6 +117,15 @@ public class ReciboService {
         }
 
         separator(sb);
+        // Pie editable + Resolucion DIAN (auditados via ConfiguracionReciboService)
+        if (parq != null && parq.getResolucionDian() != null && !parq.getResolucionDian().isBlank()) {
+            for (String l : parq.getResolucionDian().split("\n")) center(sb, l);
+            line(sb, "");
+        }
+        if (parq != null && parq.getPieRecibo() != null && !parq.getPieRecibo().isBlank()) {
+            for (String l : parq.getPieRecibo().split("\n")) center(sb, l);
+            line(sb, "");
+        }
         center(sb, "Gracias por su preferencia");
         line(sb, "");
         return sb.toString();

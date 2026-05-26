@@ -77,4 +77,35 @@ public class Parqueadero {
      */
     @Column(name = "tarifa_maxima_por_minuto")
     private Double tarifaMaximaPorMinuto;
+
+    // ─── Configuracion de RECIBO (editable, auditada) ───────────────────
+
+    /**
+     * Resolucion DIAN (texto libre, multilinea). Aparece en el pie del recibo.
+     * Ej: "Resolucion DIAN No. 18764000000123 del 2025-08-15. Numeracion del
+     *      00001 al 50000. Vigencia 24 meses. Regimen Simplificado."
+     */
+    @Column(name = "resolucion_dian", columnDefinition = "TEXT")
+    private String resolucionDian;
+
+    /**
+     * Texto libre adicional al pie (mensaje legal, "no responsable de IVA",
+     * "regimen comun", politicas, etc).
+     */
+    @Column(name = "pie_recibo", columnDefinition = "TEXT")
+    private String pieRecibo;
+
+    /**
+     * Texto libre al encabezado del recibo (slogan, contacto extra, etc).
+     */
+    @Column(name = "encabezado_recibo", columnDefinition = "TEXT")
+    private String encabezadoRecibo;
+
+    /** Mensaje de regimen tributario en una linea. Ej: "Responsable de IVA". */
+    @Column(name = "regimen_tributario", length = 100)
+    private String regimenTributario;
+
+    /** URL del logo (img/png pequeño). Solo para impresoras grafica. */
+    @Column(name = "logo_url", length = 300)
+    private String logoUrl;
 }

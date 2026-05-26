@@ -38,7 +38,15 @@ public class MotivoObligatorioInterceptor implements HandlerInterceptor {
                 || uri.startsWith("/api/health")
                 || uri.startsWith("/actuator")
                 || uri.startsWith("/ws/")
-                || uri.equals("/error")) {
+                || uri.equals("/error")
+                // Sidecar OCR y flujos automaticos no exigen motivo humano
+                || uri.startsWith("/api/ocr/")
+                || uri.matches("^/api/camaras/\\d+/imagen$")
+                || uri.equals("/api/tickets/auto")
+                // Registro de cliente USER (autoservicio)
+                || uri.startsWith("/api/personas")
+                || uri.startsWith("/api/vehiculos") && "POST".equals(method)
+                || uri.equals("/api/usuarios")) {
             return true;
         }
 

@@ -58,10 +58,17 @@ public class CajaService {
             throw new BusinessException("fondoInicial debe ser >= 0", "ERR_INVALID_AMOUNT");
         }
         Usuario u = currentUser.getCurrent();
-        // Verificar acceso al parqueadero
-        currentUser.requireParqueadero(parqueaderoId);
         Parqueadero p = parqueaderoRepository.findById(parqueaderoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", parqueaderoId));
+        // ADMIN: tambien debe ser parqueadero de su empresa (multi-tenant)
+        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && p.getEmpresa() != null) {
+            currentUser.requireEmpresa(p.getEmpresa().getId());
+        }
+        // OPERARIO_CAJA / ADMIN_PARQUEADERO: parqueadero debe estar en su asignacion
+        if (currentUser.isOperarioCaja() || currentUser.isAdminParqueadero()) {
+            currentUser.requireParqueadero(parqueaderoId);
+        }
 
         // Verificar que no tenga ya una abierta
         Optional<Caja> abierta = cajaRepository.findFirstByUsuarioIdAndEstado(u.getId(), "ABIERTA");

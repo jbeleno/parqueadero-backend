@@ -499,3 +499,12 @@ ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS archivado_por_usuario_id BIGINT REFE
 ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS motivo_archivado       VARCHAR(500);
 UPDATE tarifa SET activo = TRUE WHERE activo IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tarifa_activo ON tarifa (activo);
+
+-- ════════════════════════════════════════════════════════════════
+-- v44: CONFIGURACION DE RECIBO editable + auditada (Resolucion DIAN)
+-- ════════════════════════════════════════════════════════════════
+ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS resolucion_dian    TEXT;
+ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS pie_recibo         TEXT;
+ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS encabezado_recibo  TEXT;
+ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS regimen_tributario VARCHAR(100);
+ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS logo_url           VARCHAR(300);

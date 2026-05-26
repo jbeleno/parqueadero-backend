@@ -29,14 +29,24 @@ public class TarifaService {
 
     @Transactional(readOnly = true)
     public List<TarifaDTO> findAll() {
+        return findAll(false);
+    }
+
+    /** incluirArchivadas=true incluye tarifas con activo=false (solo SUPER_ADMIN tipicamente). */
+    @Transactional(readOnly = true)
+    public List<TarifaDTO> findAll(boolean incluirArchivadas) {
         List<Tarifa> base;
         if (currentUser.isSuperAdmin() || currentUser.isUser()) {
-            // USER tambien necesita ver tarifas para saber cuanto pagara
             base = tarifaRepository.findAll();
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = tarifaRepository.findByParqueaderoEmpresaId(empresaId);
+        }
+        if (!incluirArchivadas) {
+            base = base.stream()
+                    .filter(t -> t.getActivo() == null || t.getActivo())
+                    .toList();
         }
         return base.stream().map(this::toDTO).collect(Collectors.toList());
     }
