@@ -6,6 +6,7 @@ import com.usco.parqueaderos_api.notification.dto.NotificacionDTO;
 import com.usco.parqueaderos_api.notification.service.NotificationService;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.parking.repository.ParqueaderoRepository;
+import com.usco.parqueaderos_api.report.dto.CierreDiaDTO;
 import com.usco.parqueaderos_api.report.entity.CierreDia;
 import com.usco.parqueaderos_api.report.repository.CierreDiaRepository;
 import jakarta.persistence.EntityManager;
@@ -47,7 +48,7 @@ public class CierreDiaService {
         List<Parqueadero> todos = parqueaderoRepository.findAll();
         log.info("CierreDiaService: generando cierre del {} para {} parqueaderos", hoy, todos.size());
         for (Parqueadero p : todos) {
-            generarCierre(p.getId(), hoy);
+            generarCierreEntity(p.getId(), hoy);
         }
     }
 
@@ -55,7 +56,12 @@ public class CierreDiaService {
      * Genera (o reemplaza si forzar=true) el cierre de un parqueadero para una fecha.
      */
     @Transactional
-    public CierreDia generarCierre(Long parqueaderoId, LocalDate fecha) {
+    public CierreDiaDTO generarCierre(Long parqueaderoId, LocalDate fecha) {
+        return toDTO(generarCierreEntity(parqueaderoId, fecha));
+    }
+
+    @Transactional
+    public CierreDia generarCierreEntity(Long parqueaderoId, LocalDate fecha) {
         Parqueadero p = parqueaderoRepository.findById(parqueaderoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", parqueaderoId));
         // Idempotencia: si ya hay cierre del dia, no lo regenero
@@ -145,11 +151,31 @@ public class CierreDiaService {
     }
 
     @Transactional(readOnly = true)
-    public CierreDia obtener(Long parqueaderoId, LocalDate fecha) {
+    public CierreDiaDTO obtener(Long parqueaderoId, LocalDate fecha) {
         if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo ADMIN/SUPER_ADMIN");
         }
         return repository.findByParqueaderoIdAndFecha(parqueaderoId, fecha)
+                .map(this::toDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("CierreDia parq=" + parqueaderoId, fecha.toEpochDay()));
+    }
+
+    /** Mapea entity a DTO plano (evita serializar lazy proxies de Parqueadero.ciudad.departamento...). */
+    private CierreDiaDTO toDTO(CierreDia c) {
+        return new CierreDiaDTO(
+                c.getId(),
+                c.getParqueadero() != null ? c.getParqueadero().getId() : null,
+                c.getParqueadero() != null ? c.getParqueadero().getNombre() : null,
+                c.getFecha(),
+                c.getTicketsCerrados(),
+                c.getTotalCobrado(),
+                c.getTotalEfectivo(),
+                c.getTotalTarjeta(),
+                c.getTotalOtros(),
+                c.getFacturasEmitidas(),
+                c.getTotalPendiente(),
+                c.getTicketsAnulados(),
+                c.getGeneradoEn()
+        );
     }
 }

@@ -105,7 +105,7 @@ public class ReporteController {
 
     /** Cierre de caja diario (existente). Si no hay, devuelve 404. */
     @GetMapping("/cierre-dia")
-    public ResponseEntity<ApiResponse<com.usco.parqueaderos_api.report.entity.CierreDia>> cierreDia(
+    public ResponseEntity<ApiResponse<com.usco.parqueaderos_api.report.dto.CierreDiaDTO>> cierreDia(
             @RequestParam Long parqueaderoId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         return ResponseEntity.ok(ApiResponse.ok(cierreDiaService.obtener(parqueaderoId, fecha)));
@@ -113,7 +113,7 @@ public class ReporteController {
 
     /** Genera cierre del dia manualmente (idempotente). */
     @PostMapping("/cierre-dia/generar")
-    public ResponseEntity<ApiResponse<com.usco.parqueaderos_api.report.entity.CierreDia>> generarCierre(
+    public ResponseEntity<ApiResponse<com.usco.parqueaderos_api.report.dto.CierreDiaDTO>> generarCierre(
             @RequestParam Long parqueaderoId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         return ResponseEntity.ok(ApiResponse.ok(cierreDiaService.generarCierre(parqueaderoId, fecha)));
