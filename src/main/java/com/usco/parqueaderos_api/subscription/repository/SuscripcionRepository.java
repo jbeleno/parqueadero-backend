@@ -55,4 +55,11 @@ public interface SuscripcionRepository extends JpaRepository<Suscripcion, Long> 
     @Query("SELECT s FROM Suscripcion s WHERE s.estado = 'ACTIVA' " +
            "AND s.puntoParqueoReservado.id = :puntoId")
     Optional<Suscripcion> findActivaByPuntoReservado(@Param("puntoId") Long puntoId);
+
+    /** IDs de puntos reservados por suscripcion ACTIVA entre los dados. Batch O(1). */
+    @Query("SELECT s.puntoParqueoReservado.id FROM Suscripcion s " +
+           "WHERE s.estado = 'ACTIVA' " +
+           "AND s.puntoParqueoReservado.id IN :puntoIds")
+    java.util.Set<Long> idsReservadosPorSuscripcionEntre(
+            @Param("puntoIds") java.util.Collection<Long> puntoIds);
 }

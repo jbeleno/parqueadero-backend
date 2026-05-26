@@ -43,6 +43,9 @@ public class SuscripcionService {
     private final ParqueaderoRepository parqueaderoRepo;
     private final TarifaRepository tarifaRepo;
     private final com.usco.parqueaderos_api.parking.repository.PuntoParqueoRepository puntoParqueoRepo;
+    /** Optional para preservar compat con tests que mocken por @InjectMocks sin DI completo. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.notification.service.NotificationService notificationService;
 
     /**
      * Crea una suscripcion ACTIVA. Asume que el pago ya fue confirmado por el
@@ -172,6 +175,13 @@ public class SuscripcionService {
         Suscripcion s = suscripcionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", id));
         if (s.getEstado() == EstadoSuscripcion.CANCELADA) return s;
+
+        // Snapshot pre-cambio: si tenia punto reservado, lo notificaremos al
+        // front para que actualice estado del punto sin polling.
+        Long puntoReservadoId = s.getPuntoParqueoReservado() != null
+                ? s.getPuntoParqueoReservado().getId() : null;
+        Long parqueaderoId = s.getParqueadero() != null ? s.getParqueadero().getId() : null;
+
         s.setEstado(EstadoSuscripcion.CANCELADA);
         if (reembolsar) {
             log.info("Suscripcion {} cancelada CON reembolso (monto={})", id, s.getMontoPagado());
@@ -179,7 +189,26 @@ public class SuscripcionService {
         } else {
             log.info("Suscripcion {} cancelada SIN reembolso", id);
         }
-        return suscripcionRepo.save(s);
+        Suscripcion saved = suscripcionRepo.save(s);
+
+        // Liberar el punto reservado: emitir evento WebSocket para refresh del front.
+        if (puntoReservadoId != null && parqueaderoId != null && notificationService != null) {
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("puntoParqueoId", puntoReservadoId);
+            data.put("suscripcionId", id);
+            data.put("nuevoEstado", "DISPONIBLE");
+            data.put("nuevoEstadoLower", "free");
+            com.usco.parqueaderos_api.notification.dto.NotificacionDTO n =
+                    com.usco.parqueaderos_api.notification.dto.NotificacionDTO.builder()
+                            .tipo("SPOT_STATUS_CHANGE")
+                            .mensaje("Punto liberado: suscripcion #" + id + " cancelada")
+                            .referenciaId(puntoReservadoId)
+                            .parqueaderoId(parqueaderoId)
+                            .data(data)
+                            .build();
+            notificationService.notificarParqueadero(parqueaderoId, n);
+        }
+        return saved;
     }
 
     @Transactional(readOnly = true)

@@ -33,6 +33,7 @@ public class PuntoParqueoService {
     private final EstadoRepository estadoRepository;
     private final TicketRepository ticketRepository;
     private final ReservaRepository reservaRepository;
+    private final com.usco.parqueaderos_api.subscription.repository.SuscripcionRepository suscripcionRepository;
     private final CurrentUserService currentUser;
 
     @Transactional(readOnly = true)
@@ -97,12 +98,14 @@ public class PuntoParqueoService {
         if (entities.isEmpty()) return Collections.emptyList();
         List<Long> ids = entities.stream().map(PuntoParqueo::getId).collect(Collectors.toList());
         Set<Long> ocupados = puntoParqueoRepository.idsOcupadosEntre(ids);
-        Set<Long> reservados = puntoParqueoRepository.idsReservadosEntre(ids, LocalDateTime.now());
+        Set<Long> reservadosReserva = puntoParqueoRepository.idsReservadosEntre(ids, LocalDateTime.now());
+        // Tambien considerar suscripciones MENSUAL/PASE_DIA ACTIVAs con punto reservado
+        Set<Long> reservadosSusc = suscripcionRepository.idsReservadosPorSuscripcionEntre(ids);
         return entities.stream().map(e -> {
             PuntoParqueoDTO dto = toDTO(e);
             String op;
             if (ocupados.contains(e.getId())) op = "OCUPADO";
-            else if (reservados.contains(e.getId())) op = "RESERVADO";
+            else if (reservadosReserva.contains(e.getId()) || reservadosSusc.contains(e.getId())) op = "RESERVADO";
             else op = "DISPONIBLE";
             dto.setEstadoOperativo(op);
             dto.setEstado(toLowerEstado(op));
@@ -124,6 +127,11 @@ public class PuntoParqueoService {
             return "OCUPADO";
         }
         if (reservaRepository.existsReservaActivaParaPunto(puntoId, LocalDateTime.now())) {
+            return "RESERVADO";
+        }
+        // Tambien marca RESERVADO si hay Suscripcion ACTIVA con este punto reservado.
+        // Al cancelar/vencer la suscripcion, el query la excluye -> el punto vuelve a DISPONIBLE.
+        if (suscripcionRepository.findActivaByPuntoReservado(puntoId).isPresent()) {
             return "RESERVADO";
         }
         return "DISPONIBLE";
