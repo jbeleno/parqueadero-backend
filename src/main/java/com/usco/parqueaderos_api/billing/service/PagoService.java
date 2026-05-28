@@ -185,12 +185,8 @@ public class PagoService {
             }
         }
 
-        // Auditoria
-        if (auditService != null) {
-            auditService.log("pago", saved.getId(), "CREATE", null, saved,
-                    factura.getParqueadero() != null && factura.getParqueadero().getEmpresa() != null
-                            ? factura.getParqueadero().getEmpresa().getId() : null);
-        }
+        // Auditoria: cubierta por @Auditable a nivel de metodo (AOP). Eliminado el
+        // log manual para evitar duplicacion en audit_log.
 
         return toDTO(saved);
     }
