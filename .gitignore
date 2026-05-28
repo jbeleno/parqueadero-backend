@@ -65,3 +65,18 @@ docs/*_render.md
 # Los anexos y el script de build viven solo en la copia local del autor
 docs/ANEXO_*.md
 docs/build-anexo.sh
+docs/build-docx.sh
+docs/build_drive_md.py
+docs/code-to-png.py
+docs/inline-images-base64.py
+docs/inject_pre_post_hu.py
+docs/inject_uc_fichas.py
+docs/migrate_erd_types.py
+docs/normalize-figures.py
+docs/db-schema/
+docs/snippets/
+
+### Carpeta de referencia académica (local, no versionar) ###
+# Contiene: plantilla Zury, versión adaptada del autor, doc principal en 3 formatos,
+# anexos A-D, versión Drive-ready con base64. Todo es derivado / personal.
+parqueaderos-docs-referencia/

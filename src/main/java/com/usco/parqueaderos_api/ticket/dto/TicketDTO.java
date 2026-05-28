@@ -1,6 +1,9 @@
 package com.usco.parqueaderos_api.ticket.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -28,7 +31,13 @@ public class TicketDTO {
     private Long parqueaderoId;
     private String parqueaderoNombre;
 
+    @Size(max = 50, message = "estado max 50 caracteres")
+    @Pattern(regexp = "EN_CURSO|CERRADO|ANULADO",
+             message = "estado debe ser EN_CURSO, CERRADO o ANULADO",
+             flags = Pattern.Flag.CASE_INSENSITIVE)
     private String estado;
+
+    @PositiveOrZero(message = "montoCalculado debe ser >= 0")
     private Double montoCalculado;
 
     /** Cuando la camara de salida confirmo el cruce fisico. Null si aun no. */

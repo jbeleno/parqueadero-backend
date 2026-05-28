@@ -17,6 +17,7 @@ public class PuntoParqueoDTO {
     @Size(max = 20)
     private String acronimo;
 
+    @Size(max = 1000, message = "descripcion max 1000 caracteres")
     private String descripcion;
 
     @NotNull(message = "La sub-sección es obligatoria")

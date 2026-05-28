@@ -1,6 +1,11 @@
 package com.usco.parqueaderos_api.billing.dto;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -22,14 +27,27 @@ public class FacturaDTO {
     private Long vehiculoId;
     private String vehiculoPlaca;
 
+    @PositiveOrZero(message = "valorTotal debe ser >= 0")
     private Double valorTotal;
+
+    @Size(max = 50, message = "estado max 50 caracteres")
+    @Pattern(regexp = "PENDIENTE|PAGADA|ANULADA|VENCIDA",
+             message = "estado debe ser PENDIENTE, PAGADA, ANULADA o VENCIDA",
+             flags = Pattern.Flag.CASE_INSENSITIVE)
     private String estado;
 
+    @PositiveOrZero(message = "baseImponible debe ser >= 0")
     private Double baseImponible;
+
+    @PositiveOrZero(message = "ivaMonto debe ser >= 0")
     private Double ivaMonto;
+
+    @DecimalMin(value = "0.0", message = "ivaPorcentaje >= 0")
+    @DecimalMax(value = "100.0", message = "ivaPorcentaje <= 100")
     private Double ivaPorcentaje;
 
     /** MANUAL, AUTO, BACKFILL_<timestamp>. Solo lectura desde el back. */
+    @Size(max = 50, message = "origen max 50 caracteres")
     private String origen;
 
     /** ID de la resolucion DIAN usada al emitir esta factura (snapshot). Null si no aplica. */

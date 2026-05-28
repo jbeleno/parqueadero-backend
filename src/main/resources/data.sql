@@ -667,3 +667,94 @@ UPDATE validacion_compra v
    AND a.registro_id = v.id
    AND v.registrado_por_usuario_id IS NULL
    AND a.usuario_id IS NOT NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v48.5: CHECK constraints para estados + cleanup de bugs
+-- Asegura que los strings de estado en BD solo tomen valores válidos.
+-- Idempotente: se borran y recrean (NO drop si no existe).
+-- ════════════════════════════════════════════════════════════════
+
+-- Cleanup: arreglar filas con estado NULL o vacío en reserva (bug detectado)
+UPDATE reserva SET estado = 'PENDIENTE'
+ WHERE estado IS NULL OR TRIM(estado) = '';
+
+-- Cleanup: cualquier fila con estado en blanco en pago/factura/ticket/caja
+UPDATE pago     SET estado = 'COMPLETADO' WHERE estado IS NULL OR TRIM(estado) = '';
+UPDATE factura  SET estado = 'PENDIENTE'  WHERE estado IS NULL OR TRIM(estado) = '';
+UPDATE ticket   SET estado = 'EN_CURSO'   WHERE estado IS NULL OR TRIM(estado) = '';
+UPDATE caja     SET estado = 'CERRADA'    WHERE estado IS NULL OR TRIM(estado) = '';
+
+-- CHECK constraints (idempotente con DO block)
+DO $$
+BEGIN
+    -- ticket.estado
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_ticket_estado') THEN
+        ALTER TABLE ticket ADD CONSTRAINT ck_ticket_estado
+            CHECK (estado IN ('EN_CURSO','CERRADO','ANULADO'));
+    END IF;
+
+    -- factura.estado
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_factura_estado') THEN
+        ALTER TABLE factura ADD CONSTRAINT ck_factura_estado
+            CHECK (estado IN ('PENDIENTE','PAGADA','ANULADA','VENCIDA'));
+    END IF;
+
+    -- pago.estado
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_pago_estado') THEN
+        ALTER TABLE pago ADD CONSTRAINT ck_pago_estado
+            CHECK (estado IN ('PENDIENTE','COMPLETADO','FALLIDO','ANULADO'));
+    END IF;
+
+    -- caja.estado
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_caja_estado') THEN
+        ALTER TABLE caja ADD CONSTRAINT ck_caja_estado
+            CHECK (estado IN ('ABIERTA','CERRADA'));
+    END IF;
+
+    -- reserva.estado (PENDIENTE, CONFIRMADA, CANCELADA, EXPIRADA, COMPLETADA)
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_reserva_estado') THEN
+        ALTER TABLE reserva ADD CONSTRAINT ck_reserva_estado
+            CHECK (estado IN ('PENDIENTE','CONFIRMADA','CANCELADA','EXPIRADA','COMPLETADA'));
+    END IF;
+
+    -- convenio.tipo_descuento
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_convenio_tipo_descuento') THEN
+        ALTER TABLE convenio ADD CONSTRAINT ck_convenio_tipo_descuento
+            CHECK (tipo_descuento IN ('MONTO_FIJO','PORCENTAJE','MINUTOS_GRATIS'));
+    END IF;
+
+    -- resolucion_dian.tipo_resolucion (NULL permitido)
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_resol_tipo_resolucion') THEN
+        ALTER TABLE resolucion_dian ADD CONSTRAINT ck_resol_tipo_resolucion
+            CHECK (tipo_resolucion IS NULL OR tipo_resolucion IN ('POS','FACTURA_ELECTRONICA','CONTINGENCIA'));
+    END IF;
+
+    -- resolucion_dian.modalidad
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_resol_modalidad') THEN
+        ALTER TABLE resolucion_dian ADD CONSTRAINT ck_resol_modalidad
+            CHECK (modalidad IS NULL OR modalidad IN ('POS_VENTA','FACTURACION_ELECTRONICA'));
+    END IF;
+
+    -- resolucion_dian: rango_final >= rango_inicial
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_resol_rango') THEN
+        ALTER TABLE resolucion_dian ADD CONSTRAINT ck_resol_rango
+            CHECK (rango_final >= rango_inicial);
+    END IF;
+
+    -- resolucion_dian: vigente_hasta >= vigente_desde
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_resol_vigencia') THEN
+        ALTER TABLE resolucion_dian ADD CONSTRAINT ck_resol_vigencia
+            CHECK (vigente_hasta >= vigente_desde);
+    END IF;
+
+    -- monto >= 0 en pago, factura, tarifa
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_pago_monto_positivo') THEN
+        ALTER TABLE pago ADD CONSTRAINT ck_pago_monto_positivo CHECK (monto > 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_factura_valor_total_nonneg') THEN
+        ALTER TABLE factura ADD CONSTRAINT ck_factura_valor_total_nonneg CHECK (valor_total >= 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_tarifa_valor_nonneg') THEN
+        ALTER TABLE tarifa ADD CONSTRAINT ck_tarifa_valor_nonneg CHECK (valor >= 0);
+    END IF;
+END $$;

@@ -1,6 +1,7 @@
 package com.usco.parqueaderos_api.ticket.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -40,9 +41,11 @@ public class TicketManualDTO {
      * Placa digitada por el operario. Si null/vacia se autogenera "VIS-..." y se
      * marca esVisitante=true (caso "vehiculo sin placa legible").
      */
+    @Size(max = 20, message = "placa max 20 caracteres")
     private String placa;
 
     /** Color del vehiculo (opcional, ayuda al cierre). */
+    @Size(max = 50, message = "color max 50 caracteres")
     private String color;
 
     /**
@@ -55,5 +58,6 @@ public class TicketManualDTO {
     private Long personaId;
 
     /** Observacion del operario para auditoria (ej: "OCR no lectura, vidrio sucio"). */
+    @Size(max = 500, message = "observacion max 500 caracteres")
     private String observacion;
 }
