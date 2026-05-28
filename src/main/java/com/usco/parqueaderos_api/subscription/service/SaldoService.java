@@ -45,6 +45,7 @@ public class SaldoService {
      * Retorna el movimiento generado (con saldo_resultante actualizado).
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "movimiento_saldo", accion = "ABONO")
     public MovimientoSaldo abonar(Suscripcion suscripcion, double monto, String motivo) {
         if (suscripcion.getTipo() != TipoSuscripcion.ABONO_PREPAGO) {
             throw new BusinessException(
@@ -80,6 +81,7 @@ public class SaldoService {
      * negativo. NO toca estado AGOTADA -> es responsabilidad del operador.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "movimiento_saldo", accion = "AJUSTE", requiereMotivo = true)
     public MovimientoSaldo ajustar(Long suscripcionId, double monto, String motivo) {
         if (motivo == null || motivo.trim().length() < 10) {
             throw new BusinessException(
@@ -113,6 +115,7 @@ public class SaldoService {
      * Devuelve el monto al saldo.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "movimiento_saldo", accion = "REVERSO")
     public MovimientoSaldo reversar(Long suscripcionId, double montoARevertir, Long ticketId) {
         Suscripcion s = suscripcionRepo.findByIdForUpdate(suscripcionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", suscripcionId));

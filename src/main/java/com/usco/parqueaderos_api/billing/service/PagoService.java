@@ -87,6 +87,7 @@ public class PagoService {
      *   COMPLETADOs alcanza el valor total, factura pasa a PAGADA.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "pago", accion = "CREATE")
     public PagoDTO save(PagoDTO dto) {
         boolean puedeCobrar = currentUser.isSuperAdmin() || currentUser.isAdmin()
                 || currentUser.isAdminParqueadero() || currentUser.isOperarioCaja();
@@ -200,6 +201,7 @@ public class PagoService {
      * para evitar manipulaciones financieras.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "pago", accion = "UPDATE")
     public PagoDTO update(Long id, PagoDTO dto) {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede modificar un pago registrado");
@@ -215,6 +217,7 @@ public class PagoService {
     }
 
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "pago", accion = "DELETE_FISICO", requiereMotivo = true)
     public void delete(Long id) {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede eliminar pagos");
@@ -233,6 +236,7 @@ public class PagoService {
      * Caso de uso: chargeback bancario, error operativo, devolucion.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "pago", accion = "ANULAR", requiereMotivo = true)
     public PagoDTO anular(Long id, String motivo) {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede anular pagos");

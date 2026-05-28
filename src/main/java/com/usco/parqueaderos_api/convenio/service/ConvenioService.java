@@ -37,6 +37,7 @@ public class ConvenioService {
     }
 
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "convenio", accion = "CREATE")
     public ConvenioDTO save(ConvenioDTO dto) {
         requireAdmin();
         if (dto.getParqueaderoId() == null) {
@@ -72,6 +73,7 @@ public class ConvenioService {
     }
 
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "convenio", accion = "DESACTIVAR")
     public ConvenioDTO desactivar(Long id) {
         requireAdmin();
         Convenio c = repository.findById(id)

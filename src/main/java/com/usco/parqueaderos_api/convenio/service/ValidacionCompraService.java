@@ -32,6 +32,7 @@ public class ValidacionCompraService {
     private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "validacion_compra", accion = "CREATE")
     public ValidacionCompraDTO registrar(ValidacionCompraDTO dto) {
         // Acepta los 4 roles operativos (consistente con @PreAuthorize del controller).
         if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()

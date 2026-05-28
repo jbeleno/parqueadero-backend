@@ -88,6 +88,7 @@ public class FacturaService {
      *   manipulacion.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "factura", accion = "CREATE")
     public FacturaDTO save(FacturaDTO dto) {
         boolean puedeFacturar = currentUser.isSuperAdmin() || currentUser.isAdmin()
                 || currentUser.isAdminParqueadero() || currentUser.isOperarioCaja();
@@ -172,6 +173,7 @@ public class FacturaService {
      * para casos de anulacion.
      */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "factura", accion = "UPDATE")
     public FacturaDTO update(Long id, FacturaDTO dto) {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede modificar una factura emitida");
@@ -185,6 +187,7 @@ public class FacturaService {
     }
 
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "factura", accion = "DELETE_FISICO", requiereMotivo = true)
     public void delete(Long id) {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede eliminar facturas");

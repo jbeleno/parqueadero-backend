@@ -60,6 +60,7 @@ public class SuscripcionService {
 
     /** Sobrecarga: permite reservar un punto especifico para la suscripcion. */
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "suscripcion", accion = "CREATE")
     public Suscripcion crear(Long vehiculoId, Long parqueaderoId, Long tarifaId,
                               TipoSuscripcion tipo, Double montoPagado,
                               Long puntoParqueoReservadoId) {
@@ -182,6 +183,7 @@ public class SuscripcionService {
     }
 
     @Transactional
+    @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "suscripcion", accion = "CANCELAR")
     public Suscripcion cancelar(Long id, boolean reembolsar) {
         Suscripcion s = suscripcionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", id));
