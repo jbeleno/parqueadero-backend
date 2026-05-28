@@ -22,4 +22,9 @@ public class ConvenioDTO {
     private LocalDateTime fechaInicioVigencia;
     private LocalDateTime fechaFinVigencia;
     private Boolean activo;
+    private Long creadoPorUsuarioId;
+    private String creadoPorUsuarioNombre;
+    private Long desactivadoPorUsuarioId;
+    private String desactivadoPorUsuarioNombre;
+    private LocalDateTime desactivadoEn;
 }

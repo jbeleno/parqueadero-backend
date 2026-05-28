@@ -61,4 +61,8 @@ public class MovimientoSaldo {
 
     @Column(nullable = false)
     private LocalDateTime fecha = LocalDateTime.now();
+
+    /** Usuario que registro el movimiento (operario que cobro, admin que ajusto, etc). */
+    @Column(name = "registrado_por_usuario_id")
+    private Long registradoPorUsuarioId;
 }

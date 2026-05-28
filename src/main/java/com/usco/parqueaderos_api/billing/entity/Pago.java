@@ -43,4 +43,8 @@ public class Pago {
 
     @Column(name = "anulado_por_usuario_id")
     private Long anuladoPorUsuarioId;
+
+    /** Usuario que registro el pago (quien apreto "Cobrar"). Critico para cuadre de caja. */
+    @Column(name = "creado_por_usuario_id")
+    private Long creadoPorUsuarioId;
 }

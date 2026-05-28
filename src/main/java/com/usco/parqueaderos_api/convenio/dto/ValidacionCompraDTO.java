@@ -18,4 +18,6 @@ public class ValidacionCompraDTO {
     private String folioExterno;
     private LocalDateTime fechaAplicacion;
     private Double descuentoAplicado;
+    private Long registradoPorUsuarioId;
+    private String registradoPorUsuarioNombre;
 }

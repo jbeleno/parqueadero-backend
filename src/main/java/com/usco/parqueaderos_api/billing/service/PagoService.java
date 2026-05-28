@@ -32,6 +32,8 @@ public class PagoService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.usco.parqueaderos_api.caja.service.CajaService cajaService;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.usco.parqueaderos_api.audit.service.AuditService auditService;
 
     @Transactional(readOnly = true)
@@ -158,6 +160,7 @@ public class PagoService {
             throw new BusinessException("Estado invalido: " + estado, "ERR_INVALID_STATE");
         }
         entity.setEstado(estado);
+        entity.setCreadoPorUsuarioId(currentUser.getCurrentUserId());
 
         Pago saved = pagoRepository.save(entity);
 
@@ -275,6 +278,12 @@ public class PagoService {
         dto.setMetodo(e.getMetodo());
         dto.setEstado(e.getEstado());
         if (e.getFactura() != null) dto.setFacturaId(e.getFactura().getId());
+        dto.setCreadoPorUsuarioId(e.getCreadoPorUsuarioId());
+        dto.setAnuladoPorUsuarioId(e.getAnuladoPorUsuarioId());
+        if (nombreResolver != null) {
+            dto.setCreadoPorUsuarioNombre(nombreResolver.nombreOf(e.getCreadoPorUsuarioId()));
+            dto.setAnuladoPorUsuarioNombre(nombreResolver.nombreOf(e.getAnuladoPorUsuarioId()));
+        }
         return dto;
     }
 }

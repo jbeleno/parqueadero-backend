@@ -28,4 +28,12 @@ public class SuscripcionDTO {
     private Long puntoParqueoReservadoId;
     /** Nombre del punto reservado (read-only). */
     private String puntoParqueoReservadoNombre;
+
+    /** Usuario que creo la suscripcion (admin/admin_parq). */
+    private Long creadoPorUsuarioId;
+    private String creadoPorUsuarioNombre;
+    /** Usuario que la cancelo (NULL si sigue vigente). */
+    private Long canceladoPorUsuarioId;
+    private String canceladoPorUsuarioNombre;
+    private LocalDateTime canceladoEn;
 }

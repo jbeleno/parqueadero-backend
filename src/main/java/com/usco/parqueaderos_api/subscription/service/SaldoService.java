@@ -30,6 +30,15 @@ public class SaldoService {
 
     private final SuscripcionRepository suscripcionRepo;
     private final MovimientoSaldoRepository movimientoRepo;
+    /** Optional: usar SecurityContext si esta presente para auto-popular registrado_por. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.auth.service.CurrentUserService currentUser;
+
+    private Long currentUserIdOrNull() {
+        try {
+            return currentUser != null ? currentUser.getCurrentUserId() : null;
+        } catch (Exception e) { return null; }
+    }
 
     /**
      * Carga saldo a una suscripcion ABONO_PREPAGO existente, o crea una nueva.
@@ -62,6 +71,7 @@ public class SaldoService {
         m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.ABONO);
         m.setMotivo(motivo != null ? motivo : "Abono manual");
         m.setFecha(LocalDateTime.now());
+        m.setRegistradoPorUsuarioId(currentUserIdOrNull());
         return movimientoRepo.save(m);
     }
 
@@ -94,6 +104,7 @@ public class SaldoService {
         m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.AJUSTE);
         m.setMotivo(motivo);
         m.setFecha(LocalDateTime.now());
+        m.setRegistradoPorUsuarioId(currentUserIdOrNull());
         return movimientoRepo.save(m);
     }
 
@@ -120,6 +131,7 @@ public class SaldoService {
         m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.REVERSO);
         m.setMotivo("Reverso por anulacion ticket #" + ticketId);
         m.setFecha(LocalDateTime.now());
+        m.setRegistradoPorUsuarioId(currentUserIdOrNull());
         return movimientoRepo.save(m);
     }
 
@@ -164,6 +176,7 @@ public class SaldoService {
         m.setTipo(com.usco.parqueaderos_api.subscription.entity.TipoMovimiento.CONSUMO);
         m.setMotivo("Consumo ticket #" + (ticket != null ? ticket.getId() : "?"));
         m.setFecha(LocalDateTime.now());
+        m.setRegistradoPorUsuarioId(currentUserIdOrNull());
         movimientoRepo.save(m);
 
         double pendiente = montoSolicitado - descontado;

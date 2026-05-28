@@ -36,4 +36,12 @@ public class TicketDTO {
 
     /** Suscripcion que cubrio el ticket (MENSUAL/PASE_DIA/ABONO_PREPAGO). Null = cobro normal. */
     private Long suscripcionId;
+
+    /** Trazabilidad de operador (solo lectura desde back). */
+    private Long creadoPorUsuarioId;
+    private String creadoPorUsuarioNombre;
+    private Long cerradoPorUsuarioId;
+    private String cerradoPorUsuarioNombre;
+    private Long anuladoPorUsuarioId;
+    private String anuladoPorUsuarioNombre;
 }

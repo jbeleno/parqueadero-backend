@@ -80,4 +80,15 @@ public class Suscripcion {
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion = LocalDateTime.now();
+
+    /** Usuario que creo la suscripcion (admin/admin_parq que cobro y emitio). */
+    @Column(name = "creado_por_usuario_id")
+    private Long creadoPorUsuarioId;
+
+    /** Usuario que la cancelo (NULL si esta vigente o vencio sola). */
+    @Column(name = "cancelado_por_usuario_id")
+    private Long canceladoPorUsuarioId;
+
+    @Column(name = "cancelado_en")
+    private LocalDateTime canceladoEn;
 }

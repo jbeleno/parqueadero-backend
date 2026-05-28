@@ -28,10 +28,14 @@ public class ValidacionCompraService {
     private final ConvenioRepository convenioRepository;
     private final TicketRepository ticketRepository;
     private final CurrentUserService currentUser;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     @Transactional
     public ValidacionCompraDTO registrar(ValidacionCompraDTO dto) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        // Acepta los 4 roles operativos (consistente con @PreAuthorize del controller).
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && !currentUser.isAdminParqueadero() && !currentUser.isOperarioCaja()) {
             throw new AccessDeniedException("Solo operador puede validar compras");
         }
         if (dto.getTicketId() == null || dto.getConvenioId() == null) {
@@ -66,6 +70,7 @@ public class ValidacionCompraService {
         v.setConvenio(c);
         v.setMontoCompra(dto.getMontoCompra());
         v.setFolioExterno(dto.getFolioExterno());
+        v.setRegistradoPorUsuarioId(currentUser.getCurrentUserId());
         // fechaAplicacion ya tiene default = LocalDateTime.now()
         return toDTO(repository.save(v));
     }
@@ -79,7 +84,9 @@ public class ValidacionCompraService {
                 v.getMontoCompra(),
                 v.getFolioExterno(),
                 v.getFechaAplicacion(),
-                v.getDescuentoAplicado()
+                v.getDescuentoAplicado(),
+                v.getRegistradoPorUsuarioId(),
+                nombreResolver != null ? nombreResolver.nombreOf(v.getRegistradoPorUsuarioId()) : null
         );
     }
 }

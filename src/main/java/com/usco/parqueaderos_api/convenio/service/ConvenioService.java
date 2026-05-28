@@ -27,6 +27,8 @@ public class ConvenioService {
     private final ConvenioRepository repository;
     private final ParqueaderoRepository parqueaderoRepository;
     private final CurrentUserService currentUser;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     @Transactional(readOnly = true)
     public List<ConvenioDTO> findByParqueadero(Long parqueaderoId) {
@@ -65,6 +67,7 @@ public class ConvenioService {
         c.setFechaInicioVigencia(dto.getFechaInicioVigencia());
         c.setFechaFinVigencia(dto.getFechaFinVigencia());
         c.setActivo(dto.getActivo() == null || dto.getActivo());
+        c.setCreadoPorUsuarioId(currentUser.getCurrentUserId());
         return toDTO(repository.save(c));
     }
 
@@ -78,6 +81,8 @@ public class ConvenioService {
             currentUser.requireEmpresa(c.getParqueadero().getEmpresa().getId());
         }
         c.setActivo(false);
+        c.setDesactivadoPorUsuarioId(currentUser.getCurrentUserId());
+        c.setDesactivadoEn(java.time.LocalDateTime.now());
         return toDTO(repository.save(c));
     }
 
@@ -102,8 +107,10 @@ public class ConvenioService {
     }
 
     private void requireAdmin() {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin())
-            throw new AccessDeniedException("Solo ADMIN/SUPER_ADMIN");
+        // ADMIN_PARQUEADERO incluido para consistencia con @PreAuthorize del controller.
+        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()
+                && !currentUser.isAdminParqueadero())
+            throw new AccessDeniedException("Solo ADMIN/SUPER_ADMIN/ADMIN_PARQUEADERO");
     }
 
     private ConvenioDTO toDTO(Convenio c) {
@@ -119,7 +126,12 @@ public class ConvenioService {
                 c.getMontoMinimoCompra(),
                 c.getFechaInicioVigencia(),
                 c.getFechaFinVigencia(),
-                c.getActivo()
+                c.getActivo(),
+                c.getCreadoPorUsuarioId(),
+                nombreResolver != null ? nombreResolver.nombreOf(c.getCreadoPorUsuarioId()) : null,
+                c.getDesactivadoPorUsuarioId(),
+                nombreResolver != null ? nombreResolver.nombreOf(c.getDesactivadoPorUsuarioId()) : null,
+                c.getDesactivadoEn()
         );
     }
 }

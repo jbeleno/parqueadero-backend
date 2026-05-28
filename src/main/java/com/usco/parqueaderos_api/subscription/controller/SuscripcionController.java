@@ -20,6 +20,8 @@ import java.util.List;
 public class SuscripcionController {
 
     private final SuscripcionService suscripcionService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     /**
      * Crear suscripcion. ADMIN_PARQUEADERO puede crear en sus parqueaderos asignados
@@ -92,6 +94,13 @@ public class SuscripcionController {
                         ? s.getPuntoParqueoReservado().getId() : null)
                 .puntoParqueoReservadoNombre(s.getPuntoParqueoReservado() != null
                         ? s.getPuntoParqueoReservado().getNombre() : null)
+                .creadoPorUsuarioId(s.getCreadoPorUsuarioId())
+                .creadoPorUsuarioNombre(nombreResolver != null
+                        ? nombreResolver.nombreOf(s.getCreadoPorUsuarioId()) : null)
+                .canceladoPorUsuarioId(s.getCanceladoPorUsuarioId())
+                .canceladoPorUsuarioNombre(nombreResolver != null
+                        ? nombreResolver.nombreOf(s.getCanceladoPorUsuarioId()) : null)
+                .canceladoEn(s.getCanceladoEn())
                 .build();
     }
 }

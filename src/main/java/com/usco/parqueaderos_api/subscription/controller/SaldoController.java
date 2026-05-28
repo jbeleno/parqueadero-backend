@@ -31,6 +31,8 @@ public class SaldoController {
     private final SaldoService saldoService;
     private final SuscripcionService suscripcionService;
     private final SuscripcionRepository suscripcionRepo;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     /**
      * Carga saldo a un vehiculo. Si ya existe una suscripcion ABONO_PREPAGO ACTIVA,
@@ -89,6 +91,9 @@ public class SaldoController {
                 .tipo(m.getTipo())
                 .motivo(m.getMotivo())
                 .fecha(m.getFecha())
+                .registradoPorUsuarioId(m.getRegistradoPorUsuarioId())
+                .registradoPorUsuarioNombre(nombreResolver != null
+                        ? nombreResolver.nombreOf(m.getRegistradoPorUsuarioId()) : null)
                 .build();
     }
 

@@ -35,4 +35,8 @@ public class FacturaDTO {
     /** ID de la resolucion DIAN usada al emitir esta factura (snapshot). Null si no aplica. */
     private Long resolucionDianId;
     private String resolucionDianNumero;
+
+    /** Usuario que emitio la factura. Solo lectura. */
+    private Long emitidoPorUsuarioId;
+    private String emitidoPorUsuarioNombre;
 }

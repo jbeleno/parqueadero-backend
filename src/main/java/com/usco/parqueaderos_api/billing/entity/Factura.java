@@ -65,4 +65,12 @@ public class Factura {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resolucion_dian_id")
     private ResolucionDian resolucionDian;
+
+    /**
+     * Usuario que emitio la factura. NULL para facturas migradas pre-v48.
+     * AUTO: el operario que cerro el ticket. MANUAL: el que hizo POST /api/facturas.
+     * BACKFILL_*: el SUPER_ADMIN que ejecuto el backfill.
+     */
+    @Column(name = "emitido_por_usuario_id")
+    private Long emitidoPorUsuarioId;
 }

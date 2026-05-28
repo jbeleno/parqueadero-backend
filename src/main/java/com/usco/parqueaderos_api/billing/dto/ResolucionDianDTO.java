@@ -61,6 +61,7 @@ public class ResolucionDianDTO {
     private String estadoCalculado;
 
     private Long creadoPorUsuarioId;
+    private String creadoPorUsuarioNombre;
     private LocalDateTime fechaCreacion;
     private LocalDateTime archivadaEn;
 }

@@ -48,4 +48,8 @@ public class ValidacionCompra {
     /** Descuento efectivamente aplicado en el cobro del ticket. */
     @Column(name = "descuento_aplicado")
     private Double descuentoAplicado;
+
+    /** Usuario (operario o admin) que registro el comprobante. */
+    @Column(name = "registrado_por_usuario_id")
+    private Long registradoPorUsuarioId;
 }

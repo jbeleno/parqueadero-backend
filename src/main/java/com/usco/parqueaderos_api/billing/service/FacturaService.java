@@ -37,6 +37,8 @@ public class FacturaService {
     /** Opcional: snapshot DIAN al emitir factura manual. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private ResolucionDianService resolucionDianService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     @Transactional(readOnly = true)
     public List<FacturaDTO> findAll() {
@@ -137,6 +139,7 @@ public class FacturaService {
         entity.setFechaHora(LocalDateTime.now());
         entity.setEstado("PENDIENTE");
         entity.setOrigen("MANUAL");
+        entity.setEmitidoPorUsuarioId(currentUser.getCurrentUserId());
         // Snapshot resolucion DIAN principal del parqueadero (consistente con
         // AutoFacturaListener). Si no hay principal o esta AGOTADA, la factura
         // se crea sin snapshot (modo informal) sin bloquear la emision.
@@ -207,6 +210,10 @@ public class FacturaService {
         if (e.getResolucionDian() != null) {
             dto.setResolucionDianId(e.getResolucionDian().getId());
             dto.setResolucionDianNumero(e.getResolucionDian().getNumeroResolucion());
+        }
+        dto.setEmitidoPorUsuarioId(e.getEmitidoPorUsuarioId());
+        if (nombreResolver != null) {
+            dto.setEmitidoPorUsuarioNombre(nombreResolver.nombreOf(e.getEmitidoPorUsuarioId()));
         }
         return dto;
     }

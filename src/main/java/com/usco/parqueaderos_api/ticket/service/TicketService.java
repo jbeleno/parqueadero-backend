@@ -50,6 +50,8 @@ public class TicketService {
     private final com.usco.parqueaderos_api.billing.repository.FacturaRepository facturaRepository;
     private final com.usco.parqueaderos_api.subscription.repository.SuscripcionRepository suscripcionRepository;
     private final com.usco.parqueaderos_api.user.repository.PersonaRepository personaRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     /**
      * Roles con privilegio operativo sobre tickets:
@@ -586,6 +588,14 @@ public class TicketService {
         if (e.getVehiculo() != null) { dto.setVehiculoId(e.getVehiculo().getId()); dto.setVehiculoPlaca(e.getVehiculo().getPlaca()); }
         if (e.getPuntoParqueo() != null) { dto.setPuntoParqueoId(e.getPuntoParqueo().getId()); dto.setPuntoParqueoNombre(e.getPuntoParqueo().getNombre()); }
         if (e.getTarifa() != null) { dto.setTarifaId(e.getTarifa().getId()); dto.setTarifaNombre(e.getTarifa().getNombre()); }
+        dto.setCreadoPorUsuarioId(e.getCreadoPorUsuarioId());
+        dto.setCerradoPorUsuarioId(e.getCerradoPorUsuarioId());
+        dto.setAnuladoPorUsuarioId(e.getAnuladoPorUsuarioId());
+        if (nombreResolver != null) {
+            dto.setCreadoPorUsuarioNombre(nombreResolver.nombreOf(e.getCreadoPorUsuarioId()));
+            dto.setCerradoPorUsuarioNombre(nombreResolver.nombreOf(e.getCerradoPorUsuarioId()));
+            dto.setAnuladoPorUsuarioNombre(nombreResolver.nombreOf(e.getAnuladoPorUsuarioId()));
+        }
         return dto;
     }
 

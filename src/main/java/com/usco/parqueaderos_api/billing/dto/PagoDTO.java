@@ -21,4 +21,11 @@ public class PagoDTO {
 
     private String metodo;
     private String estado;
+
+    /** Usuario que registro el cobro. Solo lectura desde el back. */
+    private Long creadoPorUsuarioId;
+    private String creadoPorUsuarioNombre;
+    /** Usuario que anulo el pago (NULL si nunca se anulo). */
+    private Long anuladoPorUsuarioId;
+    private String anuladoPorUsuarioNombre;
 }

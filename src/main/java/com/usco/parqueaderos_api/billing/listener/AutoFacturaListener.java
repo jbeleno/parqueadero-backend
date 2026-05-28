@@ -87,6 +87,11 @@ public class AutoFacturaListener {
         f.setValorTotal(monto);
         f.setEstado("PENDIENTE");
         f.setOrigen(origen != null ? origen : "AUTO");
+        // emitido_por: para AUTO usa el que cerro el ticket; para BACKFILL queda null
+        // (el SUPER_ADMIN que ejecuto el backfill se identifica por origen=BACKFILL_<ts>).
+        if ("AUTO".equals(f.getOrigen()) && ticket.getCerradoPorUsuarioId() != null) {
+            f.setEmitidoPorUsuarioId(ticket.getCerradoPorUsuarioId());
+        }
 
         if (ticket.getTarifa() != null) {
             BreakdownIva b = tarifaCalculator.desagregarIva(ticket.getTarifa(), monto);

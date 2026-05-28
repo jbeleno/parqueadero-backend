@@ -68,4 +68,13 @@ public class Convenio {
 
     @Column(nullable = false)
     private Boolean activo = true;
+
+    @Column(name = "creado_por_usuario_id")
+    private Long creadoPorUsuarioId;
+
+    @Column(name = "desactivado_por_usuario_id")
+    private Long desactivadoPorUsuarioId;
+
+    @Column(name = "desactivado_en")
+    private LocalDateTime desactivadoEn;
 }

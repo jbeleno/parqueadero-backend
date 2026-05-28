@@ -139,6 +139,7 @@ public class SuscripcionService {
             s.setPuntoParqueoReservado(punto);
         }
         s.setFechaCreacion(inicio);
+        try { s.setCreadoPorUsuarioId(currentUser.getCurrentUserId()); } catch (Exception ignored) {}
 
         try {
             return suscripcionRepo.saveAndFlush(s);
@@ -202,6 +203,8 @@ public class SuscripcionService {
         Long parqueaderoId = s.getParqueadero() != null ? s.getParqueadero().getId() : null;
 
         s.setEstado(EstadoSuscripcion.CANCELADA);
+        s.setCanceladoPorUsuarioId(currentUser.getCurrentUserId());
+        s.setCanceladoEn(LocalDateTime.now());
         if (reembolsar) {
             log.info("Suscripcion {} cancelada CON reembolso (monto={})", id, s.getMontoPagado());
             // TODO: integrar con servicio de pagos para emitir refund

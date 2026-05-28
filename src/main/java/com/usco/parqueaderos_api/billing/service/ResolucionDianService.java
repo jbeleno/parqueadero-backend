@@ -24,6 +24,8 @@ public class ResolucionDianService {
     private final ResolucionDianRepository repo;
     private final ParqueaderoRepository parqueaderoRepository;
     private final CurrentUserService currentUser;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     /** Valida que el usuario tiene acceso al parqueadero (multi-tenant + assignment). */
     private void validarAccesoParqueadero(Parqueadero p) {
@@ -235,6 +237,9 @@ public class ResolucionDianService {
         dto.setPrincipal(r.getPrincipal());
         dto.setEstadoCalculado(calcularEstado(r));
         dto.setCreadoPorUsuarioId(r.getCreadoPorUsuarioId());
+        if (nombreResolver != null) {
+            dto.setCreadoPorUsuarioNombre(nombreResolver.nombreOf(r.getCreadoPorUsuarioId()));
+        }
         dto.setFechaCreacion(r.getFechaCreacion());
         dto.setArchivadaEn(r.getArchivadaEn());
         return dto;

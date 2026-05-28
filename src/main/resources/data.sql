@@ -577,3 +577,93 @@ SELECT p.id,
    AND NOT EXISTS (
        SELECT 1 FROM resolucion_dian r WHERE r.parqueadero_id = p.id
    );
+
+-- ════════════════════════════════════════════════════════════════
+-- v48: Tracking directo de usuario en entidades operativas
+-- Completa la auditoria que ya existe en audit_log con columnas en
+-- la tabla principal para queries de reporteria sin JOIN.
+-- ════════════════════════════════════════════════════════════════
+
+-- Pago: quien registro el cobro
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS creado_por_usuario_id BIGINT REFERENCES usuario(id);
+CREATE INDEX IF NOT EXISTS idx_pago_creado_por ON pago (creado_por_usuario_id);
+
+-- Factura: quien la emitio
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS emitido_por_usuario_id BIGINT REFERENCES usuario(id);
+CREATE INDEX IF NOT EXISTS idx_factura_emitido_por ON factura (emitido_por_usuario_id);
+
+-- Suscripcion: quien creo y quien cancelo
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS creado_por_usuario_id    BIGINT REFERENCES usuario(id);
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS cancelado_por_usuario_id BIGINT REFERENCES usuario(id);
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS cancelado_en             TIMESTAMP;
+CREATE INDEX IF NOT EXISTS idx_suscripcion_creado_por    ON suscripcion (creado_por_usuario_id);
+CREATE INDEX IF NOT EXISTS idx_suscripcion_cancelado_por ON suscripcion (cancelado_por_usuario_id);
+
+-- MovimientoSaldo: quien hizo el abono/consumo/ajuste
+ALTER TABLE movimiento_saldo ADD COLUMN IF NOT EXISTS registrado_por_usuario_id BIGINT REFERENCES usuario(id);
+CREATE INDEX IF NOT EXISTS idx_mov_saldo_registrado_por ON movimiento_saldo (registrado_por_usuario_id);
+
+-- Convenio: quien lo creo y quien lo desactivo
+ALTER TABLE convenio ADD COLUMN IF NOT EXISTS creado_por_usuario_id      BIGINT REFERENCES usuario(id);
+ALTER TABLE convenio ADD COLUMN IF NOT EXISTS desactivado_por_usuario_id BIGINT REFERENCES usuario(id);
+ALTER TABLE convenio ADD COLUMN IF NOT EXISTS desactivado_en             TIMESTAMP;
+CREATE INDEX IF NOT EXISTS idx_convenio_creado_por      ON convenio (creado_por_usuario_id);
+
+-- ValidacionCompra: quien la registro
+ALTER TABLE validacion_compra ADD COLUMN IF NOT EXISTS registrado_por_usuario_id BIGINT REFERENCES usuario(id);
+CREATE INDEX IF NOT EXISTS idx_validacion_registrado_por ON validacion_compra (registrado_por_usuario_id);
+
+-- ────────────────────────────────────────────────────────────────
+-- BACKFILL desde audit_log: completa los registros viejos donde
+-- la nueva columna esta NULL. Idempotente (solo toca NULLs).
+-- ────────────────────────────────────────────────────────────────
+
+-- Pago.creado_por_usuario_id <- audit_log de CREATE
+UPDATE pago p
+   SET creado_por_usuario_id = a.usuario_id
+  FROM audit_log a
+ WHERE a.tabla = 'pago'
+   AND a.accion = 'CREATE'
+   AND a.registro_id = p.id
+   AND p.creado_por_usuario_id IS NULL
+   AND a.usuario_id IS NOT NULL;
+
+-- Factura.emitido_por_usuario_id <- audit_log
+UPDATE factura f
+   SET emitido_por_usuario_id = a.usuario_id
+  FROM audit_log a
+ WHERE a.tabla = 'factura'
+   AND a.accion = 'CREATE'
+   AND a.registro_id = f.id
+   AND f.emitido_por_usuario_id IS NULL
+   AND a.usuario_id IS NOT NULL;
+
+-- Suscripcion.creado_por_usuario_id
+UPDATE suscripcion s
+   SET creado_por_usuario_id = a.usuario_id
+  FROM audit_log a
+ WHERE a.tabla = 'suscripcion'
+   AND a.accion = 'CREATE'
+   AND a.registro_id = s.id
+   AND s.creado_por_usuario_id IS NULL
+   AND a.usuario_id IS NOT NULL;
+
+-- Convenio.creado_por_usuario_id
+UPDATE convenio c
+   SET creado_por_usuario_id = a.usuario_id
+  FROM audit_log a
+ WHERE a.tabla = 'convenio'
+   AND a.accion = 'CREATE'
+   AND a.registro_id = c.id
+   AND c.creado_por_usuario_id IS NULL
+   AND a.usuario_id IS NOT NULL;
+
+-- ValidacionCompra.registrado_por_usuario_id
+UPDATE validacion_compra v
+   SET registrado_por_usuario_id = a.usuario_id
+  FROM audit_log a
+ WHERE a.tabla = 'validacion_compra'
+   AND a.accion = 'CREATE'
+   AND a.registro_id = v.id
+   AND v.registrado_por_usuario_id IS NULL
+   AND a.usuario_id IS NOT NULL;
