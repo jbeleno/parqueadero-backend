@@ -117,8 +117,30 @@ public class ReciboService {
         }
 
         separator(sb);
-        // Pie editable + Resolucion DIAN (auditados via ConfiguracionReciboService)
-        if (parq != null && parq.getResolucionDian() != null && !parq.getResolucionDian().isBlank()) {
+        // Pie editable + Resolucion DIAN (auditados via ConfiguracionReciboService).
+        // Prioridad: snapshot FK en factura (v47+) > texto libre Parqueadero (legacy).
+        com.usco.parqueaderos_api.billing.entity.ResolucionDian resol = f.getResolucionDian();
+        if (resol != null) {
+            center(sb, "Resolucion DIAN: "
+                    + (resol.getNumeroResolucion() == null ? "" : resol.getNumeroResolucion()));
+            if (resol.getFechaResolucion() != null) {
+                center(sb, "Emitida: " + resol.getFechaResolucion());
+            }
+            if (resol.getVigenteDesde() != null && resol.getVigenteHasta() != null) {
+                center(sb, "Vigencia: " + resol.getVigenteDesde() + " a " + resol.getVigenteHasta());
+            }
+            String pre = resol.getPrefijo() == null ? "" : resol.getPrefijo();
+            center(sb, "Numeracion: " + pre + resol.getRangoInicial()
+                    + " a " + pre + resol.getRangoFinal());
+            if (resol.getRegimenTributario() != null && !resol.getRegimenTributario().isBlank()) {
+                center(sb, resol.getRegimenTributario());
+            }
+            if (resol.getDescripcion() != null && !resol.getDescripcion().isBlank()) {
+                for (String l : resol.getDescripcion().split("\n")) center(sb, l);
+            }
+            line(sb, "");
+        } else if (parq != null && parq.getResolucionDian() != null && !parq.getResolucionDian().isBlank()) {
+            // Fallback legacy: texto libre del parqueadero
             for (String l : parq.getResolucionDian().split("\n")) center(sb, l);
             line(sb, "");
         }

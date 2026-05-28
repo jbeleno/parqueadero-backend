@@ -31,6 +31,13 @@ public class NivelService {
         List<Nivel> base;
         if (currentUser.isSuperAdmin()) {
             base = nivelRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = nivelRepository.findAll().stream()
+                    .filter(n -> n.getParqueadero() != null
+                            && parqIds.contains(n.getParqueadero().getId()))
+                    .toList();
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
@@ -41,6 +48,9 @@ public class NivelService {
 
     @Transactional(readOnly = true)
     public List<NivelDTO> findByParqueadero(Long parqueaderoId) {
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            currentUser.requireParqueadero(parqueaderoId);
+        }
         return nivelRepository.findByParqueaderoId(parqueaderoId).stream()
                 .filter(n -> currentUser.isSuperAdmin()
                         || (n.getParqueadero().getEmpresa() != null
@@ -60,6 +70,11 @@ public class NivelService {
 
     @Transactional
     public NivelDTO save(NivelDTO dto) {
+        if (dto.getParqueaderoId() != null) {
+            Parqueadero p = findParqueadero(dto.getParqueaderoId());
+            if (p.getEmpresa() != null) currentUser.requireEmpresa(p.getEmpresa().getId());
+            if (currentUser.isAdminParqueadero()) currentUser.requireParqueadero(p.getId());
+        }
         return toDTO(nivelRepository.save(toEntity(dto)));
     }
 
@@ -67,6 +82,14 @@ public class NivelService {
     public NivelDTO update(Long id, NivelDTO dto) {
         Nivel existing = nivelRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nivel", id));
+        if (existing.getParqueadero() != null) {
+            if (existing.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(existing.getParqueadero().getId());
+            }
+        }
         existing.setNombre(dto.getNombre());
         if (dto.getParqueaderoId() != null) existing.setParqueadero(findParqueadero(dto.getParqueaderoId()));
         if (dto.getEstadoId() != null) existing.setEstado(findEstado(dto.getEstadoId()));
@@ -78,6 +101,14 @@ public class NivelService {
     public void archivar(Long id) {
         Nivel existing = nivelRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nivel", id));
+        if (existing.getParqueadero() != null) {
+            if (existing.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(existing.getParqueadero().getId());
+            }
+        }
         Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
         existing.setEstado(archivado);

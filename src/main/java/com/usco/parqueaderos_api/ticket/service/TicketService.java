@@ -1,5 +1,6 @@
 package com.usco.parqueaderos_api.ticket.service;
 
+import com.usco.parqueaderos_api.audit.aspect.Auditable;
 import com.usco.parqueaderos_api.auth.service.CurrentUserService;
 import com.usco.parqueaderos_api.ticket.event.TicketCerradoEvent;
 import com.usco.parqueaderos_api.ticket.event.TicketCreadoEvent;
@@ -10,10 +11,13 @@ import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.parking.entity.PuntoParqueo;
 import com.usco.parqueaderos_api.parking.repository.ParqueaderoRepository;
 import com.usco.parqueaderos_api.parking.repository.PuntoParqueoRepository;
+import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
+import com.usco.parqueaderos_api.catalog.repository.TipoVehiculoRepository;
 import com.usco.parqueaderos_api.tariff.entity.Tarifa;
 import com.usco.parqueaderos_api.tariff.repository.TarifaRepository;
 import com.usco.parqueaderos_api.tariff.service.TarifaCalculatorService;
 import com.usco.parqueaderos_api.ticket.dto.TicketDTO;
+import com.usco.parqueaderos_api.ticket.dto.TicketManualDTO;
 import com.usco.parqueaderos_api.ticket.entity.Ticket;
 import com.usco.parqueaderos_api.ticket.repository.TicketRepository;
 import com.usco.parqueaderos_api.vehicle.entity.Vehiculo;
@@ -38,12 +42,37 @@ public class TicketService {
     private final PuntoParqueoRepository puntoParqueoRepository;
     private final VehiculoRepository vehiculoRepository;
     private final TarifaRepository tarifaRepository;
+    private final TipoVehiculoRepository tipoVehiculoRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CurrentUserService currentUser;
     private final TarifaCalculatorService tarifaCalculator;
     private final CobroOrchestrator cobroOrchestrator;
     private final com.usco.parqueaderos_api.billing.repository.FacturaRepository facturaRepository;
     private final com.usco.parqueaderos_api.subscription.repository.SuscripcionRepository suscripcionRepository;
+    private final com.usco.parqueaderos_api.user.repository.PersonaRepository personaRepository;
+
+    /**
+     * Roles con privilegio operativo sobre tickets:
+     * OPERARIO_CAJA, ADMIN_PARQUEADERO, ADMIN, SUPER_ADMIN.
+     * USER queda fuera (solo puede ver sus propios tickets via findById).
+     */
+    private boolean puedeOperarTickets() {
+        return currentUser.isSuperAdmin()
+                || currentUser.isAdmin()
+                || currentUser.isAdminParqueadero()
+                || currentUser.isOperarioCaja();
+    }
+
+    /**
+     * Roles con privilegio de anular tickets. Incluye OPERARIO_CAJA: la auditoria
+     * universal (audit_log + motivo obligatorio min 10 chars) deja trazabilidad
+     * inmutable de cada anulacion, asi que es seguro permitirles a los operarios
+     * el caso comun "cliente perdio ticket / doble entrada por OCR / error de
+     * digitacion". Si despues se detecta abuso, el log identifica al responsable.
+     */
+    private boolean puedeAnularTickets() {
+        return puedeOperarTickets();
+    }
 
     @Transactional(readOnly = true)
     public List<TicketDTO> findAll() {
@@ -54,6 +83,10 @@ public class TicketService {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = ticketRepository.findByParqueaderoEmpresaId(empresaId);
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = ticketRepository.findByParqueaderoIdIn(parqIds);
         } else {
             base = ticketRepository.findByVehiculoPersonaId(currentUser.getCurrentPersonaId());
         }
@@ -69,6 +102,10 @@ public class TicketService {
             if (t.getParqueadero() != null && t.getParqueadero().getEmpresa() != null) {
                 currentUser.requireEmpresa(t.getParqueadero().getEmpresa().getId());
             }
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            Long parqId = t.getParqueadero() != null ? t.getParqueadero().getId() : null;
+            if (parqId == null) throw new AccessDeniedException("Ticket sin parqueadero asociado");
+            currentUser.requireParqueadero(parqId);
         } else {
             Long personaId = t.getVehiculo() != null && t.getVehiculo().getPersona() != null
                     ? t.getVehiculo().getPersona().getId() : null;
@@ -86,9 +123,10 @@ public class TicketService {
      * - Inyeccion: el cliente NO puede setear estado, fecha, monto
      */
     @Transactional
+    @Auditable(tabla = "ticket", accion = "CREATE")
     public TicketDTO save(TicketDTO dto) {
-        // 1) RBAC
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        // 1) RBAC: ADMIN, SUPER_ADMIN, ADMIN_PARQUEADERO, OPERARIO_CAJA
+        if (!puedeOperarTickets()) {
             throw new AccessDeniedException("Solo el operador puede registrar entradas");
         }
 
@@ -102,6 +140,11 @@ public class TicketService {
         Parqueadero parqueadero = findParqueadero(dto.getParqueaderoId());
         if (parqueadero.getEmpresa() != null) {
             currentUser.requireEmpresa(parqueadero.getEmpresa().getId());
+        }
+        // ADMIN_PARQUEADERO y OPERARIO_CAJA: ademas validar que el parqueadero
+        // este en su lista de asignados.
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            currentUser.requireParqueadero(parqueadero.getId());
         }
 
         // 3) Lock pesimista del punto (serializa intentos concurrentes)
@@ -159,6 +202,7 @@ public class TicketService {
         entity.setTarifaMinimoSnapshot(tarifa.getValorMinimo());
         entity.setTarifaGraciaSnapshot(tarifa.getMinutosGracia());
         entity.setTarifaCubreSnapshot(tarifa.getMinutosCubiertosPorMinimo());
+        entity.setCreadoPorUsuarioId(currentUser.getCurrentUserId());
 
         Ticket saved;
         try {
@@ -186,8 +230,9 @@ public class TicketService {
      * NUNCA acepta montoCalculado desde el cliente.
      */
     @Transactional
+    @Auditable(tabla = "ticket", accion = "UPDATE")
     public TicketDTO update(Long id, TicketDTO dto) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        if (!puedeOperarTickets()) {
             throw new AccessDeniedException("Solo el operador puede modificar tickets");
         }
 
@@ -197,6 +242,11 @@ public class TicketService {
         // Multi-tenant
         if (existing.getParqueadero() != null && existing.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            Long parqId = existing.getParqueadero() != null ? existing.getParqueadero().getId() : null;
+            if (parqId == null) throw new AccessDeniedException("Ticket sin parqueadero asociado");
+            currentUser.requireParqueadero(parqId);
         }
 
         String estadoAnterior = existing.getEstado();
@@ -222,6 +272,7 @@ public class TicketService {
             existing.setMontoCalculado(cobro.montoCobrado());
             existing.setSuscripcionId(cobro.suscripcionId());
             existing.setEstado("CERRADO");
+            existing.setCerradoPorUsuarioId(currentUser.getCurrentUserId());
         } else if ("ANULADO".equals(estadoNuevo)) {
             existing.setEstado("ANULADO");
             // No se calcula monto, no hay cobro
@@ -241,6 +292,7 @@ public class TicketService {
     }
 
     @Transactional
+    @Auditable(tabla = "ticket", accion = "DELETE_FISICO", requiereMotivo = true)
     public void delete(Long id) {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede eliminar tickets");
@@ -258,9 +310,12 @@ public class TicketService {
      * Caso de uso: cliente perdio el ticket fisico, doble entrada por OCR, etc.
      */
     @Transactional
+    @Auditable(tabla = "ticket", accion = "ANULAR", requiereMotivo = true)
     public TicketDTO anular(Long id, String motivo) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
-            throw new AccessDeniedException("Solo operador puede anular tickets");
+        // RBAC: los 4 roles operativos pueden anular. La auditoria + motivo
+        // obligatorio garantizan trazabilidad inmutable de quien anulo y por que.
+        if (!puedeAnularTickets()) {
+            throw new AccessDeniedException("Solo el operador puede anular tickets");
         }
         if (motivo == null || motivo.trim().length() < 10) {
             throw new BusinessException(
@@ -271,6 +326,11 @@ public class TicketService {
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket", id));
         if (existing.getParqueadero() != null && existing.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            Long parqId = existing.getParqueadero() != null ? existing.getParqueadero().getId() : null;
+            if (parqId == null) throw new AccessDeniedException("Ticket sin parqueadero asociado");
+            currentUser.requireParqueadero(parqId);
         }
         if (!"EN_CURSO".equals(existing.getEstado()) && !"CERRADO".equals(existing.getEstado())) {
             throw new BusinessException(
@@ -310,8 +370,9 @@ public class TicketService {
      * - Publica TicketCerradoEvent para que el sistema actualice ocupacion
      */
     @Transactional
+    @Auditable(tabla = "ticket", accion = "CERRAR")
     public TicketDTO registrarSalida(Long id) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        if (!puedeOperarTickets()) {
             throw new AccessDeniedException("Solo el operador puede registrar salidas");
         }
         Ticket existing = ticketRepository.findById(id)
@@ -319,6 +380,11 @@ public class TicketService {
 
         if (existing.getParqueadero() != null && existing.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            Long parqId = existing.getParqueadero() != null ? existing.getParqueadero().getId() : null;
+            if (parqId == null) throw new AccessDeniedException("Ticket sin parqueadero asociado");
+            currentUser.requireParqueadero(parqId);
         }
 
         if (!"EN_CURSO".equals(existing.getEstado())) {
@@ -337,6 +403,7 @@ public class TicketService {
         existing.setMontoCalculado(cobro.montoCobrado());
         existing.setSuscripcionId(cobro.suscripcionId());
         existing.setEstado("CERRADO");
+        existing.setCerradoPorUsuarioId(currentUser.getCurrentUserId());
         Ticket saved = ticketRepository.save(existing);
 
         Long parqueaderoId = saved.getParqueadero() != null ? saved.getParqueadero().getId() : null;
@@ -357,8 +424,9 @@ public class TicketService {
      * - Lock pesimista sobre el nuevo punto para evitar race conditions
      */
     @Transactional
+    @Auditable(tabla = "ticket", accion = "CAMBIAR_PUNTO")
     public TicketDTO cambiarPunto(Long ticketId, Long nuevoPuntoId) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        if (!puedeOperarTickets()) {
             throw new AccessDeniedException("Solo el operador puede mover tickets");
         }
         if (nuevoPuntoId == null) {
@@ -370,6 +438,11 @@ public class TicketService {
 
         if (ticket.getParqueadero() != null && ticket.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(ticket.getParqueadero().getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            Long parqId = ticket.getParqueadero() != null ? ticket.getParqueadero().getId() : null;
+            if (parqId == null) throw new AccessDeniedException("Ticket sin parqueadero asociado");
+            currentUser.requireParqueadero(parqId);
         }
         if (!"EN_CURSO".equals(ticket.getEstado())) {
             throw new BusinessException(
@@ -418,6 +491,86 @@ public class TicketService {
                 this, saved.getId(), parqueaderoTicket, puntoAnteriorId, nuevoPuntoId));
 
         return toDTO(saved);
+    }
+
+    /**
+     * Crea un ticket de entrada SIN OCR. Caso de uso: el operario digita la placa
+     * porque la camara no la pudo leer (vidrio sucio, mal iluminado, sin luz)
+     * o el vehiculo no tiene placa visible.
+     *
+     * Logica:
+     * - placa null/vacia: se genera "VIS-YYYYMMDD-HHMMSS-XXXX" y se crea Vehiculo
+     *   esVisitante=true sin persona asociada.
+     * - placa existe en BD: reusa ese Vehiculo.
+     * - placa no existe: crea Vehiculo nuevo con esVisitante=true.
+     *
+     * Luego delega a save() para reutilizar TODA la validacion (RBAC, multi-tenant,
+     * lock pesimista, suscripciones, anti-duplicado).
+     */
+    @Transactional
+    public TicketDTO createManual(TicketManualDTO dto) {
+        if (!puedeOperarTickets()) {
+            throw new AccessDeniedException("Solo el operador puede registrar entradas");
+        }
+        if (dto.getParqueaderoId() == null || dto.getPuntoParqueoId() == null
+                || dto.getTarifaId() == null || dto.getTipoVehiculoId() == null) {
+            throw new BusinessException(
+                    "parqueaderoId, puntoParqueoId, tarifaId y tipoVehiculoId son obligatorios",
+                    "ERR_MISSING_FIELDS");
+        }
+
+        // Resolver vehiculo en 3 escenarios:
+        //  a) Placa null/vacia -> autogenera "VIS-..." + esVisitante=true
+        //  b) Placa existe en BD -> reusa (puede ser empresa o visitante previo)
+        //  c) Placa nueva -> crea Vehiculo con personaId si vino, esVisitante=(personaId==null)
+        String placaInput = dto.getPlaca() == null ? null : dto.getPlaca().trim().toUpperCase();
+        final boolean sinPlaca = (placaInput == null || placaInput.isEmpty());
+        final String placaFinal = sinPlaca ? generarPlacaVisitante() : placaInput;
+        Vehiculo vehiculo = vehiculoRepository.findByPlaca(placaFinal).orElseGet(() ->
+                crearVehiculoNuevo(placaFinal, dto.getTipoVehiculoId(), dto.getColor(),
+                        sinPlaca ? null : dto.getPersonaId()));
+
+        // Construir TicketDTO normal y delegar a save() (reusa toda la validacion)
+        TicketDTO tdto = new TicketDTO();
+        tdto.setParqueaderoId(dto.getParqueaderoId());
+        tdto.setPuntoParqueoId(dto.getPuntoParqueoId());
+        tdto.setTarifaId(dto.getTarifaId());
+        tdto.setVehiculoId(vehiculo.getId());
+        return save(tdto);
+    }
+
+    private String generarPlacaVisitante() {
+        String stamp = java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        int rand = (int) (Math.random() * 9000) + 1000;
+        return "VIS-" + stamp + "-" + rand;
+    }
+
+    /**
+     * Crea un Vehiculo nuevo durante registro manual.
+     * - Si personaId != null: vehiculo asociado a persona, esVisitante=false (carro empresa).
+     * - Si personaId == null: vehiculo visitante (esVisitante=true).
+     */
+    private Vehiculo crearVehiculoNuevo(String placa, Long tipoVehiculoId, String color,
+                                         Long personaId) {
+        TipoVehiculo tipo = tipoVehiculoRepository.findById(tipoVehiculoId)
+                .orElseThrow(() -> new ResourceNotFoundException("TipoVehiculo", tipoVehiculoId));
+        Vehiculo v = new Vehiculo();
+        v.setPlaca(placa);
+        v.setTipoVehiculo(tipo);
+        v.setColor(color);
+        v.setActivo(true);
+        v.setUltimaActividad(LocalDateTime.now());
+        if (personaId != null) {
+            com.usco.parqueaderos_api.user.entity.Persona persona =
+                    personaRepository.findById(personaId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Persona", personaId));
+            v.setPersona(persona);
+            v.setEsVisitante(false);
+        } else {
+            v.setEsVisitante(true);
+        }
+        return vehiculoRepository.save(v);
     }
 
     private TicketDTO toDTO(Ticket e) {

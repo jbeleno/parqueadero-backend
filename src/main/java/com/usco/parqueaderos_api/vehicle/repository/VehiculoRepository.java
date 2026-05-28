@@ -32,6 +32,18 @@ public interface VehiculoRepository extends JpaRepository<Vehiculo, Long> {
     List<Vehiculo> findByActivoTrue();
     List<Vehiculo> findByPersonaIdAndActivoTrue(Long personaId);
 
+    /**
+     * Vehiculos con actividad (ticket) en los parqueaderos asignados al usuario.
+     * Para que un ADMIN_PARQUEADERO/OPERARIO_CAJA solo vea los carros que
+     * pasaron por sus parqueaderos.
+     */
+    @Query("SELECT DISTINCT v FROM Vehiculo v " +
+           "WHERE v.id IN (" +
+           "  SELECT t.vehiculo.id FROM Ticket t " +
+           "  WHERE t.parqueadero.id IN :parqueaderoIds" +
+           ")")
+    List<Vehiculo> findByActividadEnParqueaderos(@Param("parqueaderoIds") List<Long> parqueaderoIds);
+
     /** Visitantes inactivos hace X dias o mas (para limpieza). */
     @Query("SELECT v FROM Vehiculo v WHERE v.esVisitante = TRUE " +
            "AND (v.ultimaActividad IS NULL OR v.ultimaActividad < :corte)")

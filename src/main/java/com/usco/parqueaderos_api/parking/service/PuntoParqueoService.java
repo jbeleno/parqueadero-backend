@@ -41,12 +41,25 @@ public class PuntoParqueoService {
         List<PuntoParqueo> base;
         if (currentUser.isSuperAdmin()) {
             base = puntoParqueoRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = puntoParqueoRepository.findAll().stream()
+                    .filter(p -> parqueaderoIdDe(p) != null && parqIds.contains(parqueaderoIdDe(p)))
+                    .toList();
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = puntoParqueoRepository.findBySubSeccionSeccionParqueaderoEmpresaId(empresaId);
         }
         return mapAndCalcularEstadoBatch(base);
+    }
+
+    private Long parqueaderoIdDe(PuntoParqueo p) {
+        return p.getSubSeccion() != null
+                && p.getSubSeccion().getSeccion() != null
+                && p.getSubSeccion().getSeccion().getParqueadero() != null
+                ? p.getSubSeccion().getSeccion().getParqueadero().getId() : null;
     }
 
     @Transactional(readOnly = true)
@@ -63,6 +76,17 @@ public class PuntoParqueoService {
 
     @Transactional
     public PuntoParqueoDTO save(PuntoParqueoDTO dto) {
+        if (dto.getSubSeccionId() != null) {
+            SubSeccion ss = findSubSeccion(dto.getSubSeccionId());
+            if (ss.getSeccion() != null && ss.getSeccion().getParqueadero() != null) {
+                if (ss.getSeccion().getParqueadero().getEmpresa() != null) {
+                    currentUser.requireEmpresa(ss.getSeccion().getParqueadero().getEmpresa().getId());
+                }
+                if (currentUser.isAdminParqueadero()) {
+                    currentUser.requireParqueadero(ss.getSeccion().getParqueadero().getId());
+                }
+            }
+        }
         return toDTOConEstado(puntoParqueoRepository.save(toEntity(dto)));
     }
 
@@ -70,6 +94,15 @@ public class PuntoParqueoService {
     public PuntoParqueoDTO update(Long id, PuntoParqueoDTO dto) {
         PuntoParqueo existing = puntoParqueoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", id));
+        Long parqId = parqueaderoIdDe(existing);
+        if (parqId != null) {
+            if (existing.getSubSeccion().getSeccion().getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getSubSeccion().getSeccion().getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(parqId);
+            }
+        }
         existing.setNombre(dto.getNombre());
         existing.setAcronimo(dto.getAcronimo());
         existing.setDescripcion(dto.getDescripcion());
@@ -84,6 +117,15 @@ public class PuntoParqueoService {
     public void archivar(Long id) {
         PuntoParqueo existing = puntoParqueoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PuntoParqueo", id));
+        Long parqId = parqueaderoIdDe(existing);
+        if (parqId != null) {
+            if (existing.getSubSeccion().getSeccion().getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getSubSeccion().getSeccion().getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(parqId);
+            }
+        }
         Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
         existing.setEstado(archivado);

@@ -44,18 +44,20 @@ public class ParkingStructureController {
         return ResponseEntity.ok(ApiResponse.ok(nivelService.findByParqueadero(parqueaderoId)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PostMapping("/api/niveles")
     public ResponseEntity<ApiResponse<NivelDTO>> createNivel(@Valid @RequestBody NivelDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(nivelService.save(dto)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PutMapping("/api/niveles/{id}")
     public ResponseEntity<ApiResponse<NivelDTO>> updateNivel(@PathVariable Long id, @Valid @RequestBody NivelDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(nivelService.update(id, dto)));
     }
 
     @PatchMapping("/api/niveles/{id}/archivar")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<String>> archivarNivel(@PathVariable Long id) {
         nivelService.archivar(id);
         return ResponseEntity.ok(ApiResponse.ok("Nivel archivado correctamente"));
@@ -73,18 +75,20 @@ public class ParkingStructureController {
         return ResponseEntity.ok(ApiResponse.ok(seccionService.findById(id)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PostMapping("/api/secciones")
     public ResponseEntity<ApiResponse<SeccionDTO>> createSeccion(@Valid @RequestBody SeccionDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(seccionService.save(dto)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PutMapping("/api/secciones/{id}")
     public ResponseEntity<ApiResponse<SeccionDTO>> updateSeccion(@PathVariable Long id, @Valid @RequestBody SeccionDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(seccionService.update(id, dto)));
     }
 
     @PatchMapping("/api/secciones/{id}/archivar")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<String>> archivarSeccion(@PathVariable Long id) {
         seccionService.archivar(id);
         return ResponseEntity.ok(ApiResponse.ok("Sección archivada correctamente"));
@@ -102,18 +106,20 @@ public class ParkingStructureController {
         return ResponseEntity.ok(ApiResponse.ok(subSeccionService.findById(id)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PostMapping("/api/sub-secciones")
     public ResponseEntity<ApiResponse<SubSeccionDTO>> createSubSeccion(@Valid @RequestBody SubSeccionDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(subSeccionService.save(dto)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PutMapping("/api/sub-secciones/{id}")
     public ResponseEntity<ApiResponse<SubSeccionDTO>> updateSubSeccion(@PathVariable Long id, @Valid @RequestBody SubSeccionDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(subSeccionService.update(id, dto)));
     }
 
     @PatchMapping("/api/sub-secciones/{id}/archivar")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<String>> archivarSubSeccion(@PathVariable Long id) {
         subSeccionService.archivar(id);
         return ResponseEntity.ok(ApiResponse.ok("Subsección archivada correctamente"));
@@ -143,18 +149,20 @@ public class ParkingStructureController {
         return ResponseEntity.ok(ApiResponse.ok(puntoParqueoService.findByParqueadero(parqueaderoId)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PostMapping("/api/puntos-parqueo")
     public ResponseEntity<ApiResponse<PuntoParqueoDTO>> createPuntoParqueo(@Valid @RequestBody PuntoParqueoDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(puntoParqueoService.save(dto)));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     @PutMapping("/api/puntos-parqueo/{id}")
     public ResponseEntity<ApiResponse<PuntoParqueoDTO>> updatePuntoParqueo(@PathVariable Long id, @Valid @RequestBody PuntoParqueoDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(puntoParqueoService.update(id, dto)));
     }
 
     @PatchMapping("/api/puntos-parqueo/{id}/archivar")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<String>> archivarPuntoParqueo(@PathVariable Long id) {
         puntoParqueoService.archivar(id);
         return ResponseEntity.ok(ApiResponse.ok("Punto de parqueo archivado correctamente"));

@@ -10,13 +10,20 @@ import com.usco.parqueaderos_api.location.service.LocationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Geo-datos (paises, departamentos, ciudades). Lectura abierta a autenticados.
+ * Mutaciones solo SUPER_ADMIN (datos seed compartidos por toda la plataforma).
+ */
 @RestController
 @RequiredArgsConstructor
 public class LocationController {
+
+    private static final String SUPER = "hasRole('SUPER_ADMIN')";
 
     private final LocationService locationService;
 
@@ -31,16 +38,19 @@ public class LocationController {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findPaisById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/paises")
     public ResponseEntity<ApiResponse<Pais>> createPais(@RequestBody Pais pais) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(locationService.savePais(pais)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/paises/{id}")
     public ResponseEntity<ApiResponse<Pais>> updatePais(@PathVariable Long id, @RequestBody Pais pais) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.updatePais(id, pais)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/paises/{id}")
     public ResponseEntity<Void> deletePais(@PathVariable Long id) {
         locationService.deletePais(id);
@@ -63,16 +73,19 @@ public class LocationController {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findDepartamentosByPais(paisId)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/departamentos")
     public ResponseEntity<ApiResponse<DepartamentoDTO>> createDepartamento(@RequestBody Departamento departamento) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(locationService.saveDepartamento(departamento)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/departamentos/{id}")
     public ResponseEntity<ApiResponse<DepartamentoDTO>> updateDepartamento(@PathVariable Long id, @RequestBody Departamento departamento) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.updateDepartamento(id, departamento)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/departamentos/{id}")
     public ResponseEntity<Void> deleteDepartamento(@PathVariable Long id) {
         locationService.deleteDepartamento(id);
@@ -95,16 +108,19 @@ public class LocationController {
         return ResponseEntity.ok(ApiResponse.ok(locationService.findCiudadesByDepartamento(departamentoId)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/ciudades")
     public ResponseEntity<ApiResponse<CiudadDTO>> createCiudad(@RequestBody Ciudad ciudad) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(locationService.saveCiudad(ciudad)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/ciudades/{id}")
     public ResponseEntity<ApiResponse<CiudadDTO>> updateCiudad(@PathVariable Long id, @RequestBody Ciudad ciudad) {
         return ResponseEntity.ok(ApiResponse.ok(locationService.updateCiudad(id, ciudad)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/ciudades/{id}")
     public ResponseEntity<Void> deleteCiudad(@PathVariable Long id) {
         locationService.deleteCiudad(id);

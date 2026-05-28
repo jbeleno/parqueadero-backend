@@ -232,6 +232,12 @@ UPDATE tarifa SET iva_porcentaje                = 0     WHERE iva_porcentaje IS 
 ALTER TABLE ticket ADD COLUMN IF NOT EXISTS suscripcion_id          BIGINT;
 ALTER TABLE ticket ADD COLUMN IF NOT EXISTS fecha_hora_salida_fisica TIMESTAMP;
 
+-- v46: Trazabilidad de operador. Quien registro la entrada y quien la salida.
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS creado_por_usuario_id  BIGINT REFERENCES usuario(id);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS cerrado_por_usuario_id BIGINT REFERENCES usuario(id);
+CREATE INDEX IF NOT EXISTS idx_ticket_creado_por  ON ticket (creado_por_usuario_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_cerrado_por ON ticket (cerrado_por_usuario_id);
+
 -- Parqueadero: tope legal por minuto (regulado en algunas ciudades)
 ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS tarifa_maxima_por_minuto DOUBLE PRECISION;
 
@@ -508,3 +514,66 @@ ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS pie_recibo         TEXT;
 ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS encabezado_recibo  TEXT;
 ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS regimen_tributario VARCHAR(100);
 ALTER TABLE parqueadero ADD COLUMN IF NOT EXISTS logo_url           VARCHAR(300);
+
+-- ════════════════════════════════════════════════════════════════
+-- v47: Tabla resolucion_dian (multi-resolucion + selector + snapshot historico)
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS resolucion_dian (
+    id                       BIGSERIAL PRIMARY KEY,
+    parqueadero_id           BIGINT NOT NULL REFERENCES parqueadero(id),
+    numero_resolucion        VARCHAR(50)  NOT NULL,
+    fecha_resolucion         DATE         NOT NULL,
+    tipo_resolucion          VARCHAR(30),
+    modalidad                VARCHAR(30),
+    prefijo                  VARCHAR(20),
+    rango_inicial            BIGINT       NOT NULL,
+    rango_final              BIGINT       NOT NULL,
+    consecutivo_actual       BIGINT       DEFAULT 0,
+    vigente_desde            DATE         NOT NULL,
+    vigente_hasta            DATE         NOT NULL,
+    nombre                   VARCHAR(150) NOT NULL,
+    descripcion              TEXT,
+    regimen_tributario       VARCHAR(100),
+    principal                BOOLEAN      NOT NULL DEFAULT FALSE,
+    creado_por_usuario_id    BIGINT REFERENCES usuario(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    archivada_en             TIMESTAMP,
+    motivo_archivado         VARCHAR(300),
+    archivado_por_usuario_id BIGINT REFERENCES usuario(id)
+);
+CREATE INDEX IF NOT EXISTS idx_resol_parq      ON resolucion_dian (parqueadero_id);
+CREATE INDEX IF NOT EXISTS idx_resol_principal ON resolucion_dian (parqueadero_id, principal);
+-- Garantia: UNA sola resolucion principal NO archivada por parqueadero.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_resol_principal_activa
+    ON resolucion_dian (parqueadero_id) WHERE principal = TRUE AND archivada_en IS NULL;
+
+-- FK snapshot historico en factura: cada factura referencia la resolucion usada.
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS resolucion_dian_id BIGINT REFERENCES resolucion_dian(id);
+CREATE INDEX IF NOT EXISTS idx_factura_resolucion ON factura (resolucion_dian_id);
+
+-- Seed: por cada parqueadero con resolucion_dian (TEXT) no vacio, crear 1 fila
+-- inicial en resolucion_dian con principal=TRUE. Idempotente: no inserta si
+-- el parqueadero ya tiene alguna resolucion.
+INSERT INTO resolucion_dian (
+    parqueadero_id, numero_resolucion, fecha_resolucion,
+    rango_inicial, rango_final, vigente_desde, vigente_hasta,
+    nombre, descripcion, regimen_tributario, principal, fecha_creacion
+)
+SELECT p.id,
+       'MIGRADO-' || p.id                                       AS numero_resolucion,
+       CURRENT_DATE                                             AS fecha_resolucion,
+       1                                                        AS rango_inicial,
+       50000                                                    AS rango_final,
+       CURRENT_DATE                                             AS vigente_desde,
+       (CURRENT_DATE + INTERVAL '24 months')::DATE              AS vigente_hasta,
+       'Migrado desde texto libre'                              AS nombre,
+       p.resolucion_dian                                        AS descripcion,
+       p.regimen_tributario                                     AS regimen_tributario,
+       TRUE                                                     AS principal,
+       NOW()                                                    AS fecha_creacion
+  FROM parqueadero p
+ WHERE p.resolucion_dian IS NOT NULL
+   AND TRIM(p.resolucion_dian) <> ''
+   AND NOT EXISTS (
+       SELECT 1 FROM resolucion_dian r WHERE r.parqueadero_id = p.id
+   );

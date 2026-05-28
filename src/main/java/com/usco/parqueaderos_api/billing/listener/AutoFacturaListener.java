@@ -34,6 +34,9 @@ public class AutoFacturaListener {
     private final TicketRepository ticketRepository;
     private final FacturaRepository facturaRepository;
     private final TarifaCalculatorService tarifaCalculator;
+    /** Opcional: si esta presente, snapshot de la resolucion DIAN principal del parqueadero. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.billing.service.ResolucionDianService resolucionDianService;
 
     @EventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -91,6 +94,24 @@ public class AutoFacturaListener {
                 f.setBaseImponible(b.base());
                 f.setIvaMonto(b.iva());
                 f.setIvaPorcentaje(ticket.getTarifa().getIvaPorcentaje());
+            }
+        }
+
+        // Snapshot resolucion DIAN principal del parqueadero (si existe y aplica).
+        // Reserva un consecutivo bajo lock pesimista.
+        if (resolucionDianService != null && ticket.getParqueadero() != null) {
+            try {
+                com.usco.parqueaderos_api.billing.entity.ResolucionDian resol =
+                        resolucionDianService.reservarSiguienteConsecutivo(
+                                ticket.getParqueadero().getId());
+                if (resol != null) {
+                    f.setResolucionDian(resol);
+                }
+            } catch (com.usco.parqueaderos_api.common.exception.BusinessException ex) {
+                // Resolucion AGOTADA u otro problema: factura se crea SIN snapshot
+                // (informal). No bloquea la emision para no romper el flujo operativo.
+                log.warn("AutoFactura: no se pudo reservar consecutivo DIAN para ticket #{}: {}",
+                        ticket.getId(), ex.getMessage());
             }
         }
 

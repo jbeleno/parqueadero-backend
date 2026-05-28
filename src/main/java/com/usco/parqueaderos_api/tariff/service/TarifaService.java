@@ -38,6 +38,13 @@ public class TarifaService {
         List<Tarifa> base;
         if (currentUser.isSuperAdmin() || currentUser.isUser()) {
             base = tarifaRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = tarifaRepository.findAll().stream()
+                    .filter(t -> t.getParqueadero() != null
+                            && parqIds.contains(t.getParqueadero().getId()))
+                    .toList();
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
@@ -64,6 +71,12 @@ public class TarifaService {
 
     @Transactional
     public TarifaDTO save(TarifaDTO dto) {
+        // Validar asignacion antes de crear
+        if (dto.getParqueaderoId() != null) {
+            Parqueadero p = findParqueadero(dto.getParqueaderoId());
+            if (p.getEmpresa() != null) currentUser.requireEmpresa(p.getEmpresa().getId());
+            if (currentUser.isAdminParqueadero()) currentUser.requireParqueadero(p.getId());
+        }
         return toDTO(tarifaRepository.save(toEntity(dto)));
     }
 
@@ -71,6 +84,18 @@ public class TarifaService {
     public TarifaDTO update(Long id, TarifaDTO dto) {
         Tarifa existing = tarifaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tarifa", id));
+        // Validar contra parqueadero actual y, si se cambia, contra el nuevo
+        if (existing.getParqueadero() != null) {
+            if (existing.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(existing.getParqueadero().getId());
+            }
+        }
+        if (dto.getParqueaderoId() != null && currentUser.isAdminParqueadero()) {
+            currentUser.requireParqueadero(dto.getParqueaderoId());
+        }
         existing.setNombre(dto.getNombre());
         existing.setValor(dto.getValor());
         existing.setUnidad(dto.getUnidad());
@@ -116,9 +141,12 @@ public class TarifaService {
         }
         Tarifa t = tarifaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tarifa", id));
-        if (currentUser.isAdmin() && !currentUser.isSuperAdmin()
+        if (!currentUser.isSuperAdmin()
                 && t.getParqueadero() != null && t.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(t.getParqueadero().getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero() && t.getParqueadero() != null) {
+            currentUser.requireParqueadero(t.getParqueadero().getId());
         }
         t.setActivo(false);
         t.setArchivadoEn(java.time.LocalDateTime.now());

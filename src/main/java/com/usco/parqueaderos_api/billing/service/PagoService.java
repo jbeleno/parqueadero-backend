@@ -43,6 +43,15 @@ public class PagoService {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = pagoRepository.findByFacturaParqueaderoEmpresaId(empresaId);
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            // Pagos cuyas facturas pertenecen a sus parqueaderos asignados
+            base = pagoRepository.findAll().stream()
+                    .filter(p -> p.getFactura() != null
+                            && p.getFactura().getParqueadero() != null
+                            && parqIds.contains(p.getFactura().getParqueadero().getId()))
+                    .toList();
         } else {
             base = pagoRepository.findByFacturaVehiculoPersonaId(currentUser.getCurrentPersonaId());
         }
@@ -77,7 +86,9 @@ public class PagoService {
      */
     @Transactional
     public PagoDTO save(PagoDTO dto) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        boolean puedeCobrar = currentUser.isSuperAdmin() || currentUser.isAdmin()
+                || currentUser.isAdminParqueadero() || currentUser.isOperarioCaja();
+        if (!puedeCobrar) {
             throw new AccessDeniedException("Solo el operador puede registrar pagos");
         }
 
@@ -87,9 +98,13 @@ public class PagoService {
         Factura factura = facturaRepository.findById(dto.getFacturaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Factura", dto.getFacturaId()));
 
-        // Multi-tenant
+        // Multi-tenant + assignment
         if (factura.getParqueadero() != null && factura.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(factura.getParqueadero().getEmpresa().getId());
+        }
+        if ((currentUser.isAdminParqueadero() || currentUser.isOperarioCaja())
+                && factura.getParqueadero() != null) {
+            currentUser.requireParqueadero(factura.getParqueadero().getId());
         }
 
         // Validar que la factura no este ya PAGADA o ANULADA

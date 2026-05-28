@@ -24,13 +24,13 @@ public class TarifaFranjaController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<TarifaFranjaDTO>> create(@RequestBody TarifaFranjaDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.save(dto)));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.ok(null));

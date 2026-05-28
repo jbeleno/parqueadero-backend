@@ -2,6 +2,7 @@ package com.usco.parqueaderos_api.ticket.controller;
 
 import com.usco.parqueaderos_api.common.dto.ApiResponse;
 import com.usco.parqueaderos_api.ticket.dto.TicketDTO;
+import com.usco.parqueaderos_api.ticket.dto.TicketManualDTO;
 import com.usco.parqueaderos_api.ticket.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,17 @@ public class TicketController {
     @PostMapping
     public ResponseEntity<ApiResponse<TicketDTO>> create(@Valid @RequestBody TicketDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(ticketService.save(dto)));
+    }
+
+    /**
+     * Registra entrada SIN OCR: el operario digita placa o la deja vacia (visitante).
+     * Atomico: crea Vehiculo (si no existe) y Ticket en una sola transaccion.
+     * Caso de uso: la camara no leyo la placa (vidrio sucio, sin luz, falla HW).
+     */
+    @PostMapping("/manual")
+    public ResponseEntity<ApiResponse<TicketDTO>> createManual(@Valid @RequestBody TicketManualDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(ticketService.createManual(dto), "Ticket registrado manualmente"));
     }
 
     @PutMapping("/{id}")

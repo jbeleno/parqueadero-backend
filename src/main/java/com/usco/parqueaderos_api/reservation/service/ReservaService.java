@@ -45,6 +45,13 @@ public class ReservaService {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = reservaRepository.findByParqueaderoEmpresaId(empresaId);
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = reservaRepository.findAll().stream()
+                    .filter(r -> r.getParqueadero() != null
+                            && parqIds.contains(r.getParqueadero().getId()))
+                    .toList();
         } else {
             // USER: solo sus propias reservas
             base = reservaRepository.findByUsuarioId(currentUser.getCurrentUserId());

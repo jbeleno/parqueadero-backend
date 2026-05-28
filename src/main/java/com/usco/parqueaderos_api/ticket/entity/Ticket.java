@@ -78,6 +78,14 @@ public class Ticket {
     @Column(name = "anulado_por_usuario_id")
     private Long anuladoPorUsuarioId;
 
+    /** Usuario que registro la entrada del vehiculo (operario o admin). */
+    @Column(name = "creado_por_usuario_id")
+    private Long creadoPorUsuarioId;
+
+    /** Usuario que registro la salida o cierre del ticket. NULL si aun esta EN_CURSO. */
+    @Column(name = "cerrado_por_usuario_id")
+    private Long cerradoPorUsuarioId;
+
     /**
      * Snapshot del valor/unidad/Modelo B de la tarifa al momento de la entrada.
      * Si el operador cambia la tarifa entre entrada y salida, el cobro respeta

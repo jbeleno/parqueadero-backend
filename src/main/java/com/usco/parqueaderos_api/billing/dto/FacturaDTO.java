@@ -31,4 +31,8 @@ public class FacturaDTO {
 
     /** MANUAL, AUTO, BACKFILL_<timestamp>. Solo lectura desde el back. */
     private String origen;
+
+    /** ID de la resolucion DIAN usada al emitir esta factura (snapshot). Null si no aplica. */
+    private Long resolucionDianId;
+    private String resolucionDianNumero;
 }

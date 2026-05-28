@@ -27,20 +27,23 @@ public class ConvenioController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<ConvenioDTO>> crear(@RequestBody ConvenioDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(convenioService.save(dto)));
     }
 
     @PatchMapping("/{id}/desactivar")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<ConvenioDTO>> desactivar(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(convenioService.desactivar(id)));
     }
 
-    /** Registra el comprobante de compra de un comercio sobre un ticket EN_CURSO. */
+    /**
+     * Registra el comprobante de compra de un comercio sobre un ticket EN_CURSO.
+     * El operario de caja la registra cuando el cliente presenta la factura del comercio.
+     */
     @PostMapping("/validacion-compra")
-    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO','OPERARIO_CAJA')")
     public ResponseEntity<ApiResponse<ValidacionCompraDTO>> validarCompra(@RequestBody ValidacionCompraDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(validacionService.registrar(dto)));
     }

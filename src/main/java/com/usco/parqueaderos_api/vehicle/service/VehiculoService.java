@@ -59,6 +59,13 @@ public class VehiculoService {
         List<Vehiculo> base;
         if (currentUser.isSuperAdmin()) {
             base = vehiculoRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            // Solo vehiculos con actividad en sus parqueaderos asignados.
+            // Para registrar un visitante nuevo (sin actividad previa), usar
+            // POST /api/tickets/manual que crea Vehiculo + Ticket atomico.
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return java.util.Collections.emptyList();
+            base = vehiculoRepository.findByActividadEnParqueaderos(parqIds);
         } else if (currentUser.isAdmin()) {
             if (soloMiEmpresa) {
                 Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
@@ -117,6 +124,19 @@ public class VehiculoService {
     public VehiculoDTO findById(Long id) {
         Vehiculo v = vehiculoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehiculo", id));
+        // ADMIN_PARQUEADERO / OPERARIO_CAJA: ven el vehiculo si tiene actividad
+        // en alguno de sus parqueaderos asignados.
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            boolean tieneActividad = !parqIds.isEmpty()
+                    && !vehiculoRepository.findByActividadEnParqueaderos(parqIds).stream()
+                            .filter(x -> x.getId().equals(id)).toList().isEmpty();
+            if (!tieneActividad) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Vehiculo no tiene actividad en tus parqueaderos asignados");
+            }
+            return toDTO(v);
+        }
         Long personaId = v.getPersona() != null ? v.getPersona().getId() : null;
         currentUser.requireOwnerOrAnyAdmin(personaId);
         return toDTO(v);

@@ -43,6 +43,7 @@ public class SuscripcionService {
     private final ParqueaderoRepository parqueaderoRepo;
     private final TarifaRepository tarifaRepo;
     private final com.usco.parqueaderos_api.parking.repository.PuntoParqueoRepository puntoParqueoRepo;
+    private final com.usco.parqueaderos_api.auth.service.CurrentUserService currentUser;
     /** Optional para preservar compat con tests que mocken por @InjectMocks sin DI completo. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.usco.parqueaderos_api.notification.service.NotificationService notificationService;
@@ -68,6 +69,15 @@ public class SuscripcionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Parqueadero", parqueaderoId));
         Tarifa t = tarifaRepo.findById(tarifaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tarifa", tarifaId));
+
+        // Multi-tenant + assignment: ADMIN_PARQUEADERO solo puede crear suscripciones
+        // en sus parqueaderos asignados. ADMIN solo en su empresa.
+        if (p.getEmpresa() != null) {
+            currentUser.requireEmpresa(p.getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero()) {
+            currentUser.requireParqueadero(p.getId());
+        }
 
         // Validar precio configurado en la tarifa
         if (tipo == TipoSuscripcion.MENSUAL && t.getPrecioMensualidad() == null) {
@@ -174,6 +184,15 @@ public class SuscripcionService {
     public Suscripcion cancelar(Long id, boolean reembolsar) {
         Suscripcion s = suscripcionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", id));
+
+        // Multi-tenant + assignment
+        if (s.getParqueadero() != null && s.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(s.getParqueadero().getEmpresa().getId());
+        }
+        if (currentUser.isAdminParqueadero() && s.getParqueadero() != null) {
+            currentUser.requireParqueadero(s.getParqueadero().getId());
+        }
+
         if (s.getEstado() == EstadoSuscripcion.CANCELADA) return s;
 
         // Snapshot pre-cambio: si tenia punto reservado, lo notificaremos al
@@ -218,12 +237,24 @@ public class SuscripcionService {
 
     @Transactional(readOnly = true)
     public List<Suscripcion> findActivasPorParqueadero(Long parqueaderoId) {
+        // Lectura: validar asignacion para roles por-parqueadero
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            currentUser.requireParqueadero(parqueaderoId);
+        }
         return suscripcionRepo.findByParqueaderoIdAndEstado(parqueaderoId, EstadoSuscripcion.ACTIVA);
     }
 
     @Transactional(readOnly = true)
     public Suscripcion findById(Long id) {
-        return suscripcionRepo.findById(id)
+        Suscripcion s = suscripcionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Suscripcion", id));
+        if (s.getParqueadero() != null && s.getParqueadero().getEmpresa() != null) {
+            currentUser.requireEmpresa(s.getParqueadero().getEmpresa().getId());
+        }
+        if ((currentUser.isAdminParqueadero() || currentUser.isOperarioCaja())
+                && s.getParqueadero() != null) {
+            currentUser.requireParqueadero(s.getParqueadero().getId());
+        }
+        return s;
     }
 }

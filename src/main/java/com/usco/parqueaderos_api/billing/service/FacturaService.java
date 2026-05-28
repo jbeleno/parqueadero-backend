@@ -34,6 +34,9 @@ public class FacturaService {
     private final VehiculoRepository vehiculoRepository;
     private final TarifaCalculatorService tarifaCalculator;
     private final CurrentUserService currentUser;
+    /** Opcional: snapshot DIAN al emitir factura manual. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ResolucionDianService resolucionDianService;
 
     @Transactional(readOnly = true)
     public List<FacturaDTO> findAll() {
@@ -44,6 +47,13 @@ public class FacturaService {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = facturaRepository.findByParqueaderoEmpresaId(empresaId);
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = facturaRepository.findAll().stream()
+                    .filter(f -> f.getParqueadero() != null
+                            && parqIds.contains(f.getParqueadero().getId()))
+                    .toList();
         } else {
             base = facturaRepository.findByVehiculoPersonaId(currentUser.getCurrentPersonaId());
         }
@@ -77,7 +87,9 @@ public class FacturaService {
      */
     @Transactional
     public FacturaDTO save(FacturaDTO dto) {
-        if (!currentUser.isAdmin() && !currentUser.isSuperAdmin()) {
+        boolean puedeFacturar = currentUser.isSuperAdmin() || currentUser.isAdmin()
+                || currentUser.isAdminParqueadero() || currentUser.isOperarioCaja();
+        if (!puedeFacturar) {
             throw new AccessDeniedException("Solo el operador puede generar facturas");
         }
         if (dto.getTicketId() == null) {
@@ -85,9 +97,13 @@ public class FacturaService {
         }
         Ticket ticket = findTicket(dto.getTicketId());
 
-        // Multi-tenant
+        // Multi-tenant + assignment
         if (ticket.getParqueadero() != null && ticket.getParqueadero().getEmpresa() != null) {
             currentUser.requireEmpresa(ticket.getParqueadero().getEmpresa().getId());
+        }
+        if ((currentUser.isAdminParqueadero() || currentUser.isOperarioCaja())
+                && ticket.getParqueadero() != null) {
+            currentUser.requireParqueadero(ticket.getParqueadero().getId());
         }
 
         // El ticket debe estar CERRADO con monto calculado
@@ -121,6 +137,20 @@ public class FacturaService {
         entity.setFechaHora(LocalDateTime.now());
         entity.setEstado("PENDIENTE");
         entity.setOrigen("MANUAL");
+        // Snapshot resolucion DIAN principal del parqueadero (consistente con
+        // AutoFacturaListener). Si no hay principal o esta AGOTADA, la factura
+        // se crea sin snapshot (modo informal) sin bloquear la emision.
+        if (resolucionDianService != null && ticket.getParqueadero() != null) {
+            try {
+                com.usco.parqueaderos_api.billing.entity.ResolucionDian resol =
+                        resolucionDianService.reservarSiguienteConsecutivo(
+                                ticket.getParqueadero().getId());
+                if (resol != null) entity.setResolucionDian(resol);
+            } catch (BusinessException ignored) {
+                // Resolucion AGOTADA u otro problema fiscal: emitir sin snapshot
+            }
+        }
+
         // Desagregar IVA si la tarifa lo aplica
         if (ticket.getTarifa() != null) {
             BreakdownIva b = tarifaCalculator.desagregarIva(ticket.getTarifa(), ticket.getMontoCalculado());
@@ -174,6 +204,10 @@ public class FacturaService {
         dto.setIvaMonto(e.getIvaMonto());
         dto.setIvaPorcentaje(e.getIvaPorcentaje());
         dto.setOrigen(e.getOrigen());
+        if (e.getResolucionDian() != null) {
+            dto.setResolucionDianId(e.getResolucionDian().getId());
+            dto.setResolucionDianNumero(e.getResolucionDian().getNumeroResolucion());
+        }
         return dto;
     }
 

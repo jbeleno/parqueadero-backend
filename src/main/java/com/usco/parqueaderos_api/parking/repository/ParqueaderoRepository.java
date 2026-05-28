@@ -11,6 +11,7 @@ import java.util.List;
 @Repository
 public interface ParqueaderoRepository extends JpaRepository<Parqueadero, Long> {
     List<Parqueadero> findByEmpresaId(Long empresaId);
+    List<Parqueadero> findByIdIn(List<Long> ids);
     List<Parqueadero> findByCiudadId(Long ciudadId);
 
     /**

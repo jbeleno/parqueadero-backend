@@ -34,6 +34,13 @@ public class SeccionService {
         List<Seccion> base;
         if (currentUser.isSuperAdmin()) {
             base = seccionRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = seccionRepository.findAll().stream()
+                    .filter(s -> s.getParqueadero() != null
+                            && parqIds.contains(s.getParqueadero().getId()))
+                    .toList();
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
@@ -54,6 +61,11 @@ public class SeccionService {
 
     @Transactional
     public SeccionDTO save(SeccionDTO dto) {
+        if (dto.getParqueaderoId() != null) {
+            Parqueadero p = findParqueadero(dto.getParqueaderoId());
+            if (p.getEmpresa() != null) currentUser.requireEmpresa(p.getEmpresa().getId());
+            if (currentUser.isAdminParqueadero()) currentUser.requireParqueadero(p.getId());
+        }
         return toDTO(seccionRepository.save(toEntity(dto)));
     }
 
@@ -61,6 +73,14 @@ public class SeccionService {
     public SeccionDTO update(Long id, SeccionDTO dto) {
         Seccion existing = seccionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Seccion", id));
+        if (existing.getParqueadero() != null) {
+            if (existing.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(existing.getParqueadero().getId());
+            }
+        }
         existing.setNombre(dto.getNombre());
         existing.setAcronimo(dto.getAcronimo());
         existing.setDescripcion(dto.getDescripcion());
@@ -75,6 +95,14 @@ public class SeccionService {
     public void archivar(Long id) {
         Seccion existing = seccionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Seccion", id));
+        if (existing.getParqueadero() != null) {
+            if (existing.getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(existing.getParqueadero().getId());
+            }
+        }
         Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
         existing.setEstado(archivado);

@@ -41,6 +41,10 @@ public class ParqueaderoService {
         List<Parqueadero> base;
         if (currentUser.isSuperAdmin()) {
             base = parqueaderoRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = parqueaderoRepository.findByIdIn(parqIds);
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
@@ -56,6 +60,9 @@ public class ParqueaderoService {
         if (p.getEmpresa() != null) {
             currentUser.requireEmpresa(p.getEmpresa().getId());
         }
+        if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            currentUser.requireParqueadero(id);
+        }
         return toDTO(p);
     }
 
@@ -70,6 +77,10 @@ public class ParqueaderoService {
         List<Parqueadero> base;
         if (currentUser.isSuperAdmin()) {
             base = parqueaderoRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = parqueaderoRepository.findByIdIn(parqIds);
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             base = parqueaderoRepository.findPublicosYDeMiEmpresa(empresaId);

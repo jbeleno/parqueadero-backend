@@ -31,12 +31,25 @@ public class SubSeccionService {
         List<SubSeccion> base;
         if (currentUser.isSuperAdmin()) {
             base = subSeccionRepository.findAll();
+        } else if (currentUser.isAdminParqueadero() || currentUser.isOperarioCaja()) {
+            List<Long> parqIds = currentUser.getParqueaderoIds();
+            if (parqIds.isEmpty()) return Collections.emptyList();
+            base = subSeccionRepository.findAll().stream()
+                    .filter(ss -> ss.getSeccion() != null
+                            && ss.getSeccion().getParqueadero() != null
+                            && parqIds.contains(ss.getSeccion().getParqueadero().getId()))
+                    .toList();
         } else {
             Long empresaId = currentUser.getCurrentEmpresaId().orElse(null);
             if (empresaId == null) return Collections.emptyList();
             base = subSeccionRepository.findBySeccionParqueaderoEmpresaId(empresaId);
         }
         return base.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    private Long parqueaderoIdDe(SubSeccion ss) {
+        return ss.getSeccion() != null && ss.getSeccion().getParqueadero() != null
+                ? ss.getSeccion().getParqueadero().getId() : null;
     }
 
     @Transactional(readOnly = true)
@@ -52,6 +65,17 @@ public class SubSeccionService {
 
     @Transactional
     public SubSeccionDTO save(SubSeccionDTO dto) {
+        if (dto.getSeccionId() != null) {
+            Seccion sec = findSeccion(dto.getSeccionId());
+            if (sec.getParqueadero() != null) {
+                if (sec.getParqueadero().getEmpresa() != null) {
+                    currentUser.requireEmpresa(sec.getParqueadero().getEmpresa().getId());
+                }
+                if (currentUser.isAdminParqueadero()) {
+                    currentUser.requireParqueadero(sec.getParqueadero().getId());
+                }
+            }
+        }
         return toDTO(subSeccionRepository.save(toEntity(dto)));
     }
 
@@ -59,6 +83,15 @@ public class SubSeccionService {
     public SubSeccionDTO update(Long id, SubSeccionDTO dto) {
         SubSeccion existing = subSeccionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("SubSeccion", id));
+        Long parqId = parqueaderoIdDe(existing);
+        if (parqId != null) {
+            if (existing.getSeccion().getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getSeccion().getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(parqId);
+            }
+        }
         existing.setNombre(dto.getNombre());
         existing.setAcronimo(dto.getAcronimo());
         existing.setDescripcion(dto.getDescripcion());
@@ -72,6 +105,15 @@ public class SubSeccionService {
     public void archivar(Long id) {
         SubSeccion existing = subSeccionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("SubSeccion", id));
+        Long parqId = parqueaderoIdDe(existing);
+        if (parqId != null) {
+            if (existing.getSeccion().getParqueadero().getEmpresa() != null) {
+                currentUser.requireEmpresa(existing.getSeccion().getParqueadero().getEmpresa().getId());
+            }
+            if (currentUser.isAdminParqueadero()) {
+                currentUser.requireParqueadero(parqId);
+            }
+        }
         Estado archivado = estadoRepository.findByNombreIgnoreCase("ARCHIVADO")
                 .orElseThrow(() -> new ResourceNotFoundException("Estado ARCHIVADO no encontrado"));
         existing.setEstado(archivado);

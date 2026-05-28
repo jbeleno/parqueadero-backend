@@ -54,7 +54,11 @@ public class SecurityConfig {
                     "/api-docs/**",
                     "/ws/**"
                 ).permitAll()
-                // ── Rutas exclusivas de administración ─────────────────────────
+                // ── Audit log: ADMIN_PARQUEADERO y OPERARIO_CAJA pueden ver SU PROPIO log.
+                //   El controller fuerza el filtro por usuarioId/empresaId segun rol.
+                .requestMatchers("/api/admin/audit-log/**")
+                    .hasAnyRole("ADMIN", "SUPER_ADMIN", "ADMIN_PARQUEADERO", "OPERARIO_CAJA")
+                // ── Resto de rutas /api/admin/**: solo ADMIN y SUPER_ADMIN ────────
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 // ── Todo lo demás requiere autenticación ───────────────────────
                 .anyRequest().authenticated()

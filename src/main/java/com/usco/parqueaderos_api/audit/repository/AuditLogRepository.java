@@ -20,14 +20,30 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     Page<AuditLog> findByEmpresaIdOrderByFechaHoraDesc(Long empresaId, Pageable pageable);
 
-    @Query("SELECT a FROM AuditLog a WHERE " +
-           "(:tabla IS NULL OR a.tabla = :tabla) AND " +
-           "(:usuarioId IS NULL OR a.usuarioId = :usuarioId) AND " +
-           "(:empresaId IS NULL OR a.empresaId = :empresaId) AND " +
-           "(:accion IS NULL OR a.accion = :accion) AND " +
-           "(:desde IS NULL OR a.fechaHora >= :desde) AND " +
-           "(:hasta IS NULL OR a.fechaHora <= :hasta) " +
-           "ORDER BY a.fechaHora DESC")
+    /**
+     * Busqueda con filtros opcionales. NATIVA + CAST porque PostgreSQL no infiere
+     * el tipo de placeholders NULL en JPQL puro y rompe con
+     * "could not determine data type of parameter".
+     * Mismo fix aplicado en ReportesSpecs (v45).
+     */
+    @Query(value =
+           "SELECT * FROM audit_log " +
+           "WHERE (CAST(:tabla     AS VARCHAR)   IS NULL OR tabla       = :tabla) " +
+           "  AND (CAST(:usuarioId AS BIGINT)    IS NULL OR usuario_id  = :usuarioId) " +
+           "  AND (CAST(:empresaId AS BIGINT)    IS NULL OR empresa_id  = :empresaId) " +
+           "  AND (CAST(:accion    AS VARCHAR)   IS NULL OR accion      = :accion) " +
+           "  AND (CAST(:desde     AS TIMESTAMP) IS NULL OR fecha_hora >= :desde) " +
+           "  AND (CAST(:hasta     AS TIMESTAMP) IS NULL OR fecha_hora <= :hasta) " +
+           "ORDER BY fecha_hora DESC",
+           countQuery =
+           "SELECT COUNT(*) FROM audit_log " +
+           "WHERE (CAST(:tabla     AS VARCHAR)   IS NULL OR tabla       = :tabla) " +
+           "  AND (CAST(:usuarioId AS BIGINT)    IS NULL OR usuario_id  = :usuarioId) " +
+           "  AND (CAST(:empresaId AS BIGINT)    IS NULL OR empresa_id  = :empresaId) " +
+           "  AND (CAST(:accion    AS VARCHAR)   IS NULL OR accion      = :accion) " +
+           "  AND (CAST(:desde     AS TIMESTAMP) IS NULL OR fecha_hora >= :desde) " +
+           "  AND (CAST(:hasta     AS TIMESTAMP) IS NULL OR fecha_hora <= :hasta)",
+           nativeQuery = true)
     Page<AuditLog> buscar(
             @Param("tabla") String tabla,
             @Param("usuarioId") Long usuarioId,

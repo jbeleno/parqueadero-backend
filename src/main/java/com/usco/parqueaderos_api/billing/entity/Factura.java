@@ -57,4 +57,12 @@ public class Factura {
     /** Origen de la factura: MANUAL (POST /api/facturas), AUTO (listener al cerrar ticket), BACKFILL_xxx. */
     @Column(length = 50)
     private String origen = "MANUAL";
+
+    /**
+     * Snapshot de la resolucion DIAN usada al emitir esta factura. NULL si la
+     * factura se creo antes de existir la tabla (v44 o antes).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolucion_dian_id")
+    private ResolucionDian resolucionDian;
 }

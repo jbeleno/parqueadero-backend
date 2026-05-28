@@ -10,13 +10,21 @@ import com.usco.parqueaderos_api.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Catalogos del sistema (estados, tipos, roles). Lectura abierta a autenticados.
+ * Mutaciones solo SUPER_ADMIN: cambiar estos catalogos puede romper integridad
+ * referencial multi-tenant.
+ */
 @RestController
 @RequiredArgsConstructor
 public class CatalogController {
+
+    private static final String SUPER = "hasRole('SUPER_ADMIN')";
 
     private final CatalogService catalogService;
 
@@ -31,16 +39,19 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findEstadoById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/estados")
     public ResponseEntity<ApiResponse<Estado>> createEstado(@RequestBody Estado estado) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveEstado(estado)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/estados/{id}")
     public ResponseEntity<ApiResponse<Estado>> updateEstado(@PathVariable Long id, @RequestBody Estado estado) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateEstado(id, estado)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/estados/{id}")
     public ResponseEntity<Void> deleteEstado(@PathVariable Long id) {
         catalogService.deleteEstado(id);
@@ -58,16 +69,19 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoParqueaderoById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/tipos-parqueadero")
     public ResponseEntity<ApiResponse<TipoParqueaderoDTO>> createTipoParqueadero(@RequestBody TipoParqueadero tp) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoParqueadero(tp)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/tipos-parqueadero/{id}")
     public ResponseEntity<ApiResponse<TipoParqueaderoDTO>> updateTipoParqueadero(@PathVariable Long id, @RequestBody TipoParqueadero tp) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoParqueadero(id, tp)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/tipos-parqueadero/{id}")
     public ResponseEntity<Void> deleteTipoParqueadero(@PathVariable Long id) {
         catalogService.deleteTipoParqueadero(id);
@@ -85,16 +99,19 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoPuntoParqueoById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/tipos-punto-parqueo")
     public ResponseEntity<ApiResponse<TipoPuntoParqueoDTO>> createTipoPuntoParqueo(@RequestBody TipoPuntoParqueo tp) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoPuntoParqueo(tp)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/tipos-punto-parqueo/{id}")
     public ResponseEntity<ApiResponse<TipoPuntoParqueoDTO>> updateTipoPuntoParqueo(@PathVariable Long id, @RequestBody TipoPuntoParqueo tp) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoPuntoParqueo(id, tp)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/tipos-punto-parqueo/{id}")
     public ResponseEntity<Void> deleteTipoPuntoParqueo(@PathVariable Long id) {
         catalogService.deleteTipoPuntoParqueo(id);
@@ -112,16 +129,19 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoVehiculoById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/tipos-vehiculo")
     public ResponseEntity<ApiResponse<TipoVehiculo>> createTipoVehiculo(@RequestBody TipoVehiculo tv) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoVehiculo(tv)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/tipos-vehiculo/{id}")
     public ResponseEntity<ApiResponse<TipoVehiculo>> updateTipoVehiculo(@PathVariable Long id, @RequestBody TipoVehiculo tv) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoVehiculo(id, tv)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/tipos-vehiculo/{id}")
     public ResponseEntity<Void> deleteTipoVehiculo(@PathVariable Long id) {
         catalogService.deleteTipoVehiculo(id);
@@ -139,16 +159,19 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findTipoDispositivoById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/tipos-dispositivo")
     public ResponseEntity<ApiResponse<TipoDispositivoDTO>> createTipoDispositivo(@RequestBody TipoDispositivo td) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveTipoDispositivo(td)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/tipos-dispositivo/{id}")
     public ResponseEntity<ApiResponse<TipoDispositivoDTO>> updateTipoDispositivo(@PathVariable Long id, @RequestBody TipoDispositivo td) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateTipoDispositivo(id, td)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/tipos-dispositivo/{id}")
     public ResponseEntity<Void> deleteTipoDispositivo(@PathVariable Long id) {
         catalogService.deleteTipoDispositivo(id);
@@ -166,16 +189,19 @@ public class CatalogController {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.findRolById(id)));
     }
 
+    @PreAuthorize(SUPER)
     @PostMapping("/api/roles")
     public ResponseEntity<ApiResponse<RolDTO>> createRol(@RequestBody Rol rol) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(catalogService.saveRol(rol)));
     }
 
+    @PreAuthorize(SUPER)
     @PutMapping("/api/roles/{id}")
     public ResponseEntity<ApiResponse<RolDTO>> updateRol(@PathVariable Long id, @RequestBody Rol rol) {
         return ResponseEntity.ok(ApiResponse.ok(catalogService.updateRol(id, rol)));
     }
 
+    @PreAuthorize(SUPER)
     @DeleteMapping("/api/roles/{id}")
     public ResponseEntity<Void> deleteRol(@PathVariable Long id) {
         catalogService.deleteRol(id);

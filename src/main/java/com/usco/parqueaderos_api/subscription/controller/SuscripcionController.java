@@ -17,12 +17,17 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/suscripciones")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 public class SuscripcionController {
 
     private final SuscripcionService suscripcionService;
 
+    /**
+     * Crear suscripcion. ADMIN_PARQUEADERO puede crear en sus parqueaderos asignados
+     * (el service valida con requireParqueadero). ADMIN ve su empresa, SUPER_ADMIN todo.
+     * OPERARIO_CAJA NO puede crear suscripciones (involucran cobros y vigencias).
+     */
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<SuscripcionDTO>> crear(
             @Valid @RequestBody CrearSuscripcionRequest req) {
         Suscripcion s = suscripcionService.crear(
@@ -33,12 +38,15 @@ public class SuscripcionController {
                 .body(ApiResponse.ok(toDTO(s), "Suscripcion creada"));
     }
 
+    /** Lectura: todos los roles operativos pueden ver suscripciones de su scope. */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO','OPERARIO_CAJA')")
     public ResponseEntity<ApiResponse<SuscripcionDTO>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(toDTO(suscripcionService.findById(id))));
     }
 
     @GetMapping("/vehiculo/{vehiculoId}")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO','OPERARIO_CAJA')")
     public ResponseEntity<ApiResponse<List<SuscripcionDTO>>> byVehiculo(
             @PathVariable Long vehiculoId) {
         List<SuscripcionDTO> list = suscripcionService.findByVehiculo(vehiculoId)
@@ -47,6 +55,7 @@ public class SuscripcionController {
     }
 
     @GetMapping("/parqueadero/{parqueaderoId}/activas")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO','OPERARIO_CAJA')")
     public ResponseEntity<ApiResponse<List<SuscripcionDTO>>> activasPorParq(
             @PathVariable Long parqueaderoId) {
         List<SuscripcionDTO> list = suscripcionService.findActivasPorParqueadero(parqueaderoId)
@@ -54,7 +63,9 @@ public class SuscripcionController {
         return ResponseEntity.ok(ApiResponse.ok(list));
     }
 
+    /** Cancelar suscripcion: misma severidad que crear. NO incluye OPERARIO_CAJA. */
     @PatchMapping("/{id}/cancelar")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<SuscripcionDTO>> cancelar(
             @PathVariable Long id,
             @RequestParam(defaultValue = "false") boolean reembolsar) {

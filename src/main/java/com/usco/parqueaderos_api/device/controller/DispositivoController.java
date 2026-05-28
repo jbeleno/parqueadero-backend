@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,16 +30,19 @@ public class DispositivoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<DispositivoDTO>> create(@Valid @RequestBody DispositivoDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(dispositivoService.save(dto)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','ADMIN_PARQUEADERO')")
     public ResponseEntity<ApiResponse<DispositivoDTO>> update(@PathVariable Long id, @Valid @RequestBody DispositivoDTO dto) {
         return ResponseEntity.ok(ApiResponse.ok(dispositivoService.update(id, dto)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         dispositivoService.delete(id);
         return ResponseEntity.noContent().build();
