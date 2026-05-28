@@ -206,6 +206,23 @@ public class TicketService {
         entity.setTarifaCubreSnapshot(tarifa.getMinutosCubiertosPorMinimo());
         entity.setCreadoPorUsuarioId(currentUser.getCurrentUserId());
 
+        // v49 Sprint A: snapshots de historicidad para reportes inmutables
+        entity.setPlacaSnapshot(vehiculo.getPlaca());
+        entity.setTipoVehiculoSnapshot(vehiculo.getTipoVehiculo() != null ? vehiculo.getTipoVehiculo().getNombre() : null);
+        entity.setTarifaNombreSnapshot(tarifa.getNombre());
+        entity.setPuntoParqueoNombreSnapshot(punto.getNombre());
+        if (vehiculo.getPersona() != null) {
+            com.usco.parqueaderos_api.user.entity.Persona p = vehiculo.getPersona();
+            String nom = p.getNombre() == null ? "" : p.getNombre().trim();
+            String ape = p.getApellido() == null ? "" : p.getApellido().trim();
+            String full = (nom + " " + ape).trim();
+            entity.setDuenoNombreSnapshot(full.isEmpty() ? null : full);
+            entity.setDuenoDocumentoSnapshot(p.getNumeroDocumento());
+        }
+        if (nombreResolver != null && currentUser.getCurrentUserId() != null) {
+            entity.setOperadorEntradaNombreSnapshot(nombreResolver.nombreOf(currentUser.getCurrentUserId()));
+        }
+
         Ticket saved;
         try {
             saved = ticketRepository.save(entity);
@@ -275,6 +292,10 @@ public class TicketService {
             existing.setSuscripcionId(cobro.suscripcionId());
             existing.setEstado("CERRADO");
             existing.setCerradoPorUsuarioId(currentUser.getCurrentUserId());
+            // v49 Sprint A: snapshot del operador que cerro
+            if (nombreResolver != null && currentUser.getCurrentUserId() != null) {
+                existing.setOperadorSalidaNombreSnapshot(nombreResolver.nombreOf(currentUser.getCurrentUserId()));
+            }
         } else if ("ANULADO".equals(estadoNuevo)) {
             existing.setEstado("ANULADO");
             // No se calcula monto, no hay cobro
@@ -406,6 +427,10 @@ public class TicketService {
         existing.setSuscripcionId(cobro.suscripcionId());
         existing.setEstado("CERRADO");
         existing.setCerradoPorUsuarioId(currentUser.getCurrentUserId());
+        // v49 Sprint A: snapshot del operador que cerro
+        if (nombreResolver != null && currentUser.getCurrentUserId() != null) {
+            existing.setOperadorSalidaNombreSnapshot(nombreResolver.nombreOf(currentUser.getCurrentUserId()));
+        }
         Ticket saved = ticketRepository.save(existing);
 
         Long parqueaderoId = saved.getParqueadero() != null ? saved.getParqueadero().getId() : null;
@@ -596,6 +621,15 @@ public class TicketService {
             dto.setCerradoPorUsuarioNombre(nombreResolver.nombreOf(e.getCerradoPorUsuarioId()));
             dto.setAnuladoPorUsuarioNombre(nombreResolver.nombreOf(e.getAnuladoPorUsuarioId()));
         }
+        // v49 Sprint A: exponer snapshots historicos
+        dto.setPlacaSnapshot(e.getPlacaSnapshot());
+        dto.setDuenoNombreSnapshot(e.getDuenoNombreSnapshot());
+        dto.setDuenoDocumentoSnapshot(e.getDuenoDocumentoSnapshot());
+        dto.setTipoVehiculoSnapshot(e.getTipoVehiculoSnapshot());
+        dto.setTarifaNombreSnapshot(e.getTarifaNombreSnapshot());
+        dto.setPuntoParqueoNombreSnapshot(e.getPuntoParqueoNombreSnapshot());
+        dto.setOperadorEntradaNombreSnapshot(e.getOperadorEntradaNombreSnapshot());
+        dto.setOperadorSalidaNombreSnapshot(e.getOperadorSalidaNombreSnapshot());
         return dto;
     }
 

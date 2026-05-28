@@ -73,4 +73,14 @@ public class Factura {
      */
     @Column(name = "emitido_por_usuario_id")
     private Long emitidoPorUsuarioId;
+
+    // v49 Sprint A: snapshots de historicidad para reportes inmutables.
+    @Column(name = "cliente_nombre_snapshot", length = 200)
+    private String clienteNombreSnapshot;
+    @Column(name = "cliente_documento_snapshot", length = 50)
+    private String clienteDocumentoSnapshot;
+    @Column(name = "placa_snapshot", length = 20)
+    private String placaSnapshot;
+    @Column(name = "emitido_por_nombre_snapshot", length = 200)
+    private String emitidoPorNombreSnapshot;
 }

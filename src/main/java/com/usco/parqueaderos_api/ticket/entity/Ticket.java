@@ -101,4 +101,24 @@ public class Ticket {
     private Integer tarifaGraciaSnapshot;
     @Column(name = "tarifa_cubre_snapshot")
     private Integer tarifaCubreSnapshot;
+
+    // v49 Sprint A: snapshots de historicidad — preservan datos legibles del
+    // momento del evento, evitan que reportes muestren al dueño/operador
+    // actual cuando algo cambia tras la creacion del ticket.
+    @Column(name = "placa_snapshot", length = 20)
+    private String placaSnapshot;
+    @Column(name = "dueno_nombre_snapshot", length = 200)
+    private String duenoNombreSnapshot;
+    @Column(name = "dueno_documento_snapshot", length = 50)
+    private String duenoDocumentoSnapshot;
+    @Column(name = "tipo_vehiculo_snapshot", length = 100)
+    private String tipoVehiculoSnapshot;
+    @Column(name = "tarifa_nombre_snapshot", length = 100)
+    private String tarifaNombreSnapshot;
+    @Column(name = "punto_parqueo_nombre_snapshot", length = 100)
+    private String puntoParqueoNombreSnapshot;
+    @Column(name = "operador_entrada_nombre_snapshot", length = 200)
+    private String operadorEntradaNombreSnapshot;
+    @Column(name = "operador_salida_nombre_snapshot", length = 200)
+    private String operadorSalidaNombreSnapshot;
 }

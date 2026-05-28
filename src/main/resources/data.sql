@@ -725,3 +725,38 @@ ALTER TABLE factura ADD CONSTRAINT ck_factura_valor_total_nonneg CHECK (valor_to
 
 ALTER TABLE tarifa DROP CONSTRAINT IF EXISTS ck_tarifa_valor_nonneg;
 ALTER TABLE tarifa ADD CONSTRAINT ck_tarifa_valor_nonneg CHECK (valor >= 0);
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Sprint A: Snapshots de historicidad en ticket/factura/pago
+-- Preservan los valores legibles en el momento del evento para que
+-- los reportes antiguos NO muestren al dueño/operador/placa actual
+-- cuando alguno cambia con el tiempo (vehiculo cambia de persona,
+-- operador renombrado, tarifa renombrada, etc).
+--
+-- Todas las columnas son NULLABLE para retrocompatibilidad: registros
+-- pre-v49 quedan con snapshot=NULL y los DTOs caen al FK actual como
+-- fallback. Registros post-v49 siempre tendran snapshot poblado.
+-- ════════════════════════════════════════════════════════════════
+
+-- ticket: snapshots del momento de la entrada
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS placa_snapshot                    VARCHAR(20);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS dueno_nombre_snapshot             VARCHAR(200);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS dueno_documento_snapshot          VARCHAR(50);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tipo_vehiculo_snapshot            VARCHAR(100);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_nombre_snapshot            VARCHAR(100);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS punto_parqueo_nombre_snapshot     VARCHAR(100);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS operador_entrada_nombre_snapshot  VARCHAR(200);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS operador_salida_nombre_snapshot   VARCHAR(200);
+
+-- factura: snapshots del cliente y operador emisor en el momento de la emision
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS cliente_nombre_snapshot      VARCHAR(200);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS cliente_documento_snapshot   VARCHAR(50);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS placa_snapshot               VARCHAR(20);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS emitido_por_nombre_snapshot  VARCHAR(200);
+
+-- pago: snapshot del operador que registro el pago
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS operador_nombre_snapshot VARCHAR(200);
+
+-- Indice util para reportes que filtran por placa historica (no requiere unique)
+CREATE INDEX IF NOT EXISTS idx_ticket_placa_snapshot   ON ticket(placa_snapshot);
+CREATE INDEX IF NOT EXISTS idx_factura_placa_snapshot  ON factura(placa_snapshot);

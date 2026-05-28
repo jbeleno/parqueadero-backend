@@ -53,4 +53,17 @@ public class TicketDTO {
     private String cerradoPorUsuarioNombre;
     private Long anuladoPorUsuarioId;
     private String anuladoPorUsuarioNombre;
+
+    // v49 Sprint A: snapshots inmutables al momento del evento.
+    // Si el dueño/operador/tarifa cambia despues, los reportes muestran estos
+    // valores en vez del FK actual. Para registros pre-v49 vienen NULL y los
+    // services de lectura caen al FK actual como fallback elegante.
+    private String placaSnapshot;
+    private String duenoNombreSnapshot;
+    private String duenoDocumentoSnapshot;
+    private String tipoVehiculoSnapshot;
+    private String tarifaNombreSnapshot;
+    private String puntoParqueoNombreSnapshot;
+    private String operadorEntradaNombreSnapshot;
+    private String operadorSalidaNombreSnapshot;
 }

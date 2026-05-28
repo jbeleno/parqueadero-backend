@@ -37,6 +37,8 @@ public class AutoFacturaListener {
     /** Opcional: si esta presente, snapshot de la resolucion DIAN principal del parqueadero. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.usco.parqueaderos_api.billing.service.ResolucionDianService resolucionDianService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.usco.parqueaderos_api.user.service.UsuarioNombreResolver nombreResolver;
 
     @EventListener
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -91,6 +93,29 @@ public class AutoFacturaListener {
         // (el SUPER_ADMIN que ejecuto el backfill se identifica por origen=BACKFILL_<ts>).
         if ("AUTO".equals(f.getOrigen()) && ticket.getCerradoPorUsuarioId() != null) {
             f.setEmitidoPorUsuarioId(ticket.getCerradoPorUsuarioId());
+        }
+
+        // v49 Sprint A: snapshots de historicidad. Para AUTO heredamos del ticket si
+        // ya los tenia (ticket post-v49), si no los calculamos aqui. Para BACKFILL
+        // siempre calculamos desde el estado actual del vehiculo (mejor que NULL).
+        com.usco.parqueaderos_api.vehicle.entity.Vehiculo vh = ticket.getVehiculo();
+        if (vh != null) {
+            f.setPlacaSnapshot(ticket.getPlacaSnapshot() != null ? ticket.getPlacaSnapshot() : vh.getPlaca());
+            String clienteNombre = ticket.getDuenoNombreSnapshot();
+            String clienteDoc    = ticket.getDuenoDocumentoSnapshot();
+            if (clienteNombre == null && vh.getPersona() != null) {
+                com.usco.parqueaderos_api.user.entity.Persona p = vh.getPersona();
+                String nom = p.getNombre() == null ? "" : p.getNombre().trim();
+                String ape = p.getApellido() == null ? "" : p.getApellido().trim();
+                String full = (nom + " " + ape).trim();
+                clienteNombre = full.isEmpty() ? null : full;
+                clienteDoc = p.getNumeroDocumento();
+            }
+            f.setClienteNombreSnapshot(clienteNombre);
+            f.setClienteDocumentoSnapshot(clienteDoc);
+        }
+        if (nombreResolver != null && f.getEmitidoPorUsuarioId() != null) {
+            f.setEmitidoPorNombreSnapshot(nombreResolver.nombreOf(f.getEmitidoPorUsuarioId()));
         }
 
         if (ticket.getTarifa() != null) {

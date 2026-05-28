@@ -344,4 +344,73 @@ class TicketServiceTest {
         verify(ticketRepository).save(abierto);
         verify(eventPublisher).publishEvent(any());
     }
+
+    // ───────────────── v49 Sprint A: snapshots de historicidad ─────────────────
+
+    @Test
+    @DisplayName("v49: save() persiste placa_snapshot + tipo_vehiculo_snapshot + tarifa_nombre_snapshot")
+    void save_persisteSnapshotsHistoricidad() {
+        // Setup completo del vehiculo con persona y tipo
+        com.usco.parqueaderos_api.catalog.entity.TipoVehiculo tv = new com.usco.parqueaderos_api.catalog.entity.TipoVehiculo();
+        tv.setId(1L); tv.setNombre("CARRO");
+        com.usco.parqueaderos_api.user.entity.Persona persona = new com.usco.parqueaderos_api.user.entity.Persona();
+        persona.setId(7L); persona.setNombre("Juan"); persona.setApellido("Perez");
+        persona.setNumeroDocumento("1234567890");
+        vehiculo.setTipoVehiculo(tv);
+        vehiculo.setPersona(persona);
+        tarifa.setNombre("DIURNO");
+        punto.setNombre("PT-A1");
+
+        when(currentUser.isAdmin()).thenReturn(true);
+        when(parqueaderoRepository.findById(parqueadero.getId())).thenReturn(Optional.of(parqueadero));
+        when(puntoParqueoRepository.findByIdForUpdate(punto.getId())).thenReturn(Optional.of(punto));
+        when(ticketRepository.existsByPuntoParqueoIdAndEstado(punto.getId(), "EN_CURSO")).thenReturn(false);
+        when(vehiculoRepository.findById(vehiculo.getId())).thenReturn(Optional.of(vehiculo));
+        when(tarifaRepository.findById(tarifa.getId())).thenReturn(Optional.of(tarifa));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> {
+            Ticket t = inv.getArgument(0);
+            t.setId(101L);
+            return t;
+        });
+
+        ticketService.save(dtoCompleto());
+
+        verify(ticketRepository).save(argThat(saved ->
+                "ABC123".equals(saved.getPlacaSnapshot())
+                && "Juan Perez".equals(saved.getDuenoNombreSnapshot())
+                && "1234567890".equals(saved.getDuenoDocumentoSnapshot())
+                && "CARRO".equals(saved.getTipoVehiculoSnapshot())
+                && "DIURNO".equals(saved.getTarifaNombreSnapshot())
+                && "PT-A1".equals(saved.getPuntoParqueoNombreSnapshot())
+        ));
+    }
+
+    @Test
+    @DisplayName("v49: snapshot sobrevive a cambio de dueño tras la creacion")
+    void snapshot_inmutable_cambioDuenoNoAfecta() {
+        // El snapshot se setea como string al crear. Cambios posteriores al
+        // vehiculo no lo tocan. Este test prueba que la entidad Ticket conserva
+        // el snapshot textual aunque el FK vehiculo.persona cambie.
+        Ticket t = new Ticket();
+        t.setId(50L);
+        t.setPlacaSnapshot("XYZ987");
+        t.setDuenoNombreSnapshot("Pedro Antiguo");
+        t.setDuenoDocumentoSnapshot("0000000001");
+
+        // Simulacion: el vehiculo.persona cambia. El snapshot ya esta congelado.
+        com.usco.parqueaderos_api.user.entity.Persona nueva = new com.usco.parqueaderos_api.user.entity.Persona();
+        nueva.setNombre("Maria"); nueva.setApellido("Nueva");
+        nueva.setNumeroDocumento("9999999999");
+        Vehiculo veh = new Vehiculo();
+        veh.setPlaca("OTR111"); // hasta la placa cambio
+        veh.setPersona(nueva);
+        t.setVehiculo(veh);
+
+        assertEquals("XYZ987", t.getPlacaSnapshot(), "placa snapshot debe mantener valor original");
+        assertEquals("Pedro Antiguo", t.getDuenoNombreSnapshot(), "dueno snapshot debe mantener valor original");
+        assertEquals("0000000001", t.getDuenoDocumentoSnapshot(), "documento snapshot debe mantener valor original");
+        // Vehiculo actual ya cambio, pero snapshot persiste
+        assertEquals("OTR111", t.getVehiculo().getPlaca());
+        assertEquals("Maria", t.getVehiculo().getPersona().getNombre());
+    }
 }

@@ -47,4 +47,9 @@ public class Pago {
     /** Usuario que registro el pago (quien apreto "Cobrar"). Critico para cuadre de caja. */
     @Column(name = "creado_por_usuario_id")
     private Long creadoPorUsuarioId;
+
+    // v49 Sprint A: snapshot del nombre del operador que cobro, para que el
+    // reporte de caja siga mostrando el nombre correcto si el usuario cambia.
+    @Column(name = "operador_nombre_snapshot", length = 200)
+    private String operadorNombreSnapshot;
 }
