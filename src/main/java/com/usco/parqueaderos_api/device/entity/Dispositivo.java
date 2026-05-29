@@ -48,4 +48,11 @@ public class Dispositivo extends BaseEntity {
 
     @Column(columnDefinition = "geometry(Point,4326)")
     private Point coordenada;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

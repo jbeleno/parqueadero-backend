@@ -52,4 +52,11 @@ public class Seccion extends BaseEntity {
     /** Coordenadas del canvas/frontend en formato JSON: [{"x":69,"y":32}, ...] */
     @Column(name = "coordenadas", columnDefinition = "TEXT")
     private String coordenadas;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

@@ -52,4 +52,11 @@ public class SubSeccion extends BaseEntity {
     /** Cantidad de puntos de parqueo que caben en esta subsección (dato del diseñador) */
     @Column(name = "cantidad_puntos")
     private Integer cantidadPuntos;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

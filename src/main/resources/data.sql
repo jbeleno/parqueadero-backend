@@ -1483,3 +1483,51 @@ CROSS JOIN (VALUES
     ('OCR',      'OCR (deteccion)',         '#8b5cf6', 'camera',       4)
 ) AS c(codigo, nombre, color_hex, icono, orden_display)
 ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 10: Soft-delete uniforme
+-- Estandariza el soft-delete a (archivado_en TIMESTAMP, archivado_por_usuario_id)
+-- en todas las tablas que hoy usan estado_id=3 o flags propios.
+-- Las columnas son NULLABLE; cuando llenan se considera archivado.
+-- ════════════════════════════════════════════════════════════════
+
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE tarifa              ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE usuario             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE usuario             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE convenio            ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE convenio            ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+
+-- Backfill: entidades con estado_id=3 (ARCHIVADO) heredan archivado_en.
+-- Asumimos que en este punto del proyecto TODAS estas tablas tienen
+-- estado_id (creado en su CREATE TABLE inicial). Si alguna no la tiene,
+-- el UPDATE fallaria — pero no es el caso aqui.
+UPDATE empresa       SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE parqueadero   SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE nivel         SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE seccion       SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE sub_seccion   SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE punto_parqueo SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+
+-- Indices parciales para queries de "no archivados"
+CREATE INDEX IF NOT EXISTS idx_empresa_vigente     ON empresa(id)     WHERE archivado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_parqueadero_vigente ON parqueadero(id) WHERE archivado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_punto_vigente       ON punto_parqueo(id) WHERE archivado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_convenio_vigente    ON convenio(id)    WHERE archivado_en IS NULL;

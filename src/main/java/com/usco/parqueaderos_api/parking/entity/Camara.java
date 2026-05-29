@@ -63,4 +63,11 @@ public class Camara extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_id", nullable = false)
     private Estado estado;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

@@ -53,4 +53,11 @@ public class PuntoParqueo extends BaseEntity {
     /** Coordenadas del canvas/frontend en JSON: {"topLeft":{"x":111,"y":54},"topRight":...} */
     @Column(name = "coordenadas", columnDefinition = "TEXT")
     private String coordenadas;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

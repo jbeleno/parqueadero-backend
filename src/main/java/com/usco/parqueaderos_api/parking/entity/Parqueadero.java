@@ -111,4 +111,11 @@ public class Parqueadero extends BaseEntity {
     /** URL del logo (img/png pequeño). Solo para impresoras grafica. */
     @Column(name = "logo_url", length = 300)
     private String logoUrl;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }
