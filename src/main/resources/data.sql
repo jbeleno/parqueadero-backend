@@ -1197,3 +1197,289 @@ CROSS JOIN (VALUES
     ('ticket.tiempo_gracia_minutos_default','5',        'INTEGER', 0,    60,   'Minutos de gracia default al cerrar ticket', 'ticket')
 ) AS c(clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
 ON CONFLICT (empresa_id, clave) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 2: Catalogos por empresa (10 tablas)
+-- Cada empresa gestiona SUS estados/tipos/metodos. Defaults seed por
+-- empresa al ser creada (aqui los aplicamos via INSERT...CROSS JOIN
+-- para empresas existentes).
+-- Estructura uniforme: id, empresa_id, codigo, nombre, descripcion,
+-- color_hex, icono, orden_display, activo, fecha_creacion,
+-- fecha_actualizacion. UNIQUE(empresa_id, codigo).
+-- ════════════════════════════════════════════════════════════════
+
+-- 1. empresa_metodo_pago
+CREATE TABLE IF NOT EXISTS empresa_metodo_pago (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_emp_metodo_pago UNIQUE (empresa_id, codigo)
+);
+
+-- 2. estado_ticket
+CREATE TABLE IF NOT EXISTS estado_ticket (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_ticket UNIQUE (empresa_id, codigo)
+);
+
+-- 3. estado_factura
+CREATE TABLE IF NOT EXISTS estado_factura (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_factura UNIQUE (empresa_id, codigo)
+);
+
+-- 4. estado_pago
+CREATE TABLE IF NOT EXISTS estado_pago (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_pago UNIQUE (empresa_id, codigo)
+);
+
+-- 5. estado_suscripcion
+CREATE TABLE IF NOT EXISTS estado_suscripcion (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_suscripcion UNIQUE (empresa_id, codigo)
+);
+
+-- 6. estado_caja
+CREATE TABLE IF NOT EXISTS estado_caja (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_caja UNIQUE (empresa_id, codigo)
+);
+
+-- 7. tipo_movimiento_caja
+CREATE TABLE IF NOT EXISTS tipo_movimiento_caja (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_ingreso BOOLEAN NOT NULL DEFAULT TRUE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_mov_caja UNIQUE (empresa_id, codigo)
+);
+
+-- 8. tipo_movimiento_saldo
+CREATE TABLE IF NOT EXISTS tipo_movimiento_saldo (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_ingreso BOOLEAN NOT NULL DEFAULT TRUE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_mov_saldo UNIQUE (empresa_id, codigo)
+);
+
+-- 9. tipo_descuento_convenio
+CREATE TABLE IF NOT EXISTS tipo_descuento_convenio (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_desc_convenio UNIQUE (empresa_id, codigo)
+);
+
+-- 10. origen_factura
+CREATE TABLE IF NOT EXISTS origen_factura (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_origen_factura UNIQUE (empresa_id, codigo)
+);
+
+-- Seed: para cada empresa existente, sembrar los catalogos con defaults
+INSERT INTO empresa_metodo_pago (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('EFECTIVO',    'Efectivo',           '#10b981', 'banknote',     1),
+    ('TARJETA',     'Tarjeta',            '#3b82f6', 'credit-card',  2),
+    ('NEQUI',       'Nequi',              '#ec4899', 'smartphone',   3),
+    ('DAVIPLATA',   'Daviplata',          '#dc2626', 'smartphone',   4),
+    ('PSE',         'PSE',                '#0ea5e9', 'banknote',     5),
+    ('TRANSFERENCIA','Transferencia',     '#6366f1', 'arrow-right',  6),
+    ('CHEQUE',      'Cheque',             '#94a3b8', 'file-text',    7),
+    ('SALDO_PREPAGO','Saldo prepago',     '#fbbf24', 'wallet',       8),
+    ('APP',         'App movil',          '#8b5cf6', 'smartphone',   9),
+    ('OTRO',        'Otro',               '#6b7280', 'help-circle', 10)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_ticket (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('EN_CURSO',   'En curso',   '#3b82f6', 'play',         1, false),
+    ('CERRADO',    'Cerrado',    '#10b981', 'check-circle', 2, true),
+    ('ANULADO',    'Anulado',    '#dc2626', 'ban',          3, true),
+    ('ABANDONADO', 'Abandonado', '#94a3b8', 'archive',      4, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_factura (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('PENDIENTE',  'Pendiente',  '#f59e0b', 'clock',        1, false),
+    ('PAGADA',     'Pagada',     '#10b981', 'check-circle', 2, true),
+    ('ANULADA',    'Anulada',    '#dc2626', 'ban',          3, true),
+    ('VENCIDA',    'Vencida',    '#7f1d1d', 'alert-circle', 4, false)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_pago (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('PENDIENTE',  'Pendiente',  '#f59e0b', 'clock',        1, false),
+    ('COMPLETADO', 'Completado', '#10b981', 'check-circle', 2, true),
+    ('FALLIDO',    'Fallido',    '#dc2626', 'x-circle',     3, true),
+    ('ANULADO',    'Anulado',    '#7f1d1d', 'ban',          4, true),
+    ('REVERSADO',  'Reversado',  '#94a3b8', 'undo-2',       5, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_suscripcion (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('ACTIVA',     'Activa',     '#10b981', 'play',         1, false),
+    ('VENCIDA',    'Vencida',    '#f59e0b', 'clock',        2, true),
+    ('CANCELADA',  'Cancelada',  '#dc2626', 'x-circle',     3, true),
+    ('AGOTADA',    'Agotada',    '#94a3b8', 'minus-circle', 4, true),
+    ('SUSPENDIDA', 'Suspendida', '#7c3aed', 'pause',        5, false)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_caja (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('ABIERTA',     'Abierta',     '#10b981', 'play',         1, false),
+    ('CERRADA',     'Cerrada',     '#94a3b8', 'lock',         2, true),
+    ('EN_REVISION', 'En revision', '#f59e0b', 'eye',          3, false),
+    ('AUDITADA',    'Auditada',    '#3b82f6', 'check-circle', 4, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO tipo_movimiento_caja (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_ingreso FROM empresa e
+CROSS JOIN (VALUES
+    ('INGRESO_PAGO', 'Ingreso por pago', '#10b981', 'plus-circle',  1, true),
+    ('RETIRO',       'Retiro',           '#dc2626', 'minus-circle', 2, false),
+    ('DEPOSITO',     'Deposito',         '#3b82f6', 'arrow-down',   3, true),
+    ('AJUSTE',       'Ajuste',           '#f59e0b', 'edit',         4, true),
+    ('REVERSO',      'Reverso',          '#94a3b8', 'undo-2',       5, false)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO tipo_movimiento_saldo (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_ingreso FROM empresa e
+CROSS JOIN (VALUES
+    ('ABONO',          'Abono',          '#10b981', 'plus-circle',  1, true),
+    ('CONSUMO',        'Consumo',        '#3b82f6', 'arrow-right',  2, false),
+    ('REVERSO',        'Reverso',        '#94a3b8', 'undo-2',       3, true),
+    ('AJUSTE_MANUAL',  'Ajuste manual',  '#f59e0b', 'edit',         4, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO tipo_descuento_convenio (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('MONTO_FIJO',     'Monto fijo',     '#3b82f6', 'dollar-sign',  1),
+    ('PORCENTAJE',     'Porcentaje',     '#10b981', 'percent',      2),
+    ('MINUTOS_GRATIS', 'Minutos gratis', '#fbbf24', 'clock',        3)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO origen_factura (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('MANUAL',   'Manual',                  '#3b82f6', 'edit',         1),
+    ('AUTO',     'Automatica (cierre)',     '#10b981', 'zap',          2),
+    ('BACKFILL', 'Backfill (correccion)',   '#f59e0b', 'history',      3),
+    ('OCR',      'OCR (deteccion)',         '#8b5cf6', 'camera',       4)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
