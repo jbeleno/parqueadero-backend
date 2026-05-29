@@ -1005,3 +1005,134 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_nivel_id  ON audit_log(nivel_audit_log_
 -- Backfill: enlazar registros existentes que tienen accion=codigo conocido
 UPDATE audit_log al SET accion_auditable_id = a.id
   FROM accion_auditable a WHERE al.accion = a.codigo AND al.accion_auditable_id IS NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 1: Catalogos globales (gestionados por SUPER_ADMIN)
+-- Reemplazan VARCHAR libres por FKs a catalogos para parametrizacion.
+-- Implementacion inicial: 6 catalogos prioritarios.
+-- ════════════════════════════════════════════════════════════════
+
+-- 1. tipo_documento: reemplaza VARCHAR libre en persona.tipo_documento
+CREATE TABLE IF NOT EXISTS tipo_documento (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(20)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    aplica_persona  BOOLEAN      NOT NULL DEFAULT TRUE,
+    aplica_empresa  BOOLEAN      NOT NULL DEFAULT FALSE,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO tipo_documento (codigo, nombre, descripcion, aplica_persona, aplica_empresa, orden_display, activo) VALUES
+    ('CC',           'Cedula de Ciudadania',    'Documento de identidad colombiano', true,  false, 1, true),
+    ('CE',           'Cedula de Extranjeria',   'Extranjeros residentes',            true,  false, 2, true),
+    ('TI',           'Tarjeta de Identidad',    'Menores 7-17 años',                 true,  false, 3, true),
+    ('RC',           'Registro Civil',          'Menores de 7 años',                 true,  false, 4, true),
+    ('PA',           'Pasaporte',               'Documento internacional',           true,  false, 5, true),
+    ('NIT',          'NIT',                     'Numero de Identificacion Tributaria',false,true,  6, true),
+    ('RUT',          'RUT',                     'Registro Unico Tributario',         false, true,  7, true),
+    ('PASAPORTE',    'Pasaporte (legacy)',      'Alias historico de PA',             true,  false, 8, false),
+    ('NUIP',         'NUIP',                    'Numero Unico Identificacion Personal',true,false,9, true),
+    ('PEP',          'PEP',                     'Permiso Especial de Permanencia',   true,  false, 10,true),
+    ('ID_EXTRANJERO','ID Extranjero',           'Identificacion emitida en exterior',true,  false, 11,true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 2. genero
+CREATE TABLE IF NOT EXISTS genero (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(10)  NOT NULL UNIQUE,
+    nombre          VARCHAR(50)  NOT NULL,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO genero (codigo, nombre, orden_display, activo) VALUES
+    ('M',     'Masculino',     1, true),
+    ('F',     'Femenino',      2, true),
+    ('OTRO',  'Otro',          3, true),
+    ('PNR',   'Prefiero no responder', 4, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 3. moneda
+CREATE TABLE IF NOT EXISTS moneda (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(3)   NOT NULL UNIQUE,
+    nombre          VARCHAR(50)  NOT NULL,
+    simbolo         VARCHAR(5)   NOT NULL,
+    decimales       INTEGER      NOT NULL DEFAULT 2,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO moneda (codigo, nombre, simbolo, decimales, orden_display, activo) VALUES
+    ('COP', 'Peso Colombiano',  '$',  0, 1, true),
+    ('USD', 'Dolar Americano',  'US$',2, 2, true),
+    ('EUR', 'Euro',             '€',  2, 3, true),
+    ('MXN', 'Peso Mexicano',    'MX$',2, 4, true),
+    ('ARS', 'Peso Argentino',   'AR$',2, 5, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 4. zona_horaria
+CREATE TABLE IF NOT EXISTS zona_horaria (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    offset_horas    INTEGER,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO zona_horaria (codigo, nombre, offset_horas, orden_display, activo) VALUES
+    ('America/Bogota',      'Colombia (Bogota)',           -5, 1, true),
+    ('America/Mexico_City', 'Mexico (Ciudad de Mexico)',   -6, 2, true),
+    ('America/Lima',        'Peru (Lima)',                 -5, 3, true),
+    ('America/Caracas',     'Venezuela (Caracas)',         -4, 4, true),
+    ('America/Buenos_Aires','Argentina (Buenos Aires)',    -3, 5, true),
+    ('America/Santiago',    'Chile (Santiago)',            -3, 6, true),
+    ('America/New_York',    'EE.UU. Este',                 -5, 7, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 5. unidad_tarifa: reemplaza tarifa.unidad VARCHAR
+CREATE TABLE IF NOT EXISTS unidad_tarifa (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(20)  NOT NULL UNIQUE,
+    nombre          VARCHAR(50)  NOT NULL,
+    minutos         INTEGER,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO unidad_tarifa (codigo, nombre, minutos, orden_display, activo) VALUES
+    ('MINUTO',    'Por minuto',           1,    1, true),
+    ('FRACCION',  'Por fraccion',         NULL, 2, true),
+    ('HORA',      'Por hora',             60,   3, true),
+    ('DIA',       'Por dia (24h)',        1440, 4, true),
+    ('PLANA',     'Tarifa plana (unica)', NULL, 5, true),
+    ('POR_HORA',  'Por hora (alias)',     60,   6, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 6. regimen_tributario: reemplaza parqueadero.regimen_tributario VARCHAR
+CREATE TABLE IF NOT EXISTS regimen_tributario (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    pais_codigo     VARCHAR(2),
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO regimen_tributario (codigo, nombre, descripcion, pais_codigo, orden_display, activo) VALUES
+    ('SIMPLIFICADO',       'Simplificado',         'Antiguo regimen simplificado',         'CO', 1, true),
+    ('COMUN',              'Comun',                'Antiguo regimen comun',                'CO', 2, true),
+    ('RESPONSABLE_IVA',    'Responsable de IVA',   'Persona/empresa responsable del IVA',  'CO', 3, true),
+    ('NO_RESPONSABLE',     'No responsable de IVA','Persona no responsable',               'CO', 4, true),
+    ('GRAN_CONTRIBUYENTE', 'Gran Contribuyente',   'Designado por DIAN',                   'CO', 5, true)
+ON CONFLICT (codigo) DO NOTHING;
