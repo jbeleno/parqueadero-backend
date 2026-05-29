@@ -7,15 +7,18 @@ import com.usco.parqueaderos_api.parking.entity.SubSeccion;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 
 @Entity
 @Table(name = "dispositivo")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Dispositivo {
+public class Dispositivo extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -5,6 +5,8 @@ import com.usco.parqueaderos_api.catalog.entity.TipoPuntoParqueo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -12,9 +14,10 @@ import org.locationtech.jts.geom.Polygon;
 @Entity
 @Table(name = "punto_parqueo")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class PuntoParqueo {
+public class PuntoParqueo extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -6,6 +6,8 @@ import com.usco.parqueaderos_api.user.entity.Usuario;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
@@ -27,9 +29,10 @@ import java.util.Objects;
        })
 @IdClass(UsuarioParqueadero.PK.class)
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class UsuarioParqueadero {
+public class UsuarioParqueadero extends BaseEntity {
 
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
