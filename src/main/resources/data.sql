@@ -861,3 +861,73 @@ ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS fecha_creacion      TIM
 ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
 ALTER TABLE dispositivo_parqueo ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE dispositivo_parqueo ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 6: Enriquecimiento de catalogos legacy
+-- Agrega codigo, color_hex, icono, orden_display, activo a los 6
+-- catalogos basicos para que el front pueda mostrar UI rica
+-- (chips de colores, iconos, ordenamiento estable) sin hardcodear.
+-- ════════════════════════════════════════════════════════════════
+
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+-- Seed: backfill de codigos y colores razonables para los datos existentes
+UPDATE estado SET codigo = 'ACTIVO',     color_hex = '#10b981', icono = 'check-circle',  orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE estado SET codigo = 'INACTIVO',   color_hex = '#6b7280', icono = 'circle-off',    orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE estado SET codigo = 'ARCHIVADO',  color_hex = '#94a3b8', icono = 'archive',       orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE rol SET codigo = 'USER',               color_hex = '#3b82f6', icono = 'user',         orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE rol SET codigo = 'ADMIN',              color_hex = '#f59e0b', icono = 'shield',       orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE rol SET codigo = 'SUPER_ADMIN',        color_hex = '#dc2626', icono = 'shield-check', orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+UPDATE rol SET codigo = 'ADMIN_PARQUEADERO',  color_hex = '#7c3aed', icono = 'building',     orden_display = 4, activo = true WHERE id = 4 AND codigo IS NULL;
+UPDATE rol SET codigo = 'OPERARIO_CAJA',      color_hex = '#0ea5e9', icono = 'cash-register',orden_display = 5, activo = true WHERE id = 5 AND codigo IS NULL;
+
+UPDATE tipo_vehiculo SET codigo = 'CARRO',     color_hex = '#3b82f6', icono = 'car',         orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_vehiculo SET codigo = 'MOTO',      color_hex = '#ef4444', icono = 'motorcycle',  orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_vehiculo SET codigo = 'CAMIONETA', color_hex = '#f59e0b', icono = 'truck',       orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE tipo_parqueadero SET codigo = 'PUBLICO',  color_hex = '#10b981', icono = 'globe',     orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_parqueadero SET codigo = 'PRIVADO',  color_hex = '#6366f1', icono = 'lock',      orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_parqueadero SET codigo = 'EMPRESA',  color_hex = '#f59e0b', icono = 'briefcase', orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE tipo_punto_parqueo SET codigo = 'NORMAL',         color_hex = '#3b82f6', icono = 'square',         orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_punto_parqueo SET codigo = 'DISCAPACITADOS', color_hex = '#0ea5e9', icono = 'accessibility',  orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_punto_parqueo SET codigo = 'VIP',            color_hex = '#fbbf24', icono = 'star',           orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE tipo_dispositivo SET codigo = 'CAMARA',  color_hex = '#3b82f6', icono = 'video',       orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_dispositivo SET codigo = 'SENSOR',  color_hex = '#10b981', icono = 'radio',       orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_dispositivo SET codigo = 'BARRERA', color_hex = '#ef4444', icono = 'gate',        orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;

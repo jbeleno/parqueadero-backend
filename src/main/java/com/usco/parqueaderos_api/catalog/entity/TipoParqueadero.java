@@ -28,4 +28,24 @@ public class TipoParqueadero extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_id", nullable = false)
     private Estado estado;
+
+    /** Codigo corto identificable (ACTIVO, MOTO, etc). v49 Fase 6. */
+    @Column(length = 50)
+    private String codigo;
+
+    /** Color hex para UI (#1e90ff). v49 Fase 6. */
+    @Column(name = "color_hex", length = 9)
+    private String colorHex;
+
+    /** Nombre del icono (lucide/material). v49 Fase 6. */
+    @Column(length = 50)
+    private String icono;
+
+    /** Orden de despliegue en selects (0 = primero). v49 Fase 6. */
+    @Column(name = "orden_display")
+    private Integer ordenDisplay;
+
+    /** Permite desactivar sin borrar. Default true. v49 Fase 6. */
+    @Column(nullable = false)
+    private Boolean activo = true;
 }
