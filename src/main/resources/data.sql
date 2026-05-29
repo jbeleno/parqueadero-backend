@@ -1604,3 +1604,58 @@ ALTER TABLE factura ADD COLUMN IF NOT EXISTS observaciones        TEXT;
 -- Pago (18 → 20 cols)
 ALTER TABLE pago ADD COLUMN IF NOT EXISTS referencia_externa      VARCHAR(200);
 ALTER TABLE pago ADD COLUMN IF NOT EXISTS observaciones           TEXT;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 4: empresa_validacion_campo
+-- Sistema de validacion por campo editable por empresa. Cada empresa
+-- puede definir reglas (required, min, max, regex, longitud) para los
+-- campos de sus DTOs. El backend resuelve en runtime via service.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS empresa_validacion_campo (
+    id              BIGSERIAL PRIMARY KEY,
+    empresa_id      BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    entidad         VARCHAR(80)  NOT NULL,
+    campo           VARCHAR(80)  NOT NULL,
+    requerido       BOOLEAN      NOT NULL DEFAULT FALSE,
+    longitud_min    INTEGER,
+    longitud_max    INTEGER,
+    valor_min       NUMERIC,
+    valor_max       NUMERIC,
+    regex           TEXT,
+    mensaje_error   VARCHAR(500),
+    activa          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_emp_validacion UNIQUE (empresa_id, entidad, campo)
+);
+CREATE INDEX IF NOT EXISTS idx_validacion_campo_empresa ON empresa_validacion_campo(empresa_id);
+
+-- Seed: 20 reglas default para CADA empresa (las mas comunes)
+INSERT INTO empresa_validacion_campo (empresa_id, entidad, campo, requerido, longitud_min, longitud_max, valor_min, valor_max, regex, mensaje_error)
+SELECT e.id, c.entidad, c.campo, c.requerido, c.longitud_min, c.longitud_max, c.valor_min, c.valor_max, c.regex, c.mensaje_error
+FROM empresa e
+CROSS JOIN (VALUES
+    ('persona', 'nombre',           true,  2,    100,  NULL, NULL, NULL, 'El nombre es obligatorio (2-100 chars)'),
+    ('persona', 'apellido',         true,  2,    100,  NULL, NULL, NULL, 'El apellido es obligatorio (2-100 chars)'),
+    ('persona', 'correo',           false, 5,    200,  NULL, NULL, '^[^@\s]+@[^@\s]+\.[^@\s]+$', 'Correo invalido'),
+    ('persona', 'telefono',         true,  7,    20,   NULL, NULL, '^[0-9+\-\s()]+$', 'Telefono: solo numeros, +, -, espacios, parentesis'),
+    ('persona', 'numero_documento', true,  4,    50,   NULL, NULL, '^[A-Za-z0-9\-]+$', 'Documento alfanumerico'),
+    ('vehiculo', 'placa',           true,  4,    20,   NULL, NULL, '^[A-Z]{3}\d{3}$|^[A-Z]{3}\d{2}[A-Z]$|^VIS-.*$', 'Placa colombiana o visitante'),
+    ('vehiculo', 'color',           false, 2,    50,   NULL, NULL, NULL, 'Color: 2-50 chars'),
+    ('vehiculo', 'marca',           false, 1,    100,  NULL, NULL, NULL, 'Marca: 1-100 chars'),
+    ('vehiculo', 'modelo',          false, 1,    100,  NULL, NULL, NULL, 'Modelo: 1-100 chars'),
+    ('empresa', 'nombre',           true,  3,    200,  NULL, NULL, NULL, 'Nombre empresa: 3-200 chars'),
+    ('empresa', 'nit',              false, 6,    30,   NULL, NULL, '^[0-9\-]+$', 'NIT: solo numeros y guion'),
+    ('empresa', 'correo_contacto',  false, 5,    200,  NULL, NULL, '^[^@\s]+@[^@\s]+\.[^@\s]+$', 'Correo de contacto invalido'),
+    ('parqueadero', 'nombre',       true,  3,    200,  NULL, NULL, NULL, 'Nombre parqueadero: 3-200 chars'),
+    ('parqueadero', 'direccion',    false, 5,    300,  NULL, NULL, NULL, 'Direccion: 5-300 chars'),
+    ('tarifa', 'valor',             true,  NULL, NULL, 0,    1000000, NULL, 'Valor 0 a 1M'),
+    ('tarifa', 'iva_porcentaje',    false, NULL, NULL, 0,    100,  NULL, 'IVA 0-100%'),
+    ('factura', 'observaciones',    false, NULL, 1000, NULL, NULL, NULL, 'Max 1000 chars'),
+    ('pago', 'monto',               true,  NULL, NULL, 0.01, 100000000, NULL, 'Monto > 0'),
+    ('reserva', 'notas',            false, NULL, 1000, NULL, NULL, NULL, 'Max 1000 chars'),
+    ('convenio', 'nombre_comercio', true,  3,    200,  NULL, NULL, NULL, 'Nombre comercio: 3-200 chars')
+) AS c(entidad, campo, requerido, longitud_min, longitud_max, valor_min, valor_max, regex, mensaje_error)
+ON CONFLICT (empresa_id, entidad, campo) DO NOTHING;
