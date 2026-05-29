@@ -1136,3 +1136,64 @@ INSERT INTO regimen_tributario (codigo, nombre, descripcion, pais_codigo, orden_
     ('NO_RESPONSABLE',     'No responsable de IVA','Persona no responsable',               'CO', 4, true),
     ('GRAN_CONTRIBUYENTE', 'Gran Contribuyente',   'Designado por DIAN',                   'CO', 5, true)
 ON CONFLICT (codigo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 3: empresa_config key-value
+-- Saca todos los hardcoded del codigo (cooldowns, dias de suscripcion,
+-- formatos, regex, defaults) a la BD, editable por ADMIN de empresa.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS empresa_config (
+    id              BIGSERIAL PRIMARY KEY,
+    empresa_id      BIGINT       NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    clave           VARCHAR(150) NOT NULL,
+    valor           TEXT,
+    tipo            VARCHAR(20)  NOT NULL DEFAULT 'STRING',
+    valor_min       NUMERIC,
+    valor_max       NUMERIC,
+    descripcion     TEXT,
+    categoria       VARCHAR(50),
+    editable        BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_empresa_config_clave UNIQUE (empresa_id, clave),
+    CONSTRAINT ck_empresa_config_tipo CHECK (tipo IN ('STRING','INTEGER','DECIMAL','BOOLEAN','REGEX'))
+);
+CREATE INDEX IF NOT EXISTS idx_empresa_config_empresa ON empresa_config(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_empresa_config_categoria ON empresa_config(categoria);
+
+-- Seed: 26 configs default para CADA empresa existente
+-- (loop implicito via INSERT SELECT)
+INSERT INTO empresa_config (empresa_id, clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
+SELECT e.id, c.clave, c.valor, c.tipo, c.valor_min, c.valor_max, c.descripcion, c.categoria
+FROM empresa e
+CROSS JOIN (VALUES
+    ('motivo.min_chars',                   '10',        'INTEGER', 5,    50,   'Largo minimo del motivo en anulaciones', 'motivos'),
+    ('motivo.max_chars',                   '500',       'INTEGER', 100,  2000, 'Largo maximo del motivo', 'motivos'),
+    ('placa.regex',                        '^[A-Z]{3}\d{3}$|^[A-Z]{3}\d{2}[A-Z]$', 'REGEX', NULL, NULL, 'Formato valido de placa', 'vehiculo'),
+    ('placa.visitante_prefix',             'VIS-',      'STRING',  NULL, NULL, 'Prefijo para placas generadas a visitantes', 'vehiculo'),
+    ('placa.requiere_uppercase',           'true',      'BOOLEAN', NULL, NULL, 'Normalizar placas a mayusculas al guardar', 'vehiculo'),
+    ('suscripcion.mensual_dias',           '30',        'INTEGER', 1,    365,  'Duracion en dias de una suscripcion mensual', 'suscripciones'),
+    ('suscripcion.pase_dia_horas',         '24',        'INTEGER', 1,    168,  'Duracion en horas del pase de dia', 'suscripciones'),
+    ('suscripcion.abono_dias_vigencia',    '365',       'INTEGER', 30,   3650, 'Vigencia del saldo prepagado', 'suscripciones'),
+    ('suscripcion.aviso_vencimiento_dias_antes', '3',   'INTEGER', 0,    30,   'Dias antes para avisar vencimiento', 'suscripciones'),
+    ('ocr.cooldown_segundos',              '30',        'INTEGER', 5,    600,  'Segundos antes de procesar misma placa de nuevo', 'ocr'),
+    ('ocr.min_voting_confidence',          '0.66',      'DECIMAL', 0,    1,    'Confianza minima de voting para aceptar lectura', 'ocr'),
+    ('audit_log.default_page_size',        '50',        'INTEGER', 10,   200,  'Tamaño de pagina por defecto', 'auditoria'),
+    ('audit_log.max_page_size',            '200',       'INTEGER', 50,   1000, 'Tamaño maximo de pagina', 'auditoria'),
+    ('reportes.max_filas',                 '5000',      'INTEGER', 100,  100000,'Limite de filas por reporte', 'reportes'),
+    ('formato.fecha',                      'dd/MM/yyyy','STRING',  NULL, NULL, 'Formato de fecha para presentacion', 'formato'),
+    ('formato.fecha_hora',                 'dd/MM/yyyy HH:mm', 'STRING', NULL, NULL, 'Formato fecha+hora', 'formato'),
+    ('formato.moneda_codigo',              'COP',       'STRING',  NULL, NULL, 'Codigo de moneda por defecto', 'formato'),
+    ('formato.moneda_simbolo',             '$',         'STRING',  NULL, NULL, 'Simbolo de moneda', 'formato'),
+    ('formato.decimal_separator',          ',',         'STRING',  NULL, NULL, 'Separador decimal', 'formato'),
+    ('formato.thousand_separator',         '.',         'STRING',  NULL, NULL, 'Separador de miles', 'formato'),
+    ('formato.zona_horaria',               'America/Bogota', 'STRING', NULL, NULL, 'Zona horaria por defecto', 'formato'),
+    ('registro.email_obligatorio',         'false',     'BOOLEAN', NULL, NULL, 'Email obligatorio al registrar persona', 'registro'),
+    ('registro.telefono_obligatorio',      'true',      'BOOLEAN', NULL, NULL, 'Telefono obligatorio', 'registro'),
+    ('registro.fecha_nacimiento_obligatoria','false',   'BOOLEAN', NULL, NULL, 'Fecha de nacimiento obligatoria', 'registro'),
+    ('factura.numerar_automatico',         'true',      'BOOLEAN', NULL, NULL, 'Numeracion automatica de facturas', 'facturacion'),
+    ('ticket.tiempo_gracia_minutos_default','5',        'INTEGER', 0,    60,   'Minutos de gracia default al cerrar ticket', 'ticket')
+) AS c(clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
+ON CONFLICT (empresa_id, clave) DO NOTHING;

@@ -15,19 +15,19 @@ trabajo sin perder contexto.
 | # | Fase | Estado | Sesion | Commit |
 |---|---|---|---|---|
 | Sprint A | Snapshots de historicidad (ticket/factura/pago) | ✅ DONE | 2026-05-28 | `9abdcf0` |
-| 0 | BaseEntity con auditoria temporal universal | ✅ DONE (parcial: 10 entities migradas, 31 pendientes) | 2026-05-29 | pendiente |
-| 1 | Catalogos globales (12 tablas: tipo_documento, genero, moneda, zona_horaria, etc) | ⬜ TODO | — | — |
+| 0 | BaseEntity con auditoria temporal universal | ✅ DONE (37 de 41 entities; las 4 con fechaCreacion propia revisan en v50) | 2026-05-29 | `368a49c` + `8c5e998` |
+| 1 | Catalogos globales (tipo_documento, genero, moneda, zona_horaria, unidad_tarifa, regimen_tributario) | ✅ DONE (6 de 12 prioritarios) | 2026-05-29 | pendiente |
 | 2 | Catalogos por empresa (10 tablas: empresa_metodo_pago, estado_*, tipo_*) | ⬜ TODO | — | — |
-| 3 | `empresa_config` (key-value, ~30 settings) | ⬜ TODO | — | — |
+| 3 | `empresa_config` (key-value, 26 settings seed) | ✅ DONE | 2026-05-29 | pendiente |
 | 4 | `empresa_validacion_campo` (validaciones editables por empresa) | ⬜ TODO | — | — |
 | 5 | Enriquecimiento de 12 entities pobres (~180 columnas) | ⬜ TODO | — | — |
-| 6 | Catalogos legacy enriquecidos (Estado/Rol/Tipo* con codigo, color, icono, orden) | ⬜ TODO | — | — |
+| 6 | Catalogos legacy enriquecidos (Estado/Rol/Tipo* con codigo, color, icono, orden) | ✅ DONE | 2026-05-29 | `a5f2772` |
 | 7 | Validaciones cross-field en DTOs (12 DTOs con `@AssertTrue` custom) | 🟡 PARTIAL (v48.5 cubrio 6 DTOs) | 2026-05-28 | `0eaaa1d` |
 | 8 | Reportes parametrizables (`reporte_definicion`) | ⬜ TODO | — | — |
-| 9 | Auditoria enriquecida (`audit_log` con FKs a accion_auditable_id) | ⬜ TODO | — | — |
+| 9 | Auditoria enriquecida (`audit_log` con FKs a accion_auditable_id) | ✅ DONE | 2026-05-29 | pendiente |
 | 10 | Soft-delete uniforme (`archivado_en` en lugar de `estado_id=3`) | ⬜ TODO | — | — |
 | 11 | Refactor servicios consumidores (eliminar strings/numeros magicos) | ⬜ TODO | — | — |
-| 12 | Docs + smoke E2E + push | ⬜ TODO | — | — |
+| 12 | Docs + smoke E2E + push | 🟡 PARTIAL (smoke pendiente, push si hace falta) | — | — |
 
 ---
 
