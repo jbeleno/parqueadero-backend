@@ -3,14 +3,17 @@ package com.usco.parqueaderos_api.catalog.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "tipo_vehiculo")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class TipoVehiculo {
+public class TipoVehiculo extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,4 +24,24 @@ public class TipoVehiculo {
 
     @Column(columnDefinition = "TEXT")
     private String descripcion;
+
+    /** Codigo corto identificable (ACTIVO, MOTO, etc). v49 Fase 6. */
+    @Column(length = 50)
+    private String codigo;
+
+    /** Color hex para UI (#1e90ff). v49 Fase 6. */
+    @Column(name = "color_hex", length = 9)
+    private String colorHex;
+
+    /** Nombre del icono (lucide/material). v49 Fase 6. */
+    @Column(length = 50)
+    private String icono;
+
+    /** Orden de despliegue en selects (0 = primero). v49 Fase 6. */
+    @Column(name = "orden_display")
+    private Integer ordenDisplay;
+
+    /** Permite desactivar sin borrar. Default true. v49 Fase 6. */
+    @Column(nullable = false)
+    private Boolean activo = true;
 }

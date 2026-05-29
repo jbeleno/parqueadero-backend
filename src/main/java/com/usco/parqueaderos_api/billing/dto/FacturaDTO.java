@@ -57,4 +57,10 @@ public class FacturaDTO {
     /** Usuario que emitio la factura. Solo lectura. */
     private Long emitidoPorUsuarioId;
     private String emitidoPorUsuarioNombre;
+
+    // v49 Sprint A: snapshots inmutables al momento de emision
+    private String clienteNombreSnapshot;
+    private String clienteDocumentoSnapshot;
+    private String placaSnapshot;
+    private String emitidoPorNombreSnapshot;
 }

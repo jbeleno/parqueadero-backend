@@ -5,6 +5,8 @@ import com.usco.parqueaderos_api.catalog.entity.TipoPuntoParqueo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -12,9 +14,10 @@ import org.locationtech.jts.geom.Polygon;
 @Entity
 @Table(name = "punto_parqueo")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class PuntoParqueo {
+public class PuntoParqueo extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,4 +53,16 @@ public class PuntoParqueo {
     /** Coordenadas del canvas/frontend en JSON: {"topLeft":{"x":111,"y":54},"topRight":...} */
     @Column(name = "coordenadas", columnDefinition = "TEXT")
     private String coordenadas;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
+
+    @jakarta.persistence.Column
+    private Boolean reservable;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

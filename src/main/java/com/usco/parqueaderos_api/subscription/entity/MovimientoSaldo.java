@@ -5,6 +5,8 @@ import com.usco.parqueaderos_api.ticket.entity.Ticket;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -22,9 +24,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "movimiento_saldo")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class MovimientoSaldo {
+public class MovimientoSaldo extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -4,6 +4,8 @@ import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
@@ -17,9 +19,10 @@ import java.time.LocalDateTime;
 @Table(name = "cierre_dia",
        uniqueConstraints = @UniqueConstraint(columnNames = {"parqueadero_id", "fecha"}))
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class CierreDia {
+public class CierreDia extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

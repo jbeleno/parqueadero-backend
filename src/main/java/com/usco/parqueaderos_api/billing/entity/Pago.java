@@ -1,8 +1,10 @@
 package com.usco.parqueaderos_api.billing.entity;
 
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -10,9 +12,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "pago")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Pago {
+public class Pago extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,4 +50,14 @@ public class Pago {
     /** Usuario que registro el pago (quien apreto "Cobrar"). Critico para cuadre de caja. */
     @Column(name = "creado_por_usuario_id")
     private Long creadoPorUsuarioId;
+
+    // v49 Sprint A: snapshot del nombre del operador que cobro, para que el
+    // reporte de caja siga mostrando el nombre correcto si el usuario cambia.
+    @Column(name = "operador_nombre_snapshot", length = 200)
+    private String operadorNombreSnapshot;
+
+    @jakarta.persistence.Column(name = "referencia_externa", length = 200)
+    private String referenciaExterna;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

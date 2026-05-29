@@ -1,9 +1,11 @@
 package com.usco.parqueaderos_api.convenio.entity;
 
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -21,9 +23,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "convenio")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Convenio {
+public class Convenio extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

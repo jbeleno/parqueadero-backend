@@ -162,6 +162,10 @@ public class PagoService {
         }
         entity.setEstado(estado);
         entity.setCreadoPorUsuarioId(currentUser.getCurrentUserId());
+        // v49 Sprint A: snapshot del operador para reporte de caja
+        if (nombreResolver != null && currentUser.getCurrentUserId() != null) {
+            entity.setOperadorNombreSnapshot(nombreResolver.nombreOf(currentUser.getCurrentUserId()));
+        }
 
         Pago saved = pagoRepository.save(entity);
 
@@ -284,6 +288,8 @@ public class PagoService {
             dto.setCreadoPorUsuarioNombre(nombreResolver.nombreOf(e.getCreadoPorUsuarioId()));
             dto.setAnuladoPorUsuarioNombre(nombreResolver.nombreOf(e.getAnuladoPorUsuarioId()));
         }
+        // v49 Sprint A: snapshot del operador
+        dto.setOperadorNombreSnapshot(e.getOperadorNombreSnapshot());
         return dto;
     }
 }

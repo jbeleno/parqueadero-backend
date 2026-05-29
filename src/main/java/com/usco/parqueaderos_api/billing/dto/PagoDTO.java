@@ -38,4 +38,7 @@ public class PagoDTO {
     /** Usuario que anulo el pago (NULL si nunca se anulo). */
     private Long anuladoPorUsuarioId;
     private String anuladoPorUsuarioNombre;
+
+    // v49 Sprint A: snapshot del nombre del operador al momento del cobro
+    private String operadorNombreSnapshot;
 }

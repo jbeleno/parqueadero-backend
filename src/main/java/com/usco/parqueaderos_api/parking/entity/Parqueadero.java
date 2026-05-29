@@ -2,10 +2,12 @@ package com.usco.parqueaderos_api.parking.entity;
 
 import com.usco.parqueaderos_api.catalog.entity.Estado;
 import com.usco.parqueaderos_api.catalog.entity.TipoParqueadero;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import com.usco.parqueaderos_api.location.entity.Ciudad;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalTime;
@@ -13,9 +15,10 @@ import java.time.LocalTime;
 @Entity
 @Table(name = "parqueadero")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Parqueadero {
+public class Parqueadero extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -108,4 +111,11 @@ public class Parqueadero {
     /** URL del logo (img/png pequeño). Solo para impresoras grafica. */
     @Column(name = "logo_url", length = 300)
     private String logoUrl;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

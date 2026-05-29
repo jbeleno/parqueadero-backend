@@ -725,3 +725,1083 @@ ALTER TABLE factura ADD CONSTRAINT ck_factura_valor_total_nonneg CHECK (valor_to
 
 ALTER TABLE tarifa DROP CONSTRAINT IF EXISTS ck_tarifa_valor_nonneg;
 ALTER TABLE tarifa ADD CONSTRAINT ck_tarifa_valor_nonneg CHECK (valor >= 0);
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Sprint A: Snapshots de historicidad en ticket/factura/pago
+-- Preservan los valores legibles en el momento del evento para que
+-- los reportes antiguos NO muestren al dueño/operador/placa actual
+-- cuando alguno cambia con el tiempo (vehiculo cambia de persona,
+-- operador renombrado, tarifa renombrada, etc).
+--
+-- Todas las columnas son NULLABLE para retrocompatibilidad: registros
+-- pre-v49 quedan con snapshot=NULL y los DTOs caen al FK actual como
+-- fallback. Registros post-v49 siempre tendran snapshot poblado.
+-- ════════════════════════════════════════════════════════════════
+
+-- ticket: snapshots del momento de la entrada
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS placa_snapshot                    VARCHAR(20);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS dueno_nombre_snapshot             VARCHAR(200);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS dueno_documento_snapshot          VARCHAR(50);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tipo_vehiculo_snapshot            VARCHAR(100);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS tarifa_nombre_snapshot            VARCHAR(100);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS punto_parqueo_nombre_snapshot     VARCHAR(100);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS operador_entrada_nombre_snapshot  VARCHAR(200);
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS operador_salida_nombre_snapshot   VARCHAR(200);
+
+-- factura: snapshots del cliente y operador emisor en el momento de la emision
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS cliente_nombre_snapshot      VARCHAR(200);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS cliente_documento_snapshot   VARCHAR(50);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS placa_snapshot               VARCHAR(20);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS emitido_por_nombre_snapshot  VARCHAR(200);
+
+-- pago: snapshot del operador que registro el pago
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS operador_nombre_snapshot VARCHAR(200);
+
+-- Indice util para reportes que filtran por placa historica (no requiere unique)
+CREATE INDEX IF NOT EXISTS idx_ticket_placa_snapshot   ON ticket(placa_snapshot);
+CREATE INDEX IF NOT EXISTS idx_factura_placa_snapshot  ON factura(placa_snapshot);
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 0: Auditoria temporal universal (BaseEntity)
+-- Agrega fecha_creacion + fecha_actualizacion a todas las tablas de
+-- negocio que no las tienen. DEFAULT CURRENT_TIMESTAMP para que los
+-- registros existentes queden con un valor razonable (su fecha de
+-- carga, no su fecha real — limitacion conocida del backfill).
+--
+-- Despues de esta migracion, Hibernate maneja los timestamps via
+-- @PrePersist/@PreUpdate de BaseEntity.
+-- ════════════════════════════════════════════════════════════════
+
+-- Estructura
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE camino              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE camino              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Identity
+ALTER TABLE usuario             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE usuario_rol         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE usuario_rol         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE usuario_parqueadero ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE usuario_parqueadero ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Operativa
+ALTER TABLE ticket              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE ticket              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE factura             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE factura             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE pago                ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE pago                ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE vehiculo            ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE vehiculo            ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE reserva             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE reserva             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Suscripciones / saldos / caja
+ALTER TABLE suscripcion         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE movimiento_saldo    ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE movimiento_saldo    ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE caja                ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE caja                ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE movimiento_caja     ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE movimiento_caja     ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Tarifa / convenios / facturacion fiscal
+ALTER TABLE tarifa              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tarifa              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tarifa_franja       ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tarifa_franja       ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE convenio            ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE validacion_compra   ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE validacion_compra   ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE resolucion_dian     ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Reportes / auditoria
+ALTER TABLE cierre_dia          ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE cierre_dia          ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Geo
+ALTER TABLE pais                ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE pais                ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE departamento        ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE departamento        ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE ciudad              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE ciudad              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Catalogos
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Dispositivos IoT
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE dispositivo_parqueo ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE dispositivo_parqueo ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 6: Enriquecimiento de catalogos legacy
+-- Agrega codigo, color_hex, icono, orden_display, activo a los 6
+-- catalogos basicos para que el front pueda mostrar UI rica
+-- (chips de colores, iconos, ordenamiento estable) sin hardcodear.
+-- ════════════════════════════════════════════════════════════════
+
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS codigo         VARCHAR(50);
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS color_hex      VARCHAR(9);
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS icono          VARCHAR(50);
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS orden_display  INTEGER;
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS activo         BOOLEAN DEFAULT TRUE NOT NULL;
+
+-- Seed: backfill de codigos y colores razonables para los datos existentes
+UPDATE estado SET codigo = 'ACTIVO',     color_hex = '#10b981', icono = 'check-circle',  orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE estado SET codigo = 'INACTIVO',   color_hex = '#6b7280', icono = 'circle-off',    orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE estado SET codigo = 'ARCHIVADO',  color_hex = '#94a3b8', icono = 'archive',       orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE rol SET codigo = 'USER',               color_hex = '#3b82f6', icono = 'user',         orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE rol SET codigo = 'ADMIN',              color_hex = '#f59e0b', icono = 'shield',       orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE rol SET codigo = 'SUPER_ADMIN',        color_hex = '#dc2626', icono = 'shield-check', orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+UPDATE rol SET codigo = 'ADMIN_PARQUEADERO',  color_hex = '#7c3aed', icono = 'building',     orden_display = 4, activo = true WHERE id = 4 AND codigo IS NULL;
+UPDATE rol SET codigo = 'OPERARIO_CAJA',      color_hex = '#0ea5e9', icono = 'cash-register',orden_display = 5, activo = true WHERE id = 5 AND codigo IS NULL;
+
+UPDATE tipo_vehiculo SET codigo = 'CARRO',     color_hex = '#3b82f6', icono = 'car',         orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_vehiculo SET codigo = 'MOTO',      color_hex = '#ef4444', icono = 'motorcycle',  orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_vehiculo SET codigo = 'CAMIONETA', color_hex = '#f59e0b', icono = 'truck',       orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE tipo_parqueadero SET codigo = 'PUBLICO',  color_hex = '#10b981', icono = 'globe',     orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_parqueadero SET codigo = 'PRIVADO',  color_hex = '#6366f1', icono = 'lock',      orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_parqueadero SET codigo = 'EMPRESA',  color_hex = '#f59e0b', icono = 'briefcase', orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE tipo_punto_parqueo SET codigo = 'NORMAL',         color_hex = '#3b82f6', icono = 'square',         orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_punto_parqueo SET codigo = 'DISCAPACITADOS', color_hex = '#0ea5e9', icono = 'accessibility',  orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_punto_parqueo SET codigo = 'VIP',            color_hex = '#fbbf24', icono = 'star',           orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+UPDATE tipo_dispositivo SET codigo = 'CAMARA',  color_hex = '#3b82f6', icono = 'video',       orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
+UPDATE tipo_dispositivo SET codigo = 'SENSOR',  color_hex = '#10b981', icono = 'radio',       orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
+UPDATE tipo_dispositivo SET codigo = 'BARRERA', color_hex = '#ef4444', icono = 'gate',        orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 9: Auditoria enriquecida — catalogos accion + nivel
+-- En lugar de tener accion/nivel como string libre en audit_log,
+-- introducimos 2 catalogos referenciables (con FK) para que:
+--   1. SUPER_ADMIN pueda definir nuevas acciones sin recompilar
+--   2. Reportes/filtros usen IDs estables (no strings que pueden
+--      cambiar de mayusculas/idioma)
+--   3. Cada accion tenga su nivel default (INFO/WARN/CRITICAL)
+-- Las columnas string actuales (accion, nivel) quedan para
+-- compatibilidad — los nuevos registros pueden llenar AMBAS o solo
+-- el FK. v50 las puede deprecar.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS accion_auditable (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    color_hex       VARCHAR(9),
+    icono           VARCHAR(50),
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nivel_audit_log (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    color_hex       VARCHAR(9),
+    severidad       INTEGER      NOT NULL DEFAULT 0,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+
+-- Seed: niveles
+INSERT INTO nivel_audit_log (codigo, nombre, descripcion, color_hex, severidad, activo) VALUES
+    ('INFO',     'Informativo', 'Operaciones normales del sistema',       '#3b82f6', 0, true),
+    ('WARN',     'Advertencia', 'Situacion sospechosa pero no critica',    '#f59e0b', 1, true),
+    ('CRITICAL', 'Critico',     'Requiere atencion inmediata',             '#dc2626', 2, true),
+    ('DEBUG',    'Depuracion',  'Solo para investigacion tecnica',         '#6b7280',-1, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- Seed: acciones auditables (las que el codigo ya usa)
+INSERT INTO accion_auditable (codigo, nombre, descripcion, color_hex, icono, orden_display, activo) VALUES
+    ('CREATE',          'Crear',           'Insertar un nuevo registro',          '#10b981', 'plus-circle',  1, true),
+    ('UPDATE',          'Actualizar',      'Modificar un registro existente',     '#3b82f6', 'edit',         2, true),
+    ('CERRAR',          'Cerrar',          'Cerrar un ticket o periodo',          '#0ea5e9', 'x-circle',     3, true),
+    ('ANULAR',          'Anular',          'Anular un registro (con motivo)',     '#dc2626', 'ban',          4, true),
+    ('CANCELAR',        'Cancelar',        'Cancelar una reserva u operacion',    '#ef4444', 'x',            5, true),
+    ('DESACTIVAR',      'Desactivar',      'Marcar registro como inactivo',       '#94a3b8', 'circle-off',   6, true),
+    ('ARCHIVAR',        'Archivar',        'Soft-delete logico',                  '#94a3b8', 'archive',      7, true),
+    ('MARCAR_PRINCIPAL','Marcar principal','Designar como principal/predeterminado','#fbbf24','star',         8, true),
+    ('DELETE_FISICO',   'Eliminar fisico', 'Eliminacion DDL (solo SUPER_ADMIN)',  '#7f1d1d', 'trash',        9, true),
+    ('LOGIN',           'Inicio sesion',   'Login exitoso',                       '#10b981', 'log-in',      10, true),
+    ('LOGOUT',          'Cierre sesion',   'Logout',                              '#6b7280', 'log-out',     11, true),
+    ('EXPORT',          'Exportar',        'Exportacion de datos',                '#7c3aed', 'download',    12, true),
+    ('CALCULO',         'Calculo',         'Recalculo de saldos/montos',          '#0ea5e9', 'calculator',  13, true),
+    ('OCR_DETECCION',   'OCR deteccion',   'Deteccion automatica por camara',     '#8b5cf6', 'camera',      14, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- Agregar FKs en audit_log (NULLABLE para no romper registros viejos)
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS accion_auditable_id BIGINT REFERENCES accion_auditable(id);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS nivel_audit_log_id  BIGINT REFERENCES nivel_audit_log(id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_accion_id ON audit_log(accion_auditable_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_nivel_id  ON audit_log(nivel_audit_log_id);
+
+-- Backfill: enlazar registros existentes que tienen accion=codigo conocido
+UPDATE audit_log al SET accion_auditable_id = a.id
+  FROM accion_auditable a WHERE al.accion = a.codigo AND al.accion_auditable_id IS NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 1: Catalogos globales (gestionados por SUPER_ADMIN)
+-- Reemplazan VARCHAR libres por FKs a catalogos para parametrizacion.
+-- Implementacion inicial: 6 catalogos prioritarios.
+-- ════════════════════════════════════════════════════════════════
+
+-- 1. tipo_documento: reemplaza VARCHAR libre en persona.tipo_documento
+CREATE TABLE IF NOT EXISTS tipo_documento (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(20)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    aplica_persona  BOOLEAN      NOT NULL DEFAULT TRUE,
+    aplica_empresa  BOOLEAN      NOT NULL DEFAULT FALSE,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO tipo_documento (codigo, nombre, descripcion, aplica_persona, aplica_empresa, orden_display, activo) VALUES
+    ('CC',           'Cedula de Ciudadania',    'Documento de identidad colombiano', true,  false, 1, true),
+    ('CE',           'Cedula de Extranjeria',   'Extranjeros residentes',            true,  false, 2, true),
+    ('TI',           'Tarjeta de Identidad',    'Menores 7-17 años',                 true,  false, 3, true),
+    ('RC',           'Registro Civil',          'Menores de 7 años',                 true,  false, 4, true),
+    ('PA',           'Pasaporte',               'Documento internacional',           true,  false, 5, true),
+    ('NIT',          'NIT',                     'Numero de Identificacion Tributaria',false,true,  6, true),
+    ('RUT',          'RUT',                     'Registro Unico Tributario',         false, true,  7, true),
+    ('PASAPORTE',    'Pasaporte (legacy)',      'Alias historico de PA',             true,  false, 8, false),
+    ('NUIP',         'NUIP',                    'Numero Unico Identificacion Personal',true,false,9, true),
+    ('PEP',          'PEP',                     'Permiso Especial de Permanencia',   true,  false, 10,true),
+    ('ID_EXTRANJERO','ID Extranjero',           'Identificacion emitida en exterior',true,  false, 11,true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 2. genero
+CREATE TABLE IF NOT EXISTS genero (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(10)  NOT NULL UNIQUE,
+    nombre          VARCHAR(50)  NOT NULL,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO genero (codigo, nombre, orden_display, activo) VALUES
+    ('M',     'Masculino',     1, true),
+    ('F',     'Femenino',      2, true),
+    ('OTRO',  'Otro',          3, true),
+    ('PNR',   'Prefiero no responder', 4, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 3. moneda
+CREATE TABLE IF NOT EXISTS moneda (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(3)   NOT NULL UNIQUE,
+    nombre          VARCHAR(50)  NOT NULL,
+    simbolo         VARCHAR(5)   NOT NULL,
+    decimales       INTEGER      NOT NULL DEFAULT 2,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO moneda (codigo, nombre, simbolo, decimales, orden_display, activo) VALUES
+    ('COP', 'Peso Colombiano',  '$',  0, 1, true),
+    ('USD', 'Dolar Americano',  'US$',2, 2, true),
+    ('EUR', 'Euro',             '€',  2, 3, true),
+    ('MXN', 'Peso Mexicano',    'MX$',2, 4, true),
+    ('ARS', 'Peso Argentino',   'AR$',2, 5, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 4. zona_horaria
+CREATE TABLE IF NOT EXISTS zona_horaria (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    offset_horas    INTEGER,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO zona_horaria (codigo, nombre, offset_horas, orden_display, activo) VALUES
+    ('America/Bogota',      'Colombia (Bogota)',           -5, 1, true),
+    ('America/Mexico_City', 'Mexico (Ciudad de Mexico)',   -6, 2, true),
+    ('America/Lima',        'Peru (Lima)',                 -5, 3, true),
+    ('America/Caracas',     'Venezuela (Caracas)',         -4, 4, true),
+    ('America/Buenos_Aires','Argentina (Buenos Aires)',    -3, 5, true),
+    ('America/Santiago',    'Chile (Santiago)',            -3, 6, true),
+    ('America/New_York',    'EE.UU. Este',                 -5, 7, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 5. unidad_tarifa: reemplaza tarifa.unidad VARCHAR
+CREATE TABLE IF NOT EXISTS unidad_tarifa (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(20)  NOT NULL UNIQUE,
+    nombre          VARCHAR(50)  NOT NULL,
+    minutos         INTEGER,
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO unidad_tarifa (codigo, nombre, minutos, orden_display, activo) VALUES
+    ('MINUTO',    'Por minuto',           1,    1, true),
+    ('FRACCION',  'Por fraccion',         NULL, 2, true),
+    ('HORA',      'Por hora',             60,   3, true),
+    ('DIA',       'Por dia (24h)',        1440, 4, true),
+    ('PLANA',     'Tarifa plana (unica)', NULL, 5, true),
+    ('POR_HORA',  'Por hora (alias)',     60,   6, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 6. regimen_tributario: reemplaza parqueadero.regimen_tributario VARCHAR
+CREATE TABLE IF NOT EXISTS regimen_tributario (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    pais_codigo     VARCHAR(2),
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+INSERT INTO regimen_tributario (codigo, nombre, descripcion, pais_codigo, orden_display, activo) VALUES
+    ('SIMPLIFICADO',       'Simplificado',         'Antiguo regimen simplificado',         'CO', 1, true),
+    ('COMUN',              'Comun',                'Antiguo regimen comun',                'CO', 2, true),
+    ('RESPONSABLE_IVA',    'Responsable de IVA',   'Persona/empresa responsable del IVA',  'CO', 3, true),
+    ('NO_RESPONSABLE',     'No responsable de IVA','Persona no responsable',               'CO', 4, true),
+    ('GRAN_CONTRIBUYENTE', 'Gran Contribuyente',   'Designado por DIAN',                   'CO', 5, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 3: empresa_config key-value
+-- Saca todos los hardcoded del codigo (cooldowns, dias de suscripcion,
+-- formatos, regex, defaults) a la BD, editable por ADMIN de empresa.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS empresa_config (
+    id              BIGSERIAL PRIMARY KEY,
+    empresa_id      BIGINT       NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    clave           VARCHAR(150) NOT NULL,
+    valor           TEXT,
+    tipo            VARCHAR(20)  NOT NULL DEFAULT 'STRING',
+    valor_min       NUMERIC,
+    valor_max       NUMERIC,
+    descripcion     TEXT,
+    categoria       VARCHAR(50),
+    editable        BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_empresa_config_clave UNIQUE (empresa_id, clave),
+    CONSTRAINT ck_empresa_config_tipo CHECK (tipo IN ('STRING','INTEGER','DECIMAL','BOOLEAN','REGEX'))
+);
+CREATE INDEX IF NOT EXISTS idx_empresa_config_empresa ON empresa_config(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_empresa_config_categoria ON empresa_config(categoria);
+
+-- Seed: 26 configs default para CADA empresa existente
+-- (loop implicito via INSERT SELECT)
+INSERT INTO empresa_config (empresa_id, clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
+SELECT e.id, c.clave, c.valor, c.tipo, c.valor_min, c.valor_max, c.descripcion, c.categoria
+FROM empresa e
+CROSS JOIN (VALUES
+    ('motivo.min_chars',                   '10',        'INTEGER', 5,    50,   'Largo minimo del motivo en anulaciones', 'motivos'),
+    ('motivo.max_chars',                   '500',       'INTEGER', 100,  2000, 'Largo maximo del motivo', 'motivos'),
+    ('placa.regex',                        '^[A-Z]{3}\d{3}$|^[A-Z]{3}\d{2}[A-Z]$', 'REGEX', NULL, NULL, 'Formato valido de placa', 'vehiculo'),
+    ('placa.visitante_prefix',             'VIS-',      'STRING',  NULL, NULL, 'Prefijo para placas generadas a visitantes', 'vehiculo'),
+    ('placa.requiere_uppercase',           'true',      'BOOLEAN', NULL, NULL, 'Normalizar placas a mayusculas al guardar', 'vehiculo'),
+    ('suscripcion.mensual_dias',           '30',        'INTEGER', 1,    365,  'Duracion en dias de una suscripcion mensual', 'suscripciones'),
+    ('suscripcion.pase_dia_horas',         '24',        'INTEGER', 1,    168,  'Duracion en horas del pase de dia', 'suscripciones'),
+    ('suscripcion.abono_dias_vigencia',    '365',       'INTEGER', 30,   3650, 'Vigencia del saldo prepagado', 'suscripciones'),
+    ('suscripcion.aviso_vencimiento_dias_antes', '3',   'INTEGER', 0,    30,   'Dias antes para avisar vencimiento', 'suscripciones'),
+    ('ocr.cooldown_segundos',              '30',        'INTEGER', 5,    600,  'Segundos antes de procesar misma placa de nuevo', 'ocr'),
+    ('ocr.min_voting_confidence',          '0.66',      'DECIMAL', 0,    1,    'Confianza minima de voting para aceptar lectura', 'ocr'),
+    ('audit_log.default_page_size',        '50',        'INTEGER', 10,   200,  'Tamaño de pagina por defecto', 'auditoria'),
+    ('audit_log.max_page_size',            '200',       'INTEGER', 50,   1000, 'Tamaño maximo de pagina', 'auditoria'),
+    ('reportes.max_filas',                 '5000',      'INTEGER', 100,  100000,'Limite de filas por reporte', 'reportes'),
+    ('formato.fecha',                      'dd/MM/yyyy','STRING',  NULL, NULL, 'Formato de fecha para presentacion', 'formato'),
+    ('formato.fecha_hora',                 'dd/MM/yyyy HH:mm', 'STRING', NULL, NULL, 'Formato fecha+hora', 'formato'),
+    ('formato.moneda_codigo',              'COP',       'STRING',  NULL, NULL, 'Codigo de moneda por defecto', 'formato'),
+    ('formato.moneda_simbolo',             '$',         'STRING',  NULL, NULL, 'Simbolo de moneda', 'formato'),
+    ('formato.decimal_separator',          ',',         'STRING',  NULL, NULL, 'Separador decimal', 'formato'),
+    ('formato.thousand_separator',         '.',         'STRING',  NULL, NULL, 'Separador de miles', 'formato'),
+    ('formato.zona_horaria',               'America/Bogota', 'STRING', NULL, NULL, 'Zona horaria por defecto', 'formato'),
+    ('registro.email_obligatorio',         'false',     'BOOLEAN', NULL, NULL, 'Email obligatorio al registrar persona', 'registro'),
+    ('registro.telefono_obligatorio',      'true',      'BOOLEAN', NULL, NULL, 'Telefono obligatorio', 'registro'),
+    ('registro.fecha_nacimiento_obligatoria','false',   'BOOLEAN', NULL, NULL, 'Fecha de nacimiento obligatoria', 'registro'),
+    ('factura.numerar_automatico',         'true',      'BOOLEAN', NULL, NULL, 'Numeracion automatica de facturas', 'facturacion'),
+    ('ticket.tiempo_gracia_minutos_default','5',        'INTEGER', 0,    60,   'Minutos de gracia default al cerrar ticket', 'ticket')
+) AS c(clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
+ON CONFLICT DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 2: Catalogos por empresa (10 tablas)
+-- Cada empresa gestiona SUS estados/tipos/metodos. Defaults seed por
+-- empresa al ser creada (aqui los aplicamos via INSERT...CROSS JOIN
+-- para empresas existentes).
+-- Estructura uniforme: id, empresa_id, codigo, nombre, descripcion,
+-- color_hex, icono, orden_display, activo, fecha_creacion,
+-- fecha_actualizacion. UNIQUE(empresa_id, codigo).
+-- ════════════════════════════════════════════════════════════════
+
+-- 1. empresa_metodo_pago
+CREATE TABLE IF NOT EXISTS empresa_metodo_pago (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_emp_metodo_pago UNIQUE (empresa_id, codigo)
+);
+
+-- 2. estado_ticket
+CREATE TABLE IF NOT EXISTS estado_ticket (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_ticket UNIQUE (empresa_id, codigo)
+);
+
+-- 3. estado_factura
+CREATE TABLE IF NOT EXISTS estado_factura (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_factura UNIQUE (empresa_id, codigo)
+);
+
+-- 4. estado_pago
+CREATE TABLE IF NOT EXISTS estado_pago (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_pago UNIQUE (empresa_id, codigo)
+);
+
+-- 5. estado_suscripcion
+CREATE TABLE IF NOT EXISTS estado_suscripcion (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_suscripcion UNIQUE (empresa_id, codigo)
+);
+
+-- 6. estado_caja
+CREATE TABLE IF NOT EXISTS estado_caja (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_final BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_estado_caja UNIQUE (empresa_id, codigo)
+);
+
+-- 7. tipo_movimiento_caja
+CREATE TABLE IF NOT EXISTS tipo_movimiento_caja (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_ingreso BOOLEAN NOT NULL DEFAULT TRUE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_mov_caja UNIQUE (empresa_id, codigo)
+);
+
+-- 8. tipo_movimiento_saldo
+CREATE TABLE IF NOT EXISTS tipo_movimiento_saldo (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    es_ingreso BOOLEAN NOT NULL DEFAULT TRUE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_mov_saldo UNIQUE (empresa_id, codigo)
+);
+
+-- 9. tipo_descuento_convenio
+CREATE TABLE IF NOT EXISTS tipo_descuento_convenio (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_desc_convenio UNIQUE (empresa_id, codigo)
+);
+
+-- 10. origen_factura
+CREATE TABLE IF NOT EXISTS origen_factura (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_origen_factura UNIQUE (empresa_id, codigo)
+);
+
+-- Seed: para cada empresa existente, sembrar los catalogos con defaults
+INSERT INTO empresa_metodo_pago (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('EFECTIVO',    'Efectivo',           '#10b981', 'banknote',     1),
+    ('TARJETA',     'Tarjeta',            '#3b82f6', 'credit-card',  2),
+    ('NEQUI',       'Nequi',              '#ec4899', 'smartphone',   3),
+    ('DAVIPLATA',   'Daviplata',          '#dc2626', 'smartphone',   4),
+    ('PSE',         'PSE',                '#0ea5e9', 'banknote',     5),
+    ('TRANSFERENCIA','Transferencia',     '#6366f1', 'arrow-right',  6),
+    ('CHEQUE',      'Cheque',             '#94a3b8', 'file-text',    7),
+    ('SALDO_PREPAGO','Saldo prepago',     '#fbbf24', 'wallet',       8),
+    ('APP',         'App movil',          '#8b5cf6', 'smartphone',   9),
+    ('OTRO',        'Otro',               '#6b7280', 'help-circle', 10)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_ticket (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('EN_CURSO',   'En curso',   '#3b82f6', 'play',         1, false),
+    ('CERRADO',    'Cerrado',    '#10b981', 'check-circle', 2, true),
+    ('ANULADO',    'Anulado',    '#dc2626', 'ban',          3, true),
+    ('ABANDONADO', 'Abandonado', '#94a3b8', 'archive',      4, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_factura (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('PENDIENTE',  'Pendiente',  '#f59e0b', 'clock',        1, false),
+    ('PAGADA',     'Pagada',     '#10b981', 'check-circle', 2, true),
+    ('ANULADA',    'Anulada',    '#dc2626', 'ban',          3, true),
+    ('VENCIDA',    'Vencida',    '#7f1d1d', 'alert-circle', 4, false)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_pago (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('PENDIENTE',  'Pendiente',  '#f59e0b', 'clock',        1, false),
+    ('COMPLETADO', 'Completado', '#10b981', 'check-circle', 2, true),
+    ('FALLIDO',    'Fallido',    '#dc2626', 'x-circle',     3, true),
+    ('ANULADO',    'Anulado',    '#7f1d1d', 'ban',          4, true),
+    ('REVERSADO',  'Reversado',  '#94a3b8', 'undo-2',       5, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_suscripcion (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('ACTIVA',     'Activa',     '#10b981', 'play',         1, false),
+    ('VENCIDA',    'Vencida',    '#f59e0b', 'clock',        2, true),
+    ('CANCELADA',  'Cancelada',  '#dc2626', 'x-circle',     3, true),
+    ('AGOTADA',    'Agotada',    '#94a3b8', 'minus-circle', 4, true),
+    ('SUSPENDIDA', 'Suspendida', '#7c3aed', 'pause',        5, false)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO estado_caja (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_final)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_final FROM empresa e
+CROSS JOIN (VALUES
+    ('ABIERTA',     'Abierta',     '#10b981', 'play',         1, false),
+    ('CERRADA',     'Cerrada',     '#94a3b8', 'lock',         2, true),
+    ('EN_REVISION', 'En revision', '#f59e0b', 'eye',          3, false),
+    ('AUDITADA',    'Auditada',    '#3b82f6', 'check-circle', 4, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_final)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO tipo_movimiento_caja (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_ingreso FROM empresa e
+CROSS JOIN (VALUES
+    ('INGRESO_PAGO', 'Ingreso por pago', '#10b981', 'plus-circle',  1, true),
+    ('RETIRO',       'Retiro',           '#dc2626', 'minus-circle', 2, false),
+    ('DEPOSITO',     'Deposito',         '#3b82f6', 'arrow-down',   3, true),
+    ('AJUSTE',       'Ajuste',           '#f59e0b', 'edit',         4, true),
+    ('REVERSO',      'Reverso',          '#94a3b8', 'undo-2',       5, false)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO tipo_movimiento_saldo (empresa_id, codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display, c.es_ingreso FROM empresa e
+CROSS JOIN (VALUES
+    ('ABONO',          'Abono',          '#10b981', 'plus-circle',  1, true),
+    ('CONSUMO',        'Consumo',        '#3b82f6', 'arrow-right',  2, false),
+    ('REVERSO',        'Reverso',        '#94a3b8', 'undo-2',       3, true),
+    ('AJUSTE_MANUAL',  'Ajuste manual',  '#f59e0b', 'edit',         4, true)
+) AS c(codigo, nombre, color_hex, icono, orden_display, es_ingreso)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO tipo_descuento_convenio (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('MONTO_FIJO',     'Monto fijo',     '#3b82f6', 'dollar-sign',  1),
+    ('PORCENTAJE',     'Porcentaje',     '#10b981', 'percent',      2),
+    ('MINUTOS_GRATIS', 'Minutos gratis', '#fbbf24', 'clock',        3)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+INSERT INTO origen_factura (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('MANUAL',   'Manual',                  '#3b82f6', 'edit',         1),
+    ('AUTO',     'Automatica (cierre)',     '#10b981', 'zap',          2),
+    ('BACKFILL', 'Backfill (correccion)',   '#f59e0b', 'history',      3),
+    ('OCR',      'OCR (deteccion)',         '#8b5cf6', 'camera',       4)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 10: Soft-delete uniforme
+-- Estandariza el soft-delete a (archivado_en TIMESTAMP, archivado_por_usuario_id)
+-- en todas las tablas que hoy usan estado_id=3 o flags propios.
+-- Las columnas son NULLABLE; cuando llenan se considera archivado.
+-- ════════════════════════════════════════════════════════════════
+
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE tarifa              ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE usuario             ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE usuario             ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE convenio            ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE convenio            ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS archivado_en              TIMESTAMP;
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS archivado_por_usuario_id  BIGINT;
+
+-- Backfill: entidades con estado_id=3 (ARCHIVADO) heredan archivado_en.
+-- Asumimos que en este punto del proyecto TODAS estas tablas tienen
+-- estado_id (creado en su CREATE TABLE inicial). Si alguna no la tiene,
+-- el UPDATE fallaria — pero no es el caso aqui.
+UPDATE empresa       SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE parqueadero   SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE nivel         SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE seccion       SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE sub_seccion   SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+UPDATE punto_parqueo SET archivado_en = CURRENT_TIMESTAMP WHERE estado_id = 3 AND archivado_en IS NULL;
+
+-- Indices parciales para queries de "no archivados"
+CREATE INDEX IF NOT EXISTS idx_empresa_vigente     ON empresa(id)     WHERE archivado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_parqueadero_vigente ON parqueadero(id) WHERE archivado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_punto_vigente       ON punto_parqueo(id) WHERE archivado_en IS NULL;
+CREATE INDEX IF NOT EXISTS idx_convenio_vigente    ON convenio(id)    WHERE archivado_en IS NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 5: Enriquecimiento de entities pobres
+-- Agrega columnas faltantes que el negocio real necesita pero el
+-- modelo MVP no tenia. Todas NULLABLE para retrocompatibilidad.
+-- ════════════════════════════════════════════════════════════════
+
+-- Persona (6 → 14 cols)
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS segundo_nombre       VARCHAR(100);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS segundo_apellido     VARCHAR(100);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS correo               VARCHAR(200);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS fecha_nacimiento     DATE;
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS genero_id            BIGINT REFERENCES genero(id);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS tipo_documento_id    BIGINT REFERENCES tipo_documento(id);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS direccion            VARCHAR(300);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS ciudad_id            BIGINT REFERENCES ciudad(id);
+CREATE INDEX IF NOT EXISTS idx_persona_correo ON persona(correo) WHERE correo IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_persona_documento ON persona(numero_documento) WHERE numero_documento IS NOT NULL;
+
+-- Empresa (6 → 14 cols)
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS tipo_documento_id    BIGINT REFERENCES tipo_documento(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS regimen_tributario_id BIGINT REFERENCES regimen_tributario(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS moneda_id            BIGINT REFERENCES moneda(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS direccion            VARCHAR(300);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS ciudad_id            BIGINT REFERENCES ciudad(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS correo_contacto      VARCHAR(200);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS telefono_contacto    VARCHAR(20);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS sitio_web            VARCHAR(300);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS logo_url             VARCHAR(300);
+
+-- Vehiculo (9 → 17 cols)
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS marca               VARCHAR(100);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS modelo              VARCHAR(100);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS anio                INTEGER;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS placa_pais          VARCHAR(2) DEFAULT 'CO';
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS soat_vence          DATE;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS tecnomecanica_vence DATE;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS observaciones       TEXT;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS imagen_url          VARCHAR(300);
+
+-- Reserva (8 → 14 cols)
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS canal_origen         VARCHAR(50);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS notas                TEXT;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS confirmada_en        TIMESTAMP;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS cancelada_en         TIMESTAMP;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS cancelada_por_usuario_id BIGINT;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS motivo_cancelacion   TEXT;
+
+-- Camara (12 → 17 cols)
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS marca                 VARCHAR(100);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS modelo                VARCHAR(100);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS ip                    VARCHAR(45);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS mac                   VARCHAR(17);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS resolucion            VARCHAR(20);
+
+-- Dispositivo (8 → 14 cols)
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS marca            VARCHAR(100);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS modelo           VARCHAR(100);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS serial           VARCHAR(100);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS firmware_version VARCHAR(50);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS ultima_lectura   TIMESTAMP;
+
+-- PuntoParqueo (10 → 13 cols)
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS reservable     BOOLEAN DEFAULT TRUE;
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS observaciones  TEXT;
+
+-- Factura (24 → 26 cols)
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS fecha_vencimiento    DATE;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS observaciones        TEXT;
+
+-- Pago (18 → 20 cols)
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS referencia_externa      VARCHAR(200);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS observaciones           TEXT;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 4: empresa_validacion_campo
+-- Sistema de validacion por campo editable por empresa. Cada empresa
+-- puede definir reglas (required, min, max, regex, longitud) para los
+-- campos de sus DTOs. El backend resuelve en runtime via service.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS empresa_validacion_campo (
+    id              BIGSERIAL PRIMARY KEY,
+    empresa_id      BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    entidad         VARCHAR(80)  NOT NULL,
+    campo           VARCHAR(80)  NOT NULL,
+    requerido       BOOLEAN      NOT NULL DEFAULT FALSE,
+    longitud_min    INTEGER,
+    longitud_max    INTEGER,
+    valor_min       NUMERIC,
+    valor_max       NUMERIC,
+    regex           TEXT,
+    mensaje_error   VARCHAR(500),
+    activa          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_emp_validacion UNIQUE (empresa_id, entidad, campo)
+);
+CREATE INDEX IF NOT EXISTS idx_validacion_campo_empresa ON empresa_validacion_campo(empresa_id);
+
+-- Seed: 20 reglas default para CADA empresa (las mas comunes)
+INSERT INTO empresa_validacion_campo (empresa_id, entidad, campo, requerido, longitud_min, longitud_max, valor_min, valor_max, regex, mensaje_error)
+SELECT e.id, c.entidad, c.campo, c.requerido, c.longitud_min, c.longitud_max, c.valor_min, c.valor_max, c.regex, c.mensaje_error
+FROM empresa e
+CROSS JOIN (VALUES
+    ('persona', 'nombre',           true,  2,    100,  NULL, NULL, NULL, 'El nombre es obligatorio (2-100 chars)'),
+    ('persona', 'apellido',         true,  2,    100,  NULL, NULL, NULL, 'El apellido es obligatorio (2-100 chars)'),
+    ('persona', 'correo',           false, 5,    200,  NULL, NULL, '^[^@\s]+@[^@\s]+\.[^@\s]+$', 'Correo invalido'),
+    ('persona', 'telefono',         true,  7,    20,   NULL, NULL, '^[0-9+\-\s()]+$', 'Telefono: solo numeros, +, -, espacios, parentesis'),
+    ('persona', 'numero_documento', true,  4,    50,   NULL, NULL, '^[A-Za-z0-9\-]+$', 'Documento alfanumerico'),
+    ('vehiculo', 'placa',           true,  4,    20,   NULL, NULL, '^[A-Z]{3}\d{3}$|^[A-Z]{3}\d{2}[A-Z]$|^VIS-.*$', 'Placa colombiana o visitante'),
+    ('vehiculo', 'color',           false, 2,    50,   NULL, NULL, NULL, 'Color: 2-50 chars'),
+    ('vehiculo', 'marca',           false, 1,    100,  NULL, NULL, NULL, 'Marca: 1-100 chars'),
+    ('vehiculo', 'modelo',          false, 1,    100,  NULL, NULL, NULL, 'Modelo: 1-100 chars'),
+    ('empresa', 'nombre',           true,  3,    200,  NULL, NULL, NULL, 'Nombre empresa: 3-200 chars'),
+    ('empresa', 'nit',              false, 6,    30,   NULL, NULL, '^[0-9\-]+$', 'NIT: solo numeros y guion'),
+    ('empresa', 'correo_contacto',  false, 5,    200,  NULL, NULL, '^[^@\s]+@[^@\s]+\.[^@\s]+$', 'Correo de contacto invalido'),
+    ('parqueadero', 'nombre',       true,  3,    200,  NULL, NULL, NULL, 'Nombre parqueadero: 3-200 chars'),
+    ('parqueadero', 'direccion',    false, 5,    300,  NULL, NULL, NULL, 'Direccion: 5-300 chars'),
+    ('tarifa', 'valor',             true,  NULL, NULL, 0,    1000000, NULL, 'Valor 0 a 1M'),
+    ('tarifa', 'iva_porcentaje',    false, NULL, NULL, 0,    100,  NULL, 'IVA 0-100%'),
+    ('factura', 'observaciones',    false, NULL, 1000, NULL, NULL, NULL, 'Max 1000 chars'),
+    ('pago', 'monto',               true,  NULL, NULL, 0.01, 100000000, NULL, 'Monto > 0'),
+    ('reserva', 'notas',            false, NULL, 1000, NULL, NULL, NULL, 'Max 1000 chars'),
+    ('convenio', 'nombre_comercio', true,  3,    200,  NULL, NULL, NULL, 'Nombre comercio: 3-200 chars')
+) AS c(entidad, campo, requerido, longitud_min, longitud_max, valor_min, valor_max, regex, mensaje_error)
+ON CONFLICT (empresa_id, entidad, campo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 8: Reportes parametrizables
+-- En lugar de tener reportes hardcoded en ReportesSpecs.java, los
+-- reportes son filas en BD con SQL template + filtros + columnas. El
+-- service ejecuta SQL parametrizado de forma segura.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS reporte_definicion (
+    id              BIGSERIAL PRIMARY KEY,
+    empresa_id      BIGINT REFERENCES empresa(id) ON DELETE CASCADE,
+    clave           VARCHAR(80)  NOT NULL,
+    nombre          VARCHAR(200) NOT NULL,
+    descripcion     TEXT,
+    sql_template    TEXT         NOT NULL,
+    filtros_json    TEXT,
+    columnas_json   TEXT,
+    roles_permitidos VARCHAR(300),
+    max_filas       INTEGER      NOT NULL DEFAULT 5000,
+    formato_default VARCHAR(10)  NOT NULL DEFAULT 'JSON',
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    creado_por_usuario_id BIGINT,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_reporte_definicion UNIQUE (empresa_id, clave),
+    CONSTRAINT ck_reporte_formato CHECK (formato_default IN ('JSON','CSV','PDF'))
+);
+CREATE INDEX IF NOT EXISTS idx_reporte_definicion_empresa ON reporte_definicion(empresa_id);
+
+CREATE TABLE IF NOT EXISTS reporte_ejecutado (
+    id              BIGSERIAL PRIMARY KEY,
+    reporte_definicion_id BIGINT REFERENCES reporte_definicion(id) ON DELETE SET NULL,
+    clave_reporte   VARCHAR(80)  NOT NULL,
+    empresa_id      BIGINT REFERENCES empresa(id) ON DELETE CASCADE,
+    parqueadero_id  BIGINT,
+    parametros_json TEXT,
+    formato         VARCHAR(10)  NOT NULL DEFAULT 'JSON',
+    filas_devueltas INTEGER,
+    duracion_ms     BIGINT,
+    estado          VARCHAR(20)  NOT NULL DEFAULT 'OK',
+    error_mensaje   TEXT,
+    ejecutado_por_usuario_id BIGINT,
+    fecha_hora      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_reporte_ejecutado_estado CHECK (estado IN ('OK','ERROR','TIMEOUT','CANCELADO'))
+);
+CREATE INDEX IF NOT EXISTS idx_reporte_ejecutado_clave_fecha  ON reporte_ejecutado(clave_reporte, fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_reporte_ejecutado_empresa      ON reporte_ejecutado(empresa_id, fecha_hora DESC);
+
+-- Seed: 6 reportes globales (empresa_id NULL = todos pueden usarlos)
+-- Usamos WHERE NOT EXISTS para idempotencia. ON CONFLICT no funciona aqui
+-- porque PostgreSQL trata NULLs como distintos en la UNIQUE constraint.
+INSERT INTO reporte_definicion (empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
+SELECT * FROM (VALUES
+(NULL, 'tickets_por_dia',
+    'Tickets por dia',
+    'Conteo de tickets entrados/cerrados/anulados por dia para un parqueadero y rango.',
+    'SELECT DATE(fecha_hora_entrada) AS dia, estado, COUNT(*) AS cant
+     FROM ticket
+     WHERE parqueadero_id = :parqueaderoId
+       AND fecha_hora_entrada BETWEEN :desde AND :hasta
+     GROUP BY DATE(fecha_hora_entrada), estado
+     ORDER BY dia, estado',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"dia","tipo":"date"},{"clave":"estado","tipo":"string"},{"clave":"cant","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(NULL, 'ingresos_por_metodo',
+    'Ingresos por metodo de pago',
+    'Suma de pagos completados por metodo en un periodo.',
+    'SELECT metodo, SUM(monto) AS total, COUNT(*) AS cant
+     FROM pago
+     WHERE estado = ''COMPLETADO''
+       AND fecha_hora BETWEEN :desde AND :hasta
+     GROUP BY metodo
+     ORDER BY total DESC',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"metodo","tipo":"string"},{"clave":"total","tipo":"decimal"},{"clave":"cant","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN'),
+
+(NULL, 'top_vehiculos',
+    'Top vehiculos por visitas',
+    'Vehiculos con mas tickets en el periodo.',
+    'SELECT v.placa, COUNT(*) AS visitas, SUM(t.monto_calculado) AS gasto_total
+     FROM ticket t JOIN vehiculo v ON t.vehiculo_id = v.id
+     WHERE t.fecha_hora_entrada BETWEEN :desde AND :hasta
+     GROUP BY v.placa
+     ORDER BY visitas DESC
+     LIMIT :limite',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true},{"clave":"limite","tipo":"integer","default":50}]',
+    '[{"clave":"placa","tipo":"string"},{"clave":"visitas","tipo":"long"},{"clave":"gasto_total","tipo":"decimal"}]',
+    'ADMIN,SUPER_ADMIN'),
+
+(NULL, 'ocupacion_actual',
+    'Ocupacion actual de puntos',
+    'Cuantos puntos ocupados vs libres por parqueadero.',
+    'SELECT pa.id AS parqueadero_id, pa.nombre AS parqueadero,
+            COUNT(DISTINCT pp.id) AS total_puntos,
+            COUNT(DISTINCT t.id) AS ocupados
+     FROM parqueadero pa
+     LEFT JOIN nivel n ON n.parqueadero_id = pa.id
+     LEFT JOIN seccion s ON s.nivel_id = n.id
+     LEFT JOIN sub_seccion ss ON ss.seccion_id = s.id
+     LEFT JOIN punto_parqueo pp ON pp.sub_seccion_id = ss.id
+     LEFT JOIN ticket t ON t.punto_parqueo_id = pp.id AND t.estado = ''EN_CURSO''
+     WHERE pa.id = :parqueaderoId
+     GROUP BY pa.id, pa.nombre',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true}]',
+    '[{"clave":"parqueadero_id","tipo":"long"},{"clave":"parqueadero","tipo":"string"},{"clave":"total_puntos","tipo":"long"},{"clave":"ocupados","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO,OPERARIO_CAJA'),
+
+(NULL, 'facturas_pendientes',
+    'Facturas pendientes de pago',
+    'Facturas en estado PENDIENTE con monto y antiguedad.',
+    'SELECT f.id, f.valor_total, f.fecha_hora,
+            EXTRACT(DAY FROM (CURRENT_TIMESTAMP - f.fecha_hora))::integer AS dias_atras,
+            f.placa_snapshot AS placa
+     FROM factura f
+     WHERE f.estado = ''PENDIENTE''
+       AND f.parqueadero_id = :parqueaderoId
+     ORDER BY f.fecha_hora ASC
+     LIMIT :limite',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"limite","tipo":"integer","default":200}]',
+    '[{"clave":"id","tipo":"long"},{"clave":"valor_total","tipo":"decimal"},{"clave":"fecha_hora","tipo":"timestamp"},{"clave":"dias_atras","tipo":"integer"},{"clave":"placa","tipo":"string"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(NULL, 'operadores_actividad',
+    'Actividad de operadores',
+    'Tickets cerrados y pagos cobrados por operador.',
+    'SELECT t.cerrado_por_usuario_id AS usuario_id,
+            t.operador_salida_nombre_snapshot AS operador,
+            COUNT(*) AS tickets_cerrados,
+            SUM(t.monto_calculado) AS total_cobrado
+     FROM ticket t
+     WHERE t.estado = ''CERRADO''
+       AND t.fecha_hora_salida BETWEEN :desde AND :hasta
+       AND t.parqueadero_id = :parqueaderoId
+     GROUP BY t.cerrado_por_usuario_id, t.operador_salida_nombre_snapshot
+     ORDER BY tickets_cerrados DESC',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"usuario_id","tipo":"long"},{"clave":"operador","tipo":"string"},{"clave":"tickets_cerrados","tipo":"long"},{"clave":"total_cobrado","tipo":"decimal"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO')
+) AS r(empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
+WHERE NOT EXISTS (
+    SELECT 1 FROM reporte_definicion rd WHERE rd.empresa_id IS NULL AND rd.clave = r.clave
+);

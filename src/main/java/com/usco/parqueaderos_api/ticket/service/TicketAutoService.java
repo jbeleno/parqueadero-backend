@@ -162,6 +162,26 @@ public class TicketAutoService {
         t.setTarifa(tarifa);
         t.setFechaHoraEntrada(LocalDateTime.now());
         t.setEstado(ESTADO_EN_CURSO);
+        // v49 Sprint A: snapshot economico y de historicidad (faltaban en flujo OCR)
+        t.setTarifaValorSnapshot(tarifa.getValor());
+        t.setTarifaUnidadSnapshot(tarifa.getUnidad());
+        t.setTarifaMinimoSnapshot(tarifa.getValorMinimo());
+        t.setTarifaGraciaSnapshot(tarifa.getMinutosGracia());
+        t.setTarifaCubreSnapshot(tarifa.getMinutosCubiertosPorMinimo());
+        t.setPlacaSnapshot(vehiculo.getPlaca());
+        t.setTipoVehiculoSnapshot(vehiculo.getTipoVehiculo() != null ? vehiculo.getTipoVehiculo().getNombre() : null);
+        t.setTarifaNombreSnapshot(tarifa.getNombre());
+        t.setPuntoParqueoNombreSnapshot(puntoLibre.getNombre());
+        if (vehiculo.getPersona() != null) {
+            com.usco.parqueaderos_api.user.entity.Persona p = vehiculo.getPersona();
+            String nom = p.getNombre() == null ? "" : p.getNombre().trim();
+            String ape = p.getApellido() == null ? "" : p.getApellido().trim();
+            String full = (nom + " " + ape).trim();
+            t.setDuenoNombreSnapshot(full.isEmpty() ? null : full);
+            t.setDuenoDocumentoSnapshot(p.getNumeroDocumento());
+        }
+        // Origen OCR: no hay operador humano que registre. Marcamos como "OCR".
+        t.setOperadorEntradaNombreSnapshot("OCR");
 
         Ticket saved;
         try {
@@ -211,6 +231,7 @@ public class TicketAutoService {
             t.setMontoCalculado(cobro.montoCobrado());
             t.setSuscripcionId(cobro.suscripcionId());
             t.setEstado("CERRADO");
+            t.setOperadorSalidaNombreSnapshot("OCR");
             Ticket saved = ticketRepo.save(t);
 
             Long puntoId = saved.getPuntoParqueo() != null ? saved.getPuntoParqueo().getId() : null;

@@ -141,6 +141,22 @@ public class FacturaService {
         entity.setEstado("PENDIENTE");
         entity.setOrigen("MANUAL");
         entity.setEmitidoPorUsuarioId(currentUser.getCurrentUserId());
+        // v49 Sprint A: snapshots de historicidad
+        Vehiculo vh = ticket.getVehiculo();
+        if (vh != null) {
+            entity.setPlacaSnapshot(vh.getPlaca());
+            if (vh.getPersona() != null) {
+                com.usco.parqueaderos_api.user.entity.Persona p = vh.getPersona();
+                String nom = p.getNombre() == null ? "" : p.getNombre().trim();
+                String ape = p.getApellido() == null ? "" : p.getApellido().trim();
+                String full = (nom + " " + ape).trim();
+                entity.setClienteNombreSnapshot(full.isEmpty() ? null : full);
+                entity.setClienteDocumentoSnapshot(p.getNumeroDocumento());
+            }
+        }
+        if (nombreResolver != null && currentUser.getCurrentUserId() != null) {
+            entity.setEmitidoPorNombreSnapshot(nombreResolver.nombreOf(currentUser.getCurrentUserId()));
+        }
         // Snapshot resolucion DIAN principal del parqueadero (consistente con
         // AutoFacturaListener). Si no hay principal o esta AGOTADA, la factura
         // se crea sin snapshot (modo informal) sin bloquear la emision.
@@ -218,6 +234,11 @@ public class FacturaService {
         if (nombreResolver != null) {
             dto.setEmitidoPorUsuarioNombre(nombreResolver.nombreOf(e.getEmitidoPorUsuarioId()));
         }
+        // v49 Sprint A: snapshots historicos
+        dto.setClienteNombreSnapshot(e.getClienteNombreSnapshot());
+        dto.setClienteDocumentoSnapshot(e.getClienteDocumentoSnapshot());
+        dto.setPlacaSnapshot(e.getPlacaSnapshot());
+        dto.setEmitidoPorNombreSnapshot(e.getEmitidoPorNombreSnapshot());
         return dto;
     }
 

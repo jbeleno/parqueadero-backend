@@ -64,15 +64,14 @@ docs/*_render.md
 ### Documentación académica — fuentes (locales, no versionar) ###
 # Los anexos y el script de build viven solo en la copia local del autor
 docs/ANEXO_*.md
-docs/build-anexo.sh
-docs/build-docx.sh
-docs/build_drive_md.py
+docs/build-*.sh
+docs/build_*.py
+docs/build_*.sh
 docs/code-to-png.py
 docs/inline-images-base64.py
-docs/inject_pre_post_hu.py
-docs/inject_uc_fichas.py
-docs/migrate_erd_types.py
-docs/normalize-figures.py
+docs/inject_*.py
+docs/migrate_*.py
+docs/normalize-*.py
 docs/db-schema/
 docs/snippets/
 

@@ -4,6 +4,8 @@ import com.usco.parqueaderos_api.ticket.entity.Ticket;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -18,9 +20,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "validacion_compra")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class ValidacionCompra {
+public class ValidacionCompra extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

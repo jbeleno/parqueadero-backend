@@ -4,6 +4,8 @@ import com.usco.parqueaderos_api.catalog.entity.Estado;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -11,9 +13,10 @@ import org.locationtech.jts.geom.Polygon;
 @Entity
 @Table(name = "sub_seccion")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubSeccion {
+public class SubSeccion extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,4 +52,11 @@ public class SubSeccion {
     /** Cantidad de puntos de parqueo que caben en esta subsección (dato del diseñador) */
     @Column(name = "cantidad_puntos")
     private Integer cantidadPuntos;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
 }

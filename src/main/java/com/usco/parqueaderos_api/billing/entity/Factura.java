@@ -1,11 +1,13 @@
 package com.usco.parqueaderos_api.billing.entity;
 
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import com.usco.parqueaderos_api.ticket.entity.Ticket;
 import com.usco.parqueaderos_api.vehicle.entity.Vehiculo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -13,9 +15,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "factura")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Factura {
+public class Factura extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -73,4 +76,19 @@ public class Factura {
      */
     @Column(name = "emitido_por_usuario_id")
     private Long emitidoPorUsuarioId;
+
+    // v49 Sprint A: snapshots de historicidad para reportes inmutables.
+    @Column(name = "cliente_nombre_snapshot", length = 200)
+    private String clienteNombreSnapshot;
+    @Column(name = "cliente_documento_snapshot", length = 50)
+    private String clienteDocumentoSnapshot;
+    @Column(name = "placa_snapshot", length = 20)
+    private String placaSnapshot;
+    @Column(name = "emitido_por_nombre_snapshot", length = 200)
+    private String emitidoPorNombreSnapshot;
+
+    @jakarta.persistence.Column(name = "fecha_vencimiento")
+    private java.time.LocalDate fechaVencimiento;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

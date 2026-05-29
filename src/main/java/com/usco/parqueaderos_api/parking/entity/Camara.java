@@ -4,14 +4,17 @@ import com.usco.parqueaderos_api.catalog.entity.Estado;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "camara")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Camara {
+public class Camara extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,4 +63,22 @@ public class Camara {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "estado_id", nullable = false)
     private Estado estado;
+
+    // v49 Fase 10: soft-delete uniforme (archivado_en + actor)
+    @jakarta.persistence.Column(name = "archivado_en")
+    private java.time.LocalDateTime archivadoEn;
+
+    @jakarta.persistence.Column(name = "archivado_por_usuario_id")
+    private Long archivadoPorUsuarioId;
+
+    @jakarta.persistence.Column(length = 100)
+    private String marca;
+    @jakarta.persistence.Column(length = 100)
+    private String modelo;
+    @jakarta.persistence.Column(length = 45)
+    private String ip;
+    @jakarta.persistence.Column(length = 17)
+    private String mac;
+    @jakarta.persistence.Column(length = 20)
+    private String resolucion;
 }
