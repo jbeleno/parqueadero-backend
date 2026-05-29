@@ -26,7 +26,7 @@ trabajo sin perder contexto.
 | 8 | Reportes parametrizables (`reporte_definicion` + 6 seed) | ✅ DONE | 2026-05-29 | reciente |
 | 9 | Auditoria enriquecida (`accion_auditable` + `nivel_audit_log`) | ✅ DONE | 2026-05-29 | `5e7ad3f` |
 | 10 | Soft-delete uniforme (`archivado_en` en 12 tablas) | ✅ DONE | 2026-05-29 | `6171e2a` |
-| 11 | Refactor servicios consumidores (usar configService/validacionService) | ⬜ TODO | — | — |
+| 11 | Refactor servicios consumidores (MotivoValidator listo; cableado masivo difiere a v50) | 🟡 PARTIAL | 2026-05-29 | pendiente |
 | 12 | Docs + smoke E2E + push | 🟢 BUILD + PUSH HECHO; smoke + merge a main pendiente | 2026-05-29 | varios |
 
 ---
