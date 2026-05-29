@@ -1196,7 +1196,7 @@ CROSS JOIN (VALUES
     ('factura.numerar_automatico',         'true',      'BOOLEAN', NULL, NULL, 'Numeracion automatica de facturas', 'facturacion'),
     ('ticket.tiempo_gracia_minutos_default','5',        'INTEGER', 0,    60,   'Minutos de gracia default al cerrar ticket', 'ticket')
 ) AS c(clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
-ON CONFLICT (empresa_id, clave) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- ════════════════════════════════════════════════════════════════
 -- v49 Fase 2: Catalogos por empresa (10 tablas)
@@ -1659,3 +1659,149 @@ CROSS JOIN (VALUES
     ('convenio', 'nombre_comercio', true,  3,    200,  NULL, NULL, NULL, 'Nombre comercio: 3-200 chars')
 ) AS c(entidad, campo, requerido, longitud_min, longitud_max, valor_min, valor_max, regex, mensaje_error)
 ON CONFLICT (empresa_id, entidad, campo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 8: Reportes parametrizables
+-- En lugar de tener reportes hardcoded en ReportesSpecs.java, los
+-- reportes son filas en BD con SQL template + filtros + columnas. El
+-- service ejecuta SQL parametrizado de forma segura.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS reporte_definicion (
+    id              BIGSERIAL PRIMARY KEY,
+    empresa_id      BIGINT REFERENCES empresa(id) ON DELETE CASCADE,
+    clave           VARCHAR(80)  NOT NULL,
+    nombre          VARCHAR(200) NOT NULL,
+    descripcion     TEXT,
+    sql_template    TEXT         NOT NULL,
+    filtros_json    TEXT,
+    columnas_json   TEXT,
+    roles_permitidos VARCHAR(300),
+    max_filas       INTEGER      NOT NULL DEFAULT 5000,
+    formato_default VARCHAR(10)  NOT NULL DEFAULT 'JSON',
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    creado_por_usuario_id BIGINT,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_reporte_definicion UNIQUE (empresa_id, clave),
+    CONSTRAINT ck_reporte_formato CHECK (formato_default IN ('JSON','CSV','PDF'))
+);
+CREATE INDEX IF NOT EXISTS idx_reporte_definicion_empresa ON reporte_definicion(empresa_id);
+
+CREATE TABLE IF NOT EXISTS reporte_ejecutado (
+    id              BIGSERIAL PRIMARY KEY,
+    reporte_definicion_id BIGINT REFERENCES reporte_definicion(id) ON DELETE SET NULL,
+    clave_reporte   VARCHAR(80)  NOT NULL,
+    empresa_id      BIGINT REFERENCES empresa(id) ON DELETE CASCADE,
+    parqueadero_id  BIGINT,
+    parametros_json TEXT,
+    formato         VARCHAR(10)  NOT NULL DEFAULT 'JSON',
+    filas_devueltas INTEGER,
+    duracion_ms     BIGINT,
+    estado          VARCHAR(20)  NOT NULL DEFAULT 'OK',
+    error_mensaje   TEXT,
+    ejecutado_por_usuario_id BIGINT,
+    fecha_hora      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_reporte_ejecutado_estado CHECK (estado IN ('OK','ERROR','TIMEOUT','CANCELADO'))
+);
+CREATE INDEX IF NOT EXISTS idx_reporte_ejecutado_clave_fecha  ON reporte_ejecutado(clave_reporte, fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_reporte_ejecutado_empresa      ON reporte_ejecutado(empresa_id, fecha_hora DESC);
+
+-- Seed: 6 reportes globales (empresa_id NULL = todos pueden usarlos)
+-- Usamos WHERE NOT EXISTS para idempotencia. ON CONFLICT no funciona aqui
+-- porque PostgreSQL trata NULLs como distintos en la UNIQUE constraint.
+INSERT INTO reporte_definicion (empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
+SELECT * FROM (VALUES
+(NULL, 'tickets_por_dia',
+    'Tickets por dia',
+    'Conteo de tickets entrados/cerrados/anulados por dia para un parqueadero y rango.',
+    'SELECT DATE(fecha_hora_entrada) AS dia, estado, COUNT(*) AS cant
+     FROM ticket
+     WHERE parqueadero_id = :parqueaderoId
+       AND fecha_hora_entrada BETWEEN :desde AND :hasta
+     GROUP BY DATE(fecha_hora_entrada), estado
+     ORDER BY dia, estado',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"dia","tipo":"date"},{"clave":"estado","tipo":"string"},{"clave":"cant","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(NULL, 'ingresos_por_metodo',
+    'Ingresos por metodo de pago',
+    'Suma de pagos completados por metodo en un periodo.',
+    'SELECT metodo, SUM(monto) AS total, COUNT(*) AS cant
+     FROM pago
+     WHERE estado = ''COMPLETADO''
+       AND fecha_hora BETWEEN :desde AND :hasta
+     GROUP BY metodo
+     ORDER BY total DESC',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"metodo","tipo":"string"},{"clave":"total","tipo":"decimal"},{"clave":"cant","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN'),
+
+(NULL, 'top_vehiculos',
+    'Top vehiculos por visitas',
+    'Vehiculos con mas tickets en el periodo.',
+    'SELECT v.placa, COUNT(*) AS visitas, SUM(t.monto_calculado) AS gasto_total
+     FROM ticket t JOIN vehiculo v ON t.vehiculo_id = v.id
+     WHERE t.fecha_hora_entrada BETWEEN :desde AND :hasta
+     GROUP BY v.placa
+     ORDER BY visitas DESC
+     LIMIT :limite',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true},{"clave":"limite","tipo":"integer","default":50}]',
+    '[{"clave":"placa","tipo":"string"},{"clave":"visitas","tipo":"long"},{"clave":"gasto_total","tipo":"decimal"}]',
+    'ADMIN,SUPER_ADMIN'),
+
+(NULL, 'ocupacion_actual',
+    'Ocupacion actual de puntos',
+    'Cuantos puntos ocupados vs libres por parqueadero.',
+    'SELECT pa.id AS parqueadero_id, pa.nombre AS parqueadero,
+            COUNT(DISTINCT pp.id) AS total_puntos,
+            COUNT(DISTINCT t.id) AS ocupados
+     FROM parqueadero pa
+     LEFT JOIN nivel n ON n.parqueadero_id = pa.id
+     LEFT JOIN seccion s ON s.nivel_id = n.id
+     LEFT JOIN sub_seccion ss ON ss.seccion_id = s.id
+     LEFT JOIN punto_parqueo pp ON pp.sub_seccion_id = ss.id
+     LEFT JOIN ticket t ON t.punto_parqueo_id = pp.id AND t.estado = ''EN_CURSO''
+     WHERE pa.id = :parqueaderoId
+     GROUP BY pa.id, pa.nombre',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true}]',
+    '[{"clave":"parqueadero_id","tipo":"long"},{"clave":"parqueadero","tipo":"string"},{"clave":"total_puntos","tipo":"long"},{"clave":"ocupados","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO,OPERARIO_CAJA'),
+
+(NULL, 'facturas_pendientes',
+    'Facturas pendientes de pago',
+    'Facturas en estado PENDIENTE con monto y antiguedad.',
+    'SELECT f.id, f.valor_total, f.fecha_hora,
+            EXTRACT(DAY FROM (CURRENT_TIMESTAMP - f.fecha_hora))::integer AS dias_atras,
+            f.placa_snapshot AS placa
+     FROM factura f
+     WHERE f.estado = ''PENDIENTE''
+       AND f.parqueadero_id = :parqueaderoId
+     ORDER BY f.fecha_hora ASC
+     LIMIT :limite',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"limite","tipo":"integer","default":200}]',
+    '[{"clave":"id","tipo":"long"},{"clave":"valor_total","tipo":"decimal"},{"clave":"fecha_hora","tipo":"timestamp"},{"clave":"dias_atras","tipo":"integer"},{"clave":"placa","tipo":"string"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(NULL, 'operadores_actividad',
+    'Actividad de operadores',
+    'Tickets cerrados y pagos cobrados por operador.',
+    'SELECT t.cerrado_por_usuario_id AS usuario_id,
+            t.operador_salida_nombre_snapshot AS operador,
+            COUNT(*) AS tickets_cerrados,
+            SUM(t.monto_calculado) AS total_cobrado
+     FROM ticket t
+     WHERE t.estado = ''CERRADO''
+       AND t.fecha_hora_salida BETWEEN :desde AND :hasta
+       AND t.parqueadero_id = :parqueaderoId
+     GROUP BY t.cerrado_por_usuario_id, t.operador_salida_nombre_snapshot
+     ORDER BY tickets_cerrados DESC',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"usuario_id","tipo":"long"},{"clave":"operador","tipo":"string"},{"clave":"tickets_cerrados","tipo":"long"},{"clave":"total_cobrado","tipo":"decimal"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO')
+) AS r(empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
+WHERE NOT EXISTS (
+    SELECT 1 FROM reporte_definicion rd WHERE rd.empresa_id IS NULL AND rd.clave = r.clave
+);
