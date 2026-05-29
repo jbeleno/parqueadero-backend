@@ -760,3 +760,104 @@ ALTER TABLE pago ADD COLUMN IF NOT EXISTS operador_nombre_snapshot VARCHAR(200);
 -- Indice util para reportes que filtran por placa historica (no requiere unique)
 CREATE INDEX IF NOT EXISTS idx_ticket_placa_snapshot   ON ticket(placa_snapshot);
 CREATE INDEX IF NOT EXISTS idx_factura_placa_snapshot  ON factura(placa_snapshot);
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 0: Auditoria temporal universal (BaseEntity)
+-- Agrega fecha_creacion + fecha_actualizacion a todas las tablas de
+-- negocio que no las tienen. DEFAULT CURRENT_TIMESTAMP para que los
+-- registros existentes queden con un valor razonable (su fecha de
+-- carga, no su fecha real — limitacion conocida del backfill).
+--
+-- Despues de esta migracion, Hibernate maneja los timestamps via
+-- @PrePersist/@PreUpdate de BaseEntity.
+-- ════════════════════════════════════════════════════════════════
+
+-- Estructura
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE empresa             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE parqueadero         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE nivel               ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE seccion             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE sub_seccion         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE punto_parqueo       ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE camara              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE camino              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE camino              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Identity
+ALTER TABLE usuario             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE persona             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE usuario_rol         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE usuario_rol         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE usuario_parqueadero ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE usuario_parqueadero ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Operativa
+ALTER TABLE ticket              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE ticket              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE factura             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE factura             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE pago                ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE pago                ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE vehiculo            ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE vehiculo            ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE reserva             ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE reserva             ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Suscripciones / saldos / caja
+ALTER TABLE suscripcion         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE movimiento_saldo    ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE movimiento_saldo    ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE caja                ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE caja                ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE movimiento_caja     ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE movimiento_caja     ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Tarifa / convenios / facturacion fiscal
+ALTER TABLE tarifa              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tarifa              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tarifa_franja       ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tarifa_franja       ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE convenio            ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE validacion_compra   ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE validacion_compra   ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE resolucion_dian     ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Reportes / auditoria
+ALTER TABLE cierre_dia          ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE cierre_dia          ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Geo
+ALTER TABLE pais                ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE pais                ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE departamento        ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE departamento        ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE ciudad              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE ciudad              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Catalogos
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE estado              ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE rol                 ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_vehiculo       ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_parqueadero    ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_punto_parqueo  ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_dispositivo    ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+
+-- Dispositivos IoT
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE dispositivo         ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;
+ALTER TABLE dispositivo_parqueo ADD COLUMN IF NOT EXISTS fecha_creacion      TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE dispositivo_parqueo ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP;

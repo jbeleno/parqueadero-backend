@@ -1,10 +1,12 @@
 package com.usco.parqueaderos_api.tariff.entity;
 
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import com.usco.parqueaderos_api.parking.entity.Parqueadero;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
@@ -12,9 +14,10 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "tarifa")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Tarifa {
+public class Tarifa extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

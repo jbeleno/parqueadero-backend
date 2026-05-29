@@ -1,17 +1,20 @@
 package com.usco.parqueaderos_api.parking.entity;
 
 import com.usco.parqueaderos_api.catalog.entity.Estado;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "empresa")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Empresa {
+public class Empresa extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

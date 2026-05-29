@@ -1,8 +1,10 @@
 package com.usco.parqueaderos_api.billing.entity;
 
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -10,9 +12,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "pago")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Pago {
+public class Pago extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

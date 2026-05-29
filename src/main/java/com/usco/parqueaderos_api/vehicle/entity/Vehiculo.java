@@ -1,10 +1,12 @@
 package com.usco.parqueaderos_api.vehicle.entity;
 
 import com.usco.parqueaderos_api.catalog.entity.TipoVehiculo;
+import com.usco.parqueaderos_api.common.entity.BaseEntity;
 import com.usco.parqueaderos_api.user.entity.Persona;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -12,9 +14,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "vehiculo")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Vehiculo {
+public class Vehiculo extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
