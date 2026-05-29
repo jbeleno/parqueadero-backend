@@ -931,3 +931,77 @@ UPDATE tipo_punto_parqueo SET codigo = 'VIP',            color_hex = '#fbbf24', 
 UPDATE tipo_dispositivo SET codigo = 'CAMARA',  color_hex = '#3b82f6', icono = 'video',       orden_display = 1, activo = true WHERE id = 1 AND codigo IS NULL;
 UPDATE tipo_dispositivo SET codigo = 'SENSOR',  color_hex = '#10b981', icono = 'radio',       orden_display = 2, activo = true WHERE id = 2 AND codigo IS NULL;
 UPDATE tipo_dispositivo SET codigo = 'BARRERA', color_hex = '#ef4444', icono = 'gate',        orden_display = 3, activo = true WHERE id = 3 AND codigo IS NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 9: Auditoria enriquecida — catalogos accion + nivel
+-- En lugar de tener accion/nivel como string libre en audit_log,
+-- introducimos 2 catalogos referenciables (con FK) para que:
+--   1. SUPER_ADMIN pueda definir nuevas acciones sin recompilar
+--   2. Reportes/filtros usen IDs estables (no strings que pueden
+--      cambiar de mayusculas/idioma)
+--   3. Cada accion tenga su nivel default (INFO/WARN/CRITICAL)
+-- Las columnas string actuales (accion, nivel) quedan para
+-- compatibilidad — los nuevos registros pueden llenar AMBAS o solo
+-- el FK. v50 las puede deprecar.
+-- ════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS accion_auditable (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    color_hex       VARCHAR(9),
+    icono           VARCHAR(50),
+    orden_display   INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nivel_audit_log (
+    id              BIGSERIAL PRIMARY KEY,
+    codigo          VARCHAR(50)  NOT NULL UNIQUE,
+    nombre          VARCHAR(100) NOT NULL,
+    descripcion     TEXT,
+    color_hex       VARCHAR(9),
+    severidad       INTEGER      NOT NULL DEFAULT 0,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+
+-- Seed: niveles
+INSERT INTO nivel_audit_log (codigo, nombre, descripcion, color_hex, severidad, activo) VALUES
+    ('INFO',     'Informativo', 'Operaciones normales del sistema',       '#3b82f6', 0, true),
+    ('WARN',     'Advertencia', 'Situacion sospechosa pero no critica',    '#f59e0b', 1, true),
+    ('CRITICAL', 'Critico',     'Requiere atencion inmediata',             '#dc2626', 2, true),
+    ('DEBUG',    'Depuracion',  'Solo para investigacion tecnica',         '#6b7280',-1, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- Seed: acciones auditables (las que el codigo ya usa)
+INSERT INTO accion_auditable (codigo, nombre, descripcion, color_hex, icono, orden_display, activo) VALUES
+    ('CREATE',          'Crear',           'Insertar un nuevo registro',          '#10b981', 'plus-circle',  1, true),
+    ('UPDATE',          'Actualizar',      'Modificar un registro existente',     '#3b82f6', 'edit',         2, true),
+    ('CERRAR',          'Cerrar',          'Cerrar un ticket o periodo',          '#0ea5e9', 'x-circle',     3, true),
+    ('ANULAR',          'Anular',          'Anular un registro (con motivo)',     '#dc2626', 'ban',          4, true),
+    ('CANCELAR',        'Cancelar',        'Cancelar una reserva u operacion',    '#ef4444', 'x',            5, true),
+    ('DESACTIVAR',      'Desactivar',      'Marcar registro como inactivo',       '#94a3b8', 'circle-off',   6, true),
+    ('ARCHIVAR',        'Archivar',        'Soft-delete logico',                  '#94a3b8', 'archive',      7, true),
+    ('MARCAR_PRINCIPAL','Marcar principal','Designar como principal/predeterminado','#fbbf24','star',         8, true),
+    ('DELETE_FISICO',   'Eliminar fisico', 'Eliminacion DDL (solo SUPER_ADMIN)',  '#7f1d1d', 'trash',        9, true),
+    ('LOGIN',           'Inicio sesion',   'Login exitoso',                       '#10b981', 'log-in',      10, true),
+    ('LOGOUT',          'Cierre sesion',   'Logout',                              '#6b7280', 'log-out',     11, true),
+    ('EXPORT',          'Exportar',        'Exportacion de datos',                '#7c3aed', 'download',    12, true),
+    ('CALCULO',         'Calculo',         'Recalculo de saldos/montos',          '#0ea5e9', 'calculator',  13, true),
+    ('OCR_DETECCION',   'OCR deteccion',   'Deteccion automatica por camara',     '#8b5cf6', 'camera',      14, true)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- Agregar FKs en audit_log (NULLABLE para no romper registros viejos)
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS accion_auditable_id BIGINT REFERENCES accion_auditable(id);
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS nivel_audit_log_id  BIGINT REFERENCES nivel_audit_log(id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_accion_id ON audit_log(accion_auditable_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_nivel_id  ON audit_log(nivel_audit_log_id);
+
+-- Backfill: enlazar registros existentes que tienen accion=codigo conocido
+UPDATE audit_log al SET accion_auditable_id = a.id
+  FROM accion_auditable a WHERE al.accion = a.codigo AND al.accion_auditable_id IS NULL;
