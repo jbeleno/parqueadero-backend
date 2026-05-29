@@ -1531,3 +1531,76 @@ CREATE INDEX IF NOT EXISTS idx_empresa_vigente     ON empresa(id)     WHERE arch
 CREATE INDEX IF NOT EXISTS idx_parqueadero_vigente ON parqueadero(id) WHERE archivado_en IS NULL;
 CREATE INDEX IF NOT EXISTS idx_punto_vigente       ON punto_parqueo(id) WHERE archivado_en IS NULL;
 CREATE INDEX IF NOT EXISTS idx_convenio_vigente    ON convenio(id)    WHERE archivado_en IS NULL;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 Fase 5: Enriquecimiento de entities pobres
+-- Agrega columnas faltantes que el negocio real necesita pero el
+-- modelo MVP no tenia. Todas NULLABLE para retrocompatibilidad.
+-- ════════════════════════════════════════════════════════════════
+
+-- Persona (6 → 14 cols)
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS segundo_nombre       VARCHAR(100);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS segundo_apellido     VARCHAR(100);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS correo               VARCHAR(200);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS fecha_nacimiento     DATE;
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS genero_id            BIGINT REFERENCES genero(id);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS tipo_documento_id    BIGINT REFERENCES tipo_documento(id);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS direccion            VARCHAR(300);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS ciudad_id            BIGINT REFERENCES ciudad(id);
+CREATE INDEX IF NOT EXISTS idx_persona_correo ON persona(correo) WHERE correo IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_persona_documento ON persona(numero_documento) WHERE numero_documento IS NOT NULL;
+
+-- Empresa (6 → 14 cols)
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS tipo_documento_id    BIGINT REFERENCES tipo_documento(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS regimen_tributario_id BIGINT REFERENCES regimen_tributario(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS moneda_id            BIGINT REFERENCES moneda(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS direccion            VARCHAR(300);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS ciudad_id            BIGINT REFERENCES ciudad(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS correo_contacto      VARCHAR(200);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS telefono_contacto    VARCHAR(20);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS sitio_web            VARCHAR(300);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS logo_url             VARCHAR(300);
+
+-- Vehiculo (9 → 17 cols)
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS marca               VARCHAR(100);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS modelo              VARCHAR(100);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS anio                INTEGER;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS placa_pais          VARCHAR(2) DEFAULT 'CO';
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS soat_vence          DATE;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS tecnomecanica_vence DATE;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS observaciones       TEXT;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS imagen_url          VARCHAR(300);
+
+-- Reserva (8 → 14 cols)
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS canal_origen         VARCHAR(50);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS notas                TEXT;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS confirmada_en        TIMESTAMP;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS cancelada_en         TIMESTAMP;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS cancelada_por_usuario_id BIGINT;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS motivo_cancelacion   TEXT;
+
+-- Camara (12 → 17 cols)
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS marca                 VARCHAR(100);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS modelo                VARCHAR(100);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS ip                    VARCHAR(45);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS mac                   VARCHAR(17);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS resolucion            VARCHAR(20);
+
+-- Dispositivo (8 → 14 cols)
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS marca            VARCHAR(100);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS modelo           VARCHAR(100);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS serial           VARCHAR(100);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS firmware_version VARCHAR(50);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS ultima_lectura   TIMESTAMP;
+
+-- PuntoParqueo (10 → 13 cols)
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS reservable     BOOLEAN DEFAULT TRUE;
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS observaciones  TEXT;
+
+-- Factura (24 → 26 cols)
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS fecha_vencimiento    DATE;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS observaciones        TEXT;
+
+-- Pago (18 → 20 cols)
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS referencia_externa      VARCHAR(200);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS observaciones           TEXT;

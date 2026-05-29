@@ -49,4 +49,17 @@ public class Reserva extends BaseEntity {
 
     @Column(length = 50)
     private String estado; // PENDIENTE, CONFIRMADA, CANCELADA, EXPIRADA
+
+    @jakarta.persistence.Column(name = "canal_origen", length = 50)
+    private String canalOrigen;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String notas;
+    @jakarta.persistence.Column(name = "confirmada_en")
+    private java.time.LocalDateTime confirmadaEn;
+    @jakarta.persistence.Column(name = "cancelada_en")
+    private java.time.LocalDateTime canceladaEn;
+    @jakarta.persistence.Column(name = "cancelada_por_usuario_id")
+    private Long canceladaPorUsuarioId;
+    @jakarta.persistence.Column(name = "motivo_cancelacion", columnDefinition = "TEXT")
+    private String motivoCancelacion;
 }

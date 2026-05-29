@@ -55,4 +55,9 @@ public class Pago extends BaseEntity {
     // reporte de caja siga mostrando el nombre correcto si el usuario cambia.
     @Column(name = "operador_nombre_snapshot", length = 200)
     private String operadorNombreSnapshot;
+
+    @jakarta.persistence.Column(name = "referencia_externa", length = 200)
+    private String referenciaExterna;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

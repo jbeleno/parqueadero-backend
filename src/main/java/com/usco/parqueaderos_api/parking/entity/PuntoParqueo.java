@@ -60,4 +60,9 @@ public class PuntoParqueo extends BaseEntity {
 
     @jakarta.persistence.Column(name = "archivado_por_usuario_id")
     private Long archivadoPorUsuarioId;
+
+    @jakarta.persistence.Column
+    private Boolean reservable;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

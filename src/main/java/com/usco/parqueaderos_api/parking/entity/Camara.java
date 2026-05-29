@@ -70,4 +70,15 @@ public class Camara extends BaseEntity {
 
     @jakarta.persistence.Column(name = "archivado_por_usuario_id")
     private Long archivadoPorUsuarioId;
+
+    @jakarta.persistence.Column(length = 100)
+    private String marca;
+    @jakarta.persistence.Column(length = 100)
+    private String modelo;
+    @jakarta.persistence.Column(length = 45)
+    private String ip;
+    @jakarta.persistence.Column(length = 17)
+    private String mac;
+    @jakarta.persistence.Column(length = 20)
+    private String resolucion;
 }

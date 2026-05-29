@@ -55,4 +55,15 @@ public class Dispositivo extends BaseEntity {
 
     @jakarta.persistence.Column(name = "archivado_por_usuario_id")
     private Long archivadoPorUsuarioId;
+
+    @jakarta.persistence.Column(length = 100)
+    private String marca;
+    @jakarta.persistence.Column(length = 100)
+    private String modelo;
+    @jakarta.persistence.Column(length = 100)
+    private String serial;
+    @jakarta.persistence.Column(name = "firmware_version", length = 50)
+    private String firmwareVersion;
+    @jakarta.persistence.Column(name = "ultima_lectura")
+    private java.time.LocalDateTime ultimaLectura;
 }

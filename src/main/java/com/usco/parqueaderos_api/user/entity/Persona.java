@@ -40,4 +40,21 @@ public class Persona extends BaseEntity {
 
     @jakarta.persistence.Column(name = "archivado_por_usuario_id")
     private Long archivadoPorUsuarioId;
+
+    @jakarta.persistence.Column(name = "segundo_nombre", length = 100)
+    private String segundoNombre;
+    @jakarta.persistence.Column(name = "segundo_apellido", length = 100)
+    private String segundoApellido;
+    @jakarta.persistence.Column(length = 200)
+    private String correo;
+    @jakarta.persistence.Column(name = "fecha_nacimiento")
+    private java.time.LocalDate fechaNacimiento;
+    @jakarta.persistence.Column(name = "genero_id")
+    private Long generoId;
+    @jakarta.persistence.Column(name = "tipo_documento_id")
+    private Long tipoDocumentoId;
+    @jakarta.persistence.Column(length = 300)
+    private String direccion;
+    @jakarta.persistence.Column(name = "ciudad_id")
+    private Long ciudadId;
 }

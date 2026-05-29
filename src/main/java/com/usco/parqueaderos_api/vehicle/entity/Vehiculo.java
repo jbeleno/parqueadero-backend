@@ -52,4 +52,21 @@ public class Vehiculo extends BaseEntity {
     /** Ultima actividad (ticket o reserva). Para limpieza de visitantes inactivos. */
     @Column(name = "ultima_actividad")
     private LocalDateTime ultimaActividad;
+
+    @jakarta.persistence.Column(length = 100)
+    private String marca;
+    @jakarta.persistence.Column(length = 100)
+    private String modelo;
+    @jakarta.persistence.Column(name = "anio")
+    private Integer anio;
+    @jakarta.persistence.Column(name = "placa_pais", length = 2)
+    private String placaPais;
+    @jakarta.persistence.Column(name = "soat_vence")
+    private java.time.LocalDate soatVence;
+    @jakarta.persistence.Column(name = "tecnomecanica_vence")
+    private java.time.LocalDate tecnomecanicaVence;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
+    @jakarta.persistence.Column(name = "imagen_url", length = 300)
+    private String imagenUrl;
 }

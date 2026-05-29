@@ -86,4 +86,9 @@ public class Factura extends BaseEntity {
     private String placaSnapshot;
     @Column(name = "emitido_por_nombre_snapshot", length = 200)
     private String emitidoPorNombreSnapshot;
+
+    @jakarta.persistence.Column(name = "fecha_vencimiento")
+    private java.time.LocalDate fechaVencimiento;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }
