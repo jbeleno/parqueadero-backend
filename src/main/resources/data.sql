@@ -970,6 +970,53 @@ CREATE TABLE IF NOT EXISTS nivel_audit_log (
     fecha_actualizacion TIMESTAMP
 );
 
+-- v49 FIX: si Hibernate creo las tablas antes (con NOT NULL pero sin DEFAULT),
+-- garantizar el DEFAULT y rellenar filas con fecha_creacion NULL.
+ALTER TABLE accion_auditable ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE accion_auditable SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE nivel_audit_log ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE nivel_audit_log SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE tipo_documento ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE tipo_documento SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE genero ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE genero SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE moneda ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE moneda SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE zona_horaria ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE zona_horaria SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE unidad_tarifa ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE unidad_tarifa SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE regimen_tributario ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE regimen_tributario SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE empresa_metodo_pago ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE empresa_metodo_pago SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE estado_ticket ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE estado_ticket SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE estado_factura ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE estado_factura SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE estado_pago ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE estado_pago SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE estado_suscripcion ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE estado_suscripcion SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE estado_caja ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE estado_caja SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE tipo_movimiento_caja ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE tipo_movimiento_caja SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE tipo_movimiento_saldo ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE tipo_movimiento_saldo SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE tipo_descuento_convenio ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE tipo_descuento_convenio SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE origen_factura ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE origen_factura SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE empresa_config ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE empresa_config SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE empresa_validacion_campo ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE empresa_validacion_campo SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE reporte_definicion ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE reporte_definicion SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+ALTER TABLE reporte_ejecutado ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+UPDATE reporte_ejecutado SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+
 -- Seed: niveles
 INSERT INTO nivel_audit_log (codigo, nombre, descripcion, color_hex, severidad, activo) VALUES
     ('INFO',     'Informativo', 'Operaciones normales del sistema',       '#3b82f6', 0, true),
