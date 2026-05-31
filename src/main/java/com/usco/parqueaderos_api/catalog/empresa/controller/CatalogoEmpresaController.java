@@ -32,6 +32,7 @@ public class CatalogoEmpresaController {
     private final TipoMovimientoSaldoRepository tipoMovimientoSaldoRepo;
     private final TipoDescuentoConvenioRepository tipoDescuentoConvenioRepo;
     private final OrigenFacturaRepository origenFacturaRepo;
+    private final TipoResolucionDianRepository tipoResolucionDianRepo;
     private final CurrentUserService currentUser;
 
     private Long empresaIdOrFail() {
@@ -107,5 +108,12 @@ public class CatalogoEmpresaController {
         return ResponseEntity.ok(ApiResponse.ok(
                 origenFacturaRepo.findByEmpresaIdAndActivoTrueOrderByOrdenDisplayAsc(empresaIdOrFail()),
                 "Origenes de factura"));
+    }
+
+    @GetMapping("/tipos-resolucion-dian")
+    public ResponseEntity<ApiResponse<List<TipoResolucionDian>>> tiposResolucionDian() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                tipoResolucionDianRepo.findByEmpresaIdAndActivoTrueOrderByOrdenDisplayAsc(empresaIdOrFail()),
+                "Tipos de resolucion DIAN"));
     }
 }

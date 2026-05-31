@@ -1899,3 +1899,309 @@ SELECT * FROM (VALUES
 WHERE NOT EXISTS (
     SELECT 1 FROM reporte_definicion rd WHERE rd.empresa_id IS NULL AND rd.clave = r.clave
 );
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 COMPLETAR — Bloque A: catálogos globales faltantes (5)
+-- ════════════════════════════════════════════════════════════════
+
+-- 1. estado_civil
+CREATE TABLE IF NOT EXISTS estado_civil (
+    id BIGSERIAL PRIMARY KEY,
+    codigo VARCHAR(20) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+ALTER TABLE estado_civil ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE estado_civil ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE estado_civil SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE estado_civil SET activo = TRUE WHERE activo IS NULL;
+INSERT INTO estado_civil (codigo, nombre, orden_display) VALUES
+    ('SOLTERO',     'Soltero/a',     1),
+    ('CASADO',      'Casado/a',      2),
+    ('UNION_LIBRE', 'Union libre',   3),
+    ('DIVORCIADO',  'Divorciado/a',  4),
+    ('VIUDO',       'Viudo/a',       5),
+    ('SEPARADO',    'Separado/a',    6)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 2. pais_codigo_placa (para Vehiculo.placa_pais_id)
+CREATE TABLE IF NOT EXISTS pais_codigo_placa (
+    id BIGSERIAL PRIMARY KEY,
+    codigo VARCHAR(2) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    regex_placa VARCHAR(200),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+ALTER TABLE pais_codigo_placa ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE pais_codigo_placa ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE pais_codigo_placa SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE pais_codigo_placa SET activo = TRUE WHERE activo IS NULL;
+INSERT INTO pais_codigo_placa (codigo, nombre, regex_placa, orden_display) VALUES
+    ('CO', 'Colombia',  '^[A-Z]{3}\d{3}$|^[A-Z]{3}\d{2}[A-Z]$', 1),
+    ('EC', 'Ecuador',   '^[A-Z]{3}\d{3,4}$',                    2),
+    ('VE', 'Venezuela', '^[A-Z]{2,3}\d{2,3}[A-Z]?$',            3),
+    ('PE', 'Peru',      '^[A-Z]\d[A-Z]-\d{3}$',                 4),
+    ('PA', 'Panama',    '^[A-Z]{2}\d{3,4}$',                    5),
+    ('MX', 'Mexico',    '^[A-Z]{3}-\d{3}-[A-Z]$',               6),
+    ('US', 'EE.UU.',    '^[A-Z0-9]{1,7}$',                      7),
+    ('BR', 'Brasil',    '^[A-Z]{3}\d[A-Z]\d{2}$|^[A-Z]{3}\d{4}$', 8)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 3. tipo_servicio_vehiculo (para Vehiculo.tipo_servicio_id)
+CREATE TABLE IF NOT EXISTS tipo_servicio_vehiculo (
+    id BIGSERIAL PRIMARY KEY,
+    codigo VARCHAR(50) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+ALTER TABLE tipo_servicio_vehiculo ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_servicio_vehiculo ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_servicio_vehiculo SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE tipo_servicio_vehiculo SET activo = TRUE WHERE activo IS NULL;
+INSERT INTO tipo_servicio_vehiculo (codigo, nombre, descripcion, orden_display) VALUES
+    ('PARTICULAR',   'Particular',   'Uso personal del propietario',                1),
+    ('PUBLICO',      'Publico',      'Taxi, transporte de pasajeros',               2),
+    ('OFICIAL',      'Oficial',      'Entidades gubernamentales',                   3),
+    ('DIPLOMATICO',  'Diplomatico',  'Cuerpo diplomatico',                          4),
+    ('CARGA',        'Carga',        'Transporte de carga',                         5),
+    ('EMERGENCIA',   'Emergencia',   'Ambulancia, bomberos, policia',               6)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 4. tipo_acceso_dispositivo (para Dispositivo.tipo_acceso_id)
+CREATE TABLE IF NOT EXISTS tipo_acceso_dispositivo (
+    id BIGSERIAL PRIMARY KEY,
+    codigo VARCHAR(50) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+ALTER TABLE tipo_acceso_dispositivo ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_acceso_dispositivo ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_acceso_dispositivo SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE tipo_acceso_dispositivo SET activo = TRUE WHERE activo IS NULL;
+INSERT INTO tipo_acceso_dispositivo (codigo, nombre, descripcion, icono, orden_display) VALUES
+    ('RFID',      'RFID',           'Tarjeta o tag de proximidad',     'credit-card',  1),
+    ('MANUAL',    'Manual',         'Apertura manual del operador',    'hand',         2),
+    ('OCR',       'OCR',            'Reconocimiento de placa',         'camera',       3),
+    ('AUTO',      'Auto',           'Apertura automatica por sensor',  'zap',          4),
+    ('BLUETOOTH', 'Bluetooth',      'Pareo con dispositivo movil',     'bluetooth',    5),
+    ('QR',        'QR',             'Codigo QR escaneado',             'qr-code',      6),
+    ('TICKET',    'Ticket impreso', 'Codigo de barras del ticket',     'ticket',       7)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- 5. canal_origen_reserva (para Reserva.canal_origen_id)
+CREATE TABLE IF NOT EXISTS canal_origen_reserva (
+    id BIGSERIAL PRIMARY KEY,
+    codigo VARCHAR(50) NOT NULL UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP
+);
+ALTER TABLE canal_origen_reserva ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE canal_origen_reserva ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE canal_origen_reserva SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE canal_origen_reserva SET activo = TRUE WHERE activo IS NULL;
+INSERT INTO canal_origen_reserva (codigo, nombre, icono, orden_display) VALUES
+    ('WEB',         'Web',           'globe',       1),
+    ('APP_ANDROID', 'App Android',   'smartphone',  2),
+    ('APP_IOS',     'App iOS',       'smartphone',  3),
+    ('TELEFONO',    'Telefono',      'phone',       4),
+    ('PRESENCIAL',  'Presencial',    'user',        5),
+    ('WHATSAPP',    'WhatsApp',      'message-circle', 6),
+    ('EMAIL',       'Email',         'mail',        7)
+ON CONFLICT (codigo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 COMPLETAR — Bloque A: tipo_resolucion_dian por empresa (Fase 2)
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS tipo_resolucion_dian (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    color_hex VARCHAR(9),
+    icono VARCHAR(50),
+    orden_display INTEGER,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    CONSTRAINT uq_tipo_resolucion_dian UNIQUE (empresa_id, codigo)
+);
+ALTER TABLE tipo_resolucion_dian ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE tipo_resolucion_dian ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_resolucion_dian SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE tipo_resolucion_dian SET activo = TRUE WHERE activo IS NULL;
+INSERT INTO tipo_resolucion_dian (empresa_id, codigo, nombre, color_hex, icono, orden_display)
+SELECT e.id, c.codigo, c.nombre, c.color_hex, c.icono, c.orden_display FROM empresa e
+CROSS JOIN (VALUES
+    ('POS',                  'POS',                       '#3b82f6', 'receipt',    1),
+    ('FACTURA_ELECTRONICA',  'Factura electronica',       '#10b981', 'file-text',  2),
+    ('CONTINGENCIA',         'Contingencia',              '#f59e0b', 'alert-triangle', 3)
+) AS c(codigo, nombre, color_hex, icono, orden_display)
+ON CONFLICT (empresa_id, codigo) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 COMPLETAR — Bloque A: 11 settings empresa_config faltantes
+-- ════════════════════════════════════════════════════════════════
+INSERT INTO empresa_config (empresa_id, clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
+SELECT e.id, c.clave, c.valor, c.tipo, c.valor_min, c.valor_max, c.descripcion, c.categoria
+FROM empresa e
+CROSS JOIN (VALUES
+    ('factura.email_automatico',                  'false',                             'BOOLEAN', NULL, NULL, 'Enviar factura por email automaticamente al emitir', 'facturacion'),
+    ('factura.formato_numero',                    '{prefijo}-{consecutivo:06d}',       'STRING',  NULL, NULL, 'Plantilla para el numero de factura', 'facturacion'),
+    ('caja.requiere_apertura_para_cobrar',        'false',                             'BOOLEAN', NULL, NULL, 'Operador necesita caja abierta para registrar pagos', 'caja'),
+    ('caja.max_diferencia_warn',                  '1000',                              'DECIMAL', 0,    NULL, 'Diferencia maxima de arqueo sin advertencia', 'caja'),
+    ('caja.cierre_obligatorio_diario',            'true',                              'BOOLEAN', NULL, NULL, 'Forzar cierre de caja al fin del dia', 'caja'),
+    ('seguridad.password_min_length',             '8',                                 'INTEGER', 6,    32,   'Longitud minima de password al registrar', 'seguridad'),
+    ('seguridad.password_requiere_simbolos',      'false',                             'BOOLEAN', NULL, NULL, 'Password debe incluir caracteres especiales', 'seguridad'),
+    ('seguridad.jwt_expiracion_minutos',          '60',                                'INTEGER', 5,    1440, 'Expiracion del access token en minutos', 'seguridad'),
+    ('seguridad.bloqueo_intentos_fallidos',       '5',                                 'INTEGER', 3,    20,   'Numero de intentos fallidos antes de bloquear cuenta', 'seguridad'),
+    ('notificacion.email_habilitado',             'true',                              'BOOLEAN', NULL, NULL, 'Enviar notificaciones por email', 'notificacion'),
+    ('notificacion.websocket_habilitado',         'true',                              'BOOLEAN', NULL, NULL, 'Push notifications via WebSocket', 'notificacion')
+) AS c(clave, valor, tipo, valor_min, valor_max, descripcion, categoria)
+ON CONFLICT (empresa_id, clave) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 COMPLETAR — Bloque A: 8 reportes globales adicionales
+-- ════════════════════════════════════════════════════════════════
+INSERT INTO reporte_definicion (empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
+SELECT * FROM (VALUES
+(CAST(NULL AS BIGINT), 'vehiculos_visitantes_activos',
+    'Vehiculos visitantes activos',
+    'Vehiculos marcados como visitantes (sin persona) con actividad reciente.',
+    'SELECT v.placa, v.color, v.ultima_actividad,
+            tv.nombre AS tipo_vehiculo
+     FROM vehiculo v
+     LEFT JOIN tipo_vehiculo tv ON v.tipo_vehiculo_id = tv.id
+     WHERE v.es_visitante = true
+       AND v.activo = true
+       AND v.ultima_actividad >= :desde
+     ORDER BY v.ultima_actividad DESC
+     LIMIT :limite',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"limite","tipo":"integer","default":200}]',
+    '[{"clave":"placa","tipo":"string"},{"clave":"color","tipo":"string"},{"clave":"ultima_actividad","tipo":"timestamp"},{"clave":"tipo_vehiculo","tipo":"string"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(CAST(NULL AS BIGINT), 'ingresos_diarios',
+    'Ingresos diarios',
+    'Total cobrado por dia (pagos completados) en un rango.',
+    'SELECT DATE(fecha_hora) AS dia, SUM(monto) AS total, COUNT(*) AS cant_pagos
+     FROM pago
+     WHERE estado = ''COMPLETADO''
+       AND fecha_hora BETWEEN :desde AND :hasta
+     GROUP BY DATE(fecha_hora)
+     ORDER BY dia',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"dia","tipo":"date"},{"clave":"total","tipo":"decimal"},{"clave":"cant_pagos","tipo":"long"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(CAST(NULL AS BIGINT), 'suscripciones_por_vencer',
+    'Suscripciones por vencer',
+    'Suscripciones que vencen en los proximos N dias.',
+    'SELECT s.id, v.placa, s.tipo, s.fecha_fin,
+            EXTRACT(DAY FROM (s.fecha_fin - CURRENT_TIMESTAMP))::integer AS dias_para_vencer
+     FROM suscripcion s
+     JOIN vehiculo v ON s.vehiculo_id = v.id
+     WHERE s.estado = ''ACTIVA''
+       AND s.fecha_fin BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP + (:dias || '' days'')::interval
+     ORDER BY s.fecha_fin ASC',
+    '[{"clave":"dias","tipo":"integer","default":7}]',
+    '[{"clave":"id","tipo":"long"},{"clave":"placa","tipo":"string"},{"clave":"tipo","tipo":"string"},{"clave":"fecha_fin","tipo":"timestamp"},{"clave":"dias_para_vencer","tipo":"integer"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(CAST(NULL AS BIGINT), 'cierre_caja_pendiente',
+    'Cajas con cierre pendiente',
+    'Cajas abiertas que ya deberian estar cerradas (mas de 12h).',
+    'SELECT c.id, c.usuario_id, c.fecha_apertura, c.fondo_inicial,
+            EXTRACT(HOUR FROM (CURRENT_TIMESTAMP - c.fecha_apertura))::integer AS horas_abierta
+     FROM caja c
+     WHERE c.estado = ''ABIERTA''
+       AND c.fecha_apertura < CURRENT_TIMESTAMP - INTERVAL ''12 hours''
+     ORDER BY c.fecha_apertura ASC',
+    '[]',
+    '[{"clave":"id","tipo":"long"},{"clave":"usuario_id","tipo":"long"},{"clave":"fecha_apertura","tipo":"timestamp"},{"clave":"fondo_inicial","tipo":"decimal"},{"clave":"horas_abierta","tipo":"integer"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(CAST(NULL AS BIGINT), 'tickets_anulados',
+    'Tickets anulados con motivos',
+    'Listado de tickets anulados con motivo y operador.',
+    'SELECT t.id, t.placa_snapshot AS placa, t.fecha_hora_entrada, t.anulado_en,
+            t.motivo_anulacion, t.operador_entrada_nombre_snapshot AS operador
+     FROM ticket t
+     WHERE t.estado = ''ANULADO''
+       AND t.anulado_en BETWEEN :desde AND :hasta
+       AND t.parqueadero_id = :parqueaderoId
+     ORDER BY t.anulado_en DESC',
+    '[{"clave":"parqueaderoId","tipo":"long","requerido":true},{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"id","tipo":"long"},{"clave":"placa","tipo":"string"},{"clave":"fecha_hora_entrada","tipo":"timestamp"},{"clave":"anulado_en","tipo":"timestamp"},{"clave":"motivo_anulacion","tipo":"string"},{"clave":"operador","tipo":"string"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(CAST(NULL AS BIGINT), 'resoluciones_dian_agotandose',
+    'Resoluciones DIAN agotandose',
+    'Resoluciones vigentes con consecutivo cercano al rango_final.',
+    'SELECT rd.id, rd.numero_resolucion, rd.consecutivo_actual, rd.rango_final,
+            (rd.rango_final - rd.consecutivo_actual) AS disponibles,
+            rd.vigente_hasta
+     FROM resolucion_dian rd
+     WHERE rd.archivada_en IS NULL
+       AND (rd.rango_final - rd.consecutivo_actual) < :umbral
+     ORDER BY disponibles ASC',
+    '[{"clave":"umbral","tipo":"integer","default":100}]',
+    '[{"clave":"id","tipo":"long"},{"clave":"numero_resolucion","tipo":"string"},{"clave":"consecutivo_actual","tipo":"long"},{"clave":"rango_final","tipo":"long"},{"clave":"disponibles","tipo":"long"},{"clave":"vigente_hasta","tipo":"date"}]',
+    'ADMIN,SUPER_ADMIN'),
+
+(CAST(NULL AS BIGINT), 'convenios_uso_mensual',
+    'Uso de convenios mensual',
+    'Conteo de validaciones de convenio por mes.',
+    'SELECT c.nombre_comercio, DATE_TRUNC(''month'', vc.fecha_hora) AS mes,
+            COUNT(*) AS validaciones, SUM(vc.descuento_aplicado) AS descuento_total
+     FROM validacion_compra vc
+     JOIN convenio c ON vc.convenio_id = c.id
+     WHERE vc.fecha_hora BETWEEN :desde AND :hasta
+     GROUP BY c.nombre_comercio, DATE_TRUNC(''month'', vc.fecha_hora)
+     ORDER BY mes DESC, validaciones DESC',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true}]',
+    '[{"clave":"nombre_comercio","tipo":"string"},{"clave":"mes","tipo":"date"},{"clave":"validaciones","tipo":"long"},{"clave":"descuento_total","tipo":"decimal"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
+
+(CAST(NULL AS BIGINT), 'rotacion_promedio',
+    'Rotacion promedio por punto',
+    'Promedio de tickets cerrados por punto en el periodo.',
+    'SELECT pp.nombre AS punto, COUNT(t.id) AS tickets,
+            AVG(EXTRACT(EPOCH FROM (t.fecha_hora_salida - t.fecha_hora_entrada))/60)::integer AS minutos_promedio
+     FROM punto_parqueo pp
+     LEFT JOIN ticket t ON t.punto_parqueo_id = pp.id
+       AND t.estado = ''CERRADO''
+       AND t.fecha_hora_entrada BETWEEN :desde AND :hasta
+     WHERE pp.id IN (SELECT id FROM punto_parqueo WHERE archivado_en IS NULL)
+     GROUP BY pp.nombre
+     ORDER BY tickets DESC
+     LIMIT :limite',
+    '[{"clave":"desde","tipo":"timestamp","requerido":true},{"clave":"hasta","tipo":"timestamp","requerido":true},{"clave":"limite","tipo":"integer","default":50}]',
+    '[{"clave":"punto","tipo":"string"},{"clave":"tickets","tipo":"long"},{"clave":"minutos_promedio","tipo":"integer"}]',
+    'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO')
+
+) AS r(empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
+WHERE NOT EXISTS (
+    SELECT 1 FROM reporte_definicion rd WHERE rd.empresa_id IS NULL AND rd.clave = r.clave
+);

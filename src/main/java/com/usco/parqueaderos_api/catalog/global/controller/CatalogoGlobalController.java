@@ -30,6 +30,11 @@ public class CatalogoGlobalController {
     private final ZonaHorariaRepository zonaHorariaRepo;
     private final UnidadTarifaRepository unidadTarifaRepo;
     private final RegimenTributarioRepository regimenTributarioRepo;
+    private final EstadoCivilRepository estadoCivilRepo;
+    private final PaisCodigoPlacaRepository paisCodigoPlacaRepo;
+    private final TipoServicioVehiculoRepository tipoServicioVehiculoRepo;
+    private final TipoAccesoDispositivoRepository tipoAccesoDispositivoRepo;
+    private final CanalOrigenReservaRepository canalOrigenReservaRepo;
 
     @GetMapping("/tipos-documento")
     public ResponseEntity<ApiResponse<List<TipoDocumento>>> tiposDocumento() {
@@ -71,5 +76,40 @@ public class CatalogoGlobalController {
         return ResponseEntity.ok(ApiResponse.ok(
                 regimenTributarioRepo.findByActivoTrueOrderByOrdenDisplayAsc(),
                 "Regimenes tributarios"));
+    }
+
+    @GetMapping("/estados-civiles")
+    public ResponseEntity<ApiResponse<List<EstadoCivil>>> estadosCiviles() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                estadoCivilRepo.findByActivoTrueOrderByOrdenDisplayAsc(),
+                "Estados civiles"));
+    }
+
+    @GetMapping("/paises-placa")
+    public ResponseEntity<ApiResponse<List<PaisCodigoPlaca>>> paisesPlaca() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                paisCodigoPlacaRepo.findByActivoTrueOrderByOrdenDisplayAsc(),
+                "Paises de placa"));
+    }
+
+    @GetMapping("/tipos-servicio-vehiculo")
+    public ResponseEntity<ApiResponse<List<TipoServicioVehiculo>>> tiposServicioVehiculo() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                tipoServicioVehiculoRepo.findByActivoTrueOrderByOrdenDisplayAsc(),
+                "Tipos de servicio de vehiculo"));
+    }
+
+    @GetMapping("/tipos-acceso-dispositivo")
+    public ResponseEntity<ApiResponse<List<TipoAccesoDispositivo>>> tiposAccesoDispositivo() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                tipoAccesoDispositivoRepo.findByActivoTrueOrderByOrdenDisplayAsc(),
+                "Tipos de acceso de dispositivo"));
+    }
+
+    @GetMapping("/canales-origen-reserva")
+    public ResponseEntity<ApiResponse<List<CanalOrigenReserva>>> canalesOrigenReserva() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                canalOrigenReservaRepo.findByActivoTrueOrderByOrdenDisplayAsc(),
+                "Canales de origen de reserva"));
     }
 }
