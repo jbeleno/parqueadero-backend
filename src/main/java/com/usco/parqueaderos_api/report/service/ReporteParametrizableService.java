@@ -61,7 +61,27 @@ public class ReporteParametrizableService {
         }
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        if (parametros != null) parametros.forEach(params::addValue);
+        if (parametros != null) {
+            // v49: parsear strings de timestamp/date a LocalDateTime/LocalDate
+            // antes de pasarlos al JDBC. Sin esto PostgreSQL falla con "bad SQL
+            // grammar" porque trata el string como text y no puede compararlo
+            // con una columna timestamp.
+            parametros.forEach((k, v) -> {
+                if (v instanceof String s && esTimestampString(s)) {
+                    try {
+                        params.addValue(k, java.time.LocalDateTime.parse(s));
+                        return;
+                    } catch (Exception ignored) { /* deja como string */ }
+                }
+                if (v instanceof String s2 && esDateString(s2)) {
+                    try {
+                        params.addValue(k, java.time.LocalDate.parse(s2));
+                        return;
+                    } catch (Exception ignored) { /* deja como string */ }
+                }
+                params.addValue(k, v);
+            });
+        }
 
         List<Map<String, Object>> filas;
         ReporteEjecutado log = new ReporteEjecutado();
@@ -98,5 +118,14 @@ public class ReporteParametrizableService {
                 "totalFilas", filas.size(),
                 "truncado", truncado,
                 "duracionMs", log.getDuracionMs());
+    }
+
+    private static boolean esTimestampString(String s) {
+        // Acepta "2026-01-01T00:00:00" o con milisegundos
+        return s.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?$");
+    }
+
+    private static boolean esDateString(String s) {
+        return s.matches("^\\d{4}-\\d{2}-\\d{2}$");
     }
 }

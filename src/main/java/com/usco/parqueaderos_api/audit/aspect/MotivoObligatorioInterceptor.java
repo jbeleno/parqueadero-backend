@@ -46,7 +46,11 @@ public class MotivoObligatorioInterceptor implements HandlerInterceptor {
                 // Registro de cliente USER (autoservicio)
                 || uri.startsWith("/api/personas")
                 || uri.startsWith("/api/vehiculos") && "POST".equals(method)
-                || uri.equals("/api/usuarios")) {
+                || uri.equals("/api/usuarios")
+                // v49: ejecutar reportes es READ-ONLY (usa POST por tamaño del JSON de
+                // filtros, no porque mute datos). El service ya audita la ejecucion
+                // en reporte_ejecutado con duracion, error, etc.
+                || uri.matches("^/api/reportes-parametrizables/[^/]+/ejecutar$")) {
             return true;
         }
 
