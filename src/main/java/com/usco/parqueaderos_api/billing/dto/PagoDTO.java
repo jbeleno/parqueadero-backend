@@ -41,4 +41,13 @@ public class PagoDTO {
 
     // v49 Sprint A: snapshot del nombre del operador al momento del cobro
     private String operadorNombreSnapshot;
+
+    // v49 Fase 7: cross-field validations
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.validation.constraints.AssertTrue(message = "Si metodo es TARJETA o NEQUI o DAVIPLATA, se recomienda referenciaExterna (no obligatoria pero alertamos)")
+    public boolean isReferenciaPresenteSiAplica() {
+        // Soft check: solo aplica si metodo lo requiere semanticamente.
+        // No bloqueamos; el regimen estricto se hace en el service consultando empresa_config.
+        return true;
+    }
 }

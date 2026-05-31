@@ -24,4 +24,19 @@ public class EmpresaDTO {
     @NotNull(message = "El estado es obligatorio")
     private Long estadoId;
     private String estadoNombre;
+
+    // v49 Fase 7: cross-field validations
+    private String modoOperacion;
+    private String nit;
+    private Long regimenTributarioId;
+    private String emailFacturacion;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.validation.constraints.AssertTrue(message = "Si modoOperacion=FORMAL, son obligatorios nit, regimenTributarioId y emailFacturacion")
+    public boolean isFormalConsistente() {
+        if (!"FORMAL".equalsIgnoreCase(modoOperacion)) return true;
+        return nit != null && !nit.isBlank()
+            && regimenTributarioId != null
+            && emailFacturacion != null && !emailFacturacion.isBlank();
+    }
 }

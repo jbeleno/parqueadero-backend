@@ -50,4 +50,24 @@ public class ConvenioDTO {
     private Long desactivadoPorUsuarioId;
     private String desactivadoPorUsuarioNombre;
     private LocalDateTime desactivadoEn;
+
+    // v49 Fase 7: cross-field validations
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.validation.constraints.AssertTrue(message = "Segun el tipoDescuento, el valor correspondiente es obligatorio y debe ser positivo")
+    public boolean isDescuentoConsistente() {
+        if (tipoDescuento == null) return true;
+        switch (tipoDescuento) {
+            case "MONTO_FIJO":     return valorDescuento != null && valorDescuento > 0;
+            case "PORCENTAJE":     return porcentajeDescuento != null && porcentajeDescuento > 0 && porcentajeDescuento <= 100;
+            case "MINUTOS_GRATIS": return minutosGratis != null && minutosGratis > 0;
+            default: return true;
+        }
+    }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.validation.constraints.AssertTrue(message = "fechaFinVigencia debe ser posterior a fechaInicioVigencia")
+    public boolean isVigenciaValida() {
+        if (fechaInicioVigencia == null || fechaFinVigencia == null) return true;
+        return fechaFinVigencia.isAfter(fechaInicioVigencia);
+    }
 }

@@ -63,4 +63,15 @@ public class FacturaDTO {
     private String clienteDocumentoSnapshot;
     private String placaSnapshot;
     private String emitidoPorNombreSnapshot;
+
+    // v49 Fase 7: cross-field validations
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.validation.constraints.AssertTrue(message = "Si hay ivaMonto, baseImponible + ivaMonto debe igualar valorTotal (tolerancia 0.01)")
+    public boolean isIvaConsistente() {
+        if (valorTotal == null) return true;
+        if (ivaMonto == null || ivaMonto == 0.0) return true;
+        if (baseImponible == null) return false;
+        double suma = baseImponible + ivaMonto;
+        return Math.abs(suma - valorTotal) <= 0.01;
+    }
 }
