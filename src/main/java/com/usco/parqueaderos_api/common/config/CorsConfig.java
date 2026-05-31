@@ -24,7 +24,18 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowCredentials(true);
+        // Hosts exactos configurados via env (front prod, etc.)
         config.setAllowedOrigins(allowedOrigins);
+        // Patrones SIEMPRE permitidos: localhost en cualquier puerto + 127.0.0.1.
+        // Util para herramientas de demo (docs/tester/webcam-tester.html con
+        // `python3 -m http.server`) sin tocar el env var cada vez. Con
+        // setAllowCredentials(true) Spring NO permite '*' como origen, pero
+        // SI permite patrones via setAllowedOriginPatterns.
+        config.setAllowedOriginPatterns(List.of(
+            "http://localhost:[*]",
+            "http://127.0.0.1:[*]",
+            "https://localhost:[*]"
+        ));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setExposedHeaders(List.of("Authorization"));

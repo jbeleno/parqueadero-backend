@@ -23,19 +23,13 @@ Sirve para **demostrar el flujo end-to-end** sin necesidad del front "real":
 
 ---
 
-## 🚀 Cómo levantarlo (3 opciones)
+## 🚀 Cómo levantarlo
 
-### Opción 1: Doble click (más simple)
+### ⚠️ NO usar `file://` (doble click)
 
-```bash
-open docs/tester/webcam-tester.html
-```
+El backend rechaza requests con `Origin: null` (CORS) y los navegadores bloquean `getUserMedia()` desde `file://`. **Hay que servirlo via HTTP local.**
 
-Se abre directo en tu navegador. **No requiere servidor local.**
-
-> Limitación: algunos navegadores (Chrome estricto) bloquean `navigator.mediaDevices.getUserMedia()` cuando la página se sirve via `file://`. Si la webcam no arranca, usa la Opción 2.
-
-### Opción 2: Servidor HTTP estático local
+### ✅ Opción recomendada: servidor Python (10 segundos)
 
 ```bash
 cd docs/tester
@@ -43,11 +37,17 @@ python3 -m http.server 8000
 # Abrir: http://localhost:8000/webcam-tester.html
 ```
 
-Esto hace que el navegador trate la página como un origen HTTP válido y permita acceso a la webcam.
+Listo. La app ya está configurada para apuntar al backend de producción. El backend permite `http://localhost:*` automáticamente vía CORS, así que funciona out-of-the-box.
 
-### Opción 3: Subida temporal (para mostrar en otra máquina)
+### Opciones alternativas
 
-Subí el archivo a cualquier hosting estático (Vercel, Netlify, GitHub Pages, ngrok). No tiene dependencias del backend más allá de la URL del API.
+| Comando | Cuándo |
+|---|---|
+| `npx serve docs/tester` | Si prefieres Node (instala `serve` la primera vez) |
+| `php -S localhost:8000 -t docs/tester` | Si tienes PHP |
+| Subir a Vercel/Netlify/GitHub Pages | Para demos remotas o compartir con el equipo |
+
+> Si en lugar de `localhost` accedes desde tu IP de red (ej. `192.168.x.x`) para probar desde otro dispositivo, necesitas agregar esa IP a `APP_CORS_ALLOWED_ORIGINS` en Dokploy y restartear.
 
 ---
 

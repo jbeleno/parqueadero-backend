@@ -342,14 +342,13 @@ java -jar target/parqueaderos-api-0.0.1-SNAPSHOT.jar
 Página HTML standalone para probar el pipeline OCR + WebSocket en vivo durante presentaciones o desarrollo. Sin build, sin dependencias locales, 1 solo archivo.
 
 ```bash
-# Opción 1: abrir directo
-open docs/tester/webcam-tester.html
-
-# Opción 2: servidor local (recomendado si la webcam no arranca)
+# Servidor local (REQUERIDO — no funciona con file://)
 cd docs/tester
 python3 -m http.server 8000
 # → http://localhost:8000/webcam-tester.html
 ```
+
+> ⚠️ NO usar doble click / `file://`: el backend rechaza `Origin: null` (CORS) y la webcam queda bloqueada. El servidor Python lo resuelve. Backend permite `http://localhost:*` automáticamente.
 
 ### Qué hace
 
