@@ -32,7 +32,15 @@ import java.time.LocalDateTime;
 @Setter
 public abstract class BaseEntity {
 
-    @Column(name = "fecha_creacion", nullable = false, updatable = false)
+    /**
+     * Nota v49: NO usar nullable=false aqui. Cuando Hibernate (ddl-auto=update)
+     * agrega esta columna a una tabla con filas preexistentes (ej. refresh_token),
+     * primero la crea sin DEFAULT, luego intenta SET NOT NULL y falla porque hay
+     * NULLs. La consistencia se garantiza via @PrePersist a nivel de aplicacion,
+     * que SIEMPRE llena este campo en inserts nuevos. Los registros pre-v49
+     * pueden quedar con NULL — los services tratan ese caso como "fecha desconocida".
+     */
+    @Column(name = "fecha_creacion", updatable = false)
     private LocalDateTime fechaCreacion;
 
     @Column(name = "fecha_actualizacion")
