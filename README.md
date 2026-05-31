@@ -18,7 +18,7 @@ REST API para sistema de gestión de parqueaderos con disponibilidad en tiempo r
 
 | Recurso | URL / Valor |
 |---|---|
-| **API base** | `http://deploy.inmero.co:5445` *(actualiza si tu Dokploy expone otro host/puerto)* |
+| **API base** | `https://parqueadero-api-useune-c1a095-158-69-200-27.traefik.me` (Dokploy + Traefik.me) |
 | **Swagger UI** | `<API_BASE>/swagger-ui.html` |
 | **Health check** | `<API_BASE>/api/health` |
 | **Imagen Docker** | `ghcr.io/jbeleno/parqueaderos-api:latest` |
@@ -369,6 +369,15 @@ El container no arrancó. Revisar logs en Dokploy → buscar `ApplicationContext
 
 ### `Extension postgis is not available`
 La imagen `postgis/postgis:16-3.4-alpine` ya la trae. Para BD externa: `CREATE EXTENSION postgis;` como superuser.
+
+### `column "fecha_creacion" of relation "X" contains null values` al arrancar
+
+Pasó al deployar v49 contra una BD con datos pre-v49. Hibernate
+(`ddl-auto=update`) intenta hacer `ALTER COLUMN SET NOT NULL` sobre una
+columna recién creada que tiene filas viejas con NULL. **Fix aplicado:**
+`BaseEntity.fechaCreacion` ahora es `nullable=true` en JPA — la
+consistencia se garantiza via `@PrePersist` a nivel de aplicación. Los
+registros pre-v49 quedan con NULL hasta que se reescriban.
 
 ### Tests fallan con `Unable to find a @SpringBootConfiguration`
 Asegurar que estás en la raíz del proyecto. Usa `./mvnw test` (no `mvn test` global).
