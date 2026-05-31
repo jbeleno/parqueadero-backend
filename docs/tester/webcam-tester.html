@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tester de placas — Parqueaderos</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #1a1f2b;
+    --border: #2a3142;
+    --text: #e6edf3;
+    --muted: #8b95a7;
+    --accent: #4f9eff;
+    --accent-strong: #2b7de9;
+    --green: #3ddc97;
+    --red: #ff6b6b;
+    --yellow: #ffd93d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    margin: 0; padding: 24px;
+  }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  label { color: var(--muted); font-size: 12px; }
+  input, select, button {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 4px; font: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  button {
+    cursor: pointer; background: var(--accent); border-color: var(--accent); color: white;
+    font-weight: 500;
+  }
+  button:hover { background: var(--accent-strong); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.danger { background: var(--red); border-color: var(--red); }
+  button.success { background: var(--green); border-color: var(--green); color: #052315; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge.entrada { background: rgba(61,220,151,0.2); color: var(--green); }
+  .badge.salida { background: rgba(255,107,107,0.2); color: var(--red); }
+  .badge.seguridad { background: rgba(139,149,167,0.2); color: var(--muted); }
+  .status { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+  video, canvas { width: 100%; max-width: 480px; border-radius: 6px; background: #000; }
+  canvas { display: none; }
+  .event {
+    border-left: 3px solid var(--accent);
+    padding: 8px 12px; margin-bottom: 6px;
+    background: rgba(79,158,255,0.07);
+    border-radius: 0 4px 4px 0;
+  }
+  .event.placa { border-color: var(--green); background: rgba(61,220,151,0.07); }
+  .event.placa .placa-text { font-size: 24px; font-weight: 700; letter-spacing: 2px; }
+  .event .ts { font-size: 11px; color: var(--muted); }
+  .small { font-size: 12px; color: var(--muted); }
+  .cam-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: 6px 8px; border-radius: 4px;
+  }
+  .cam-row:hover { background: rgba(255,255,255,0.03); }
+  #log { max-height: 240px; overflow-y: auto; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+</style>
+</head>
+<body>
+<h1>Tester de placas <span class="small">— frontend simulado con tu webcam</span></h1>
+
+<div class="grid">
+
+  <!-- ============ LEFT ============ -->
+  <div>
+
+    <!-- LOGIN -->
+    <div class="panel" id="login-panel">
+      <h2>1 · Login</h2>
+      <div class="row">
+        <input id="email" placeholder="correo" value="admin@test.com" style="flex:1">
+        <input id="password" placeholder="password" value="admin123" type="password" style="flex:1">
+        <button id="btn-login">Entrar</button>
+      </div>
+      <div class="status" id="auth-status">No autenticado</div>
+    </div>
+
+    <!-- PARQUEADERO + CAMARAS -->
+    <div class="panel" style="margin-top:12px">
+      <h2>2 · Parqueadero y cámaras</h2>
+      <div class="row">
+        <label>parqueaderoId:</label>
+        <input id="parq-id" type="number" value="8" style="width:80px">
+        <button id="btn-load-cams">Cargar cámaras</button>
+      </div>
+      <div id="cam-list" class="small" style="margin-top:8px">—</div>
+    </div>
+
+    <!-- WEBCAM -->
+    <div class="panel" style="margin-top:12px">
+      <h2>3 · Tu webcam</h2>
+      <div class="row">
+        <button id="btn-toggle-cam">Activar cámara web</button>
+        <label>Intervalo:</label>
+        <input id="interval" type="number" value="3" min="1" max="60" style="width:60px"> seg
+        <span id="cam-status" class="status">apagada</span>
+      </div>
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="small" style="margin-top:8px">
+        Cada N segundos se manda el frame al backend como si lo enviara la cámara seleccionada arriba.
+      </div>
+    </div>
+
+    <!-- UPLOAD ARCHIVO -->
+    <div class="panel" style="margin-top:12px">
+      <h2>3.b · Subir foto manualmente</h2>
+      <div class="row">
+        <input id="file-input" type="file" accept="image/jpeg,image/png" style="flex:1">
+        <button id="btn-upload-file">Enviar a la cámara seleccionada</button>
+      </div>
+      <img id="preview" style="max-width:100%; max-height:220px; margin-top:8px; border-radius:6px; display:none">
+      <div class="small" style="margin-top:8px">
+        Alternativa a la webcam: subes una foto JPG/PNG y se manda como si la hubiera tomado la cámara seleccionada arriba.
+        Útil para probar con fotos reales de placas.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ RIGHT ============ -->
+  <div>
+
+    <!-- WS -->
+    <div class="panel">
+      <h2>4 · WebSocket /topic/parqueadero/{id}</h2>
+      <div class="row">
+        <button id="btn-ws-connect">Conectar WS</button>
+        <span id="ws-status" class="status">desconectado</span>
+      </div>
+      <div class="small">Eventos en vivo del parqueadero seleccionado.</div>
+    </div>
+
+    <!-- EVENTOS -->
+    <div class="panel" style="margin-top:12px">
+      <h2>5 · Placas detectadas</h2>
+      <div id="placas"><div class="small">Sube imágenes para ver placas aquí…</div></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel" style="margin-top:12px">
+      <h2>Log</h2>
+      <div id="log" class="small"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+<script>
+// v49 (2026-05-31): URL actualizada al Traefik HTTPS de Dokploy
+const API = "https://parqueadero-api-useune-c1a095-158-69-200-27.traefik.me";
+const WS  = "https://parqueadero-api-useune-c1a095-158-69-200-27.traefik.me/ws";
+
+const state = {
+  token: null,
+  parqueaderoId: 8, // PARQUEADERO CENTRAL ECONOMIA — 2 camaras (ENTRADA + SALIDA)
+  cameras: [],
+  selectedCameraId: null,
+  stream: null,
+  intervalHandle: null,
+  stomp: null,
+};
+
+const $ = id => document.getElementById(id);
+
+function log(msg, level = "info") {
+  const div = document.createElement("div");
+  div.style.color = level === "err" ? "var(--red)" : level === "ok" ? "var(--green)" : "var(--muted)";
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  $("log").prepend(div);
+}
+
+async function api(path, opts = {}) {
+  const headers = opts.headers || {};
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const res = await fetch(`${API}${path}`, { ...opts, headers });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`${res.status} ${json.message || res.statusText}`);
+  return json;
+}
+
+// ============ LOGIN ============
+$("btn-login").onclick = async () => {
+  try {
+    const r = await api("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ correo: $("email").value, password: $("password").value }),
+    });
+    state.token = r.data.accessToken;
+    $("auth-status").textContent = `OK · roles: ${r.data.roles.join(", ")}`;
+    $("auth-status").className = "status ok";
+    log("login OK", "ok");
+  } catch (e) {
+    $("auth-status").textContent = `Error: ${e.message}`;
+    $("auth-status").className = "status err";
+    log(`login error: ${e.message}`, "err");
+  }
+};
+
+// ============ CAMARAS ============
+$("btn-load-cams").onclick = async () => {
+  const nuevoId = Number($("parq-id").value);
+  // Si cambia el parqueadero y hay WS conectado, desconectar para forzar
+  // reconexion al topic correcto (evita escuchar topic del parq anterior)
+  if (state.parqueaderoId !== nuevoId && state.stomp && state.stomp.connected) {
+    log(`Reconectando WS del parq ${state.parqueaderoId} -> ${nuevoId}...`);
+    state.stomp.deactivate();
+    state.stomp = null;
+  }
+  state.parqueaderoId = nuevoId;
+  try {
+    const r = await api(`/api/parqueaderos/${state.parqueaderoId}/configuracion`);
+    const cams = [];
+    for (const f of (r.data.floors || [])) {
+      for (const c of (f.cameras || [])) {
+        cams.push({ id: c.id, name: c.name, tipo: c.tipo || "SEGURIDAD" });
+      }
+    }
+    state.cameras = cams;
+    renderCams();
+    log(`cargadas ${cams.length} cámaras del parq ${state.parqueaderoId}`, "ok");
+  } catch (e) {
+    log(`error cargando cámaras: ${e.message}`, "err");
+  }
+};
+
+function renderCams() {
+  const el = $("cam-list");
+  if (!state.cameras.length) { el.innerHTML = "—"; return; }
+  el.innerHTML = "";
+  for (const cam of state.cameras) {
+    const row = document.createElement("label");
+    row.className = "cam-row";
+    const tipoBadge = `<span class="badge ${cam.tipo.toLowerCase()}">${cam.tipo}</span>`;
+    row.innerHTML = `
+      <input type="radio" name="cam" value="${cam.id}">
+      <span><strong>cam ${cam.id}</strong> — ${cam.name || "(sin nombre)"}</span>
+      ${tipoBadge}
+    `;
+    row.querySelector("input").onchange = e => {
+      state.selectedCameraId = e.target.value;
+      log(`Seleccionada cámara ${state.selectedCameraId} (${cam.tipo})`);
+    };
+    el.appendChild(row);
+  }
+}
+
+// ============ WEBCAM ============
+let camActive = false;
+$("btn-toggle-cam").onclick = async () => {
+  if (camActive) return stopCam();
+  if (!state.selectedCameraId) { log("Primero elige qué cámara representar (panel 2)", "err"); return; }
+  if (!state.token) { log("Primero login", "err"); return; }
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+    $("video").srcObject = state.stream;
+    camActive = true;
+    $("btn-toggle-cam").textContent = "Detener cámara";
+    $("btn-toggle-cam").classList.add("danger");
+    $("cam-status").textContent = "encendida";
+    $("cam-status").className = "status ok";
+    const interval = Math.max(1, Number($("interval").value)) * 1000;
+    state.intervalHandle = setInterval(captureAndSend, interval);
+    log(`webcam activa — captura cada ${interval/1000}s`, "ok");
+  } catch (e) {
+    log(`error webcam: ${e.message}`, "err");
+  }
+};
+
+function stopCam() {
+  if (state.intervalHandle) clearInterval(state.intervalHandle);
+  if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+  state.stream = null;
+  state.intervalHandle = null;
+  camActive = false;
+  $("btn-toggle-cam").textContent = "Activar cámara web";
+  $("btn-toggle-cam").classList.remove("danger");
+  $("cam-status").textContent = "apagada";
+  $("cam-status").className = "status";
+  log("webcam detenida");
+}
+
+async function captureAndSend() {
+  if (!state.selectedCameraId || !state.stream) return;
+  const video = $("video");
+  const canvas = $("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  canvas.toBlob(async blob => {
+    if (!blob) return;
+    const fd = new FormData();
+    fd.append("file", blob, "frame.jpg");
+    try {
+      const res = await fetch(`${API}/api/camaras/${state.selectedCameraId}/imagen`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${state.token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        log(`upload error ${res.status}: ${j.message || ""}`, "err");
+      } else {
+        log(`frame enviado a cam ${state.selectedCameraId} (${(blob.size/1024).toFixed(0)} KB)`);
+      }
+    } catch (e) {
+      log(`upload fallo: ${e.message}`, "err");
+    }
+  }, "image/jpeg", 0.85);
+}
+
+// ============ UPLOAD ARCHIVO ============
+$("file-input").onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = $("preview");
+  img.src = URL.createObjectURL(file);
+  img.style.display = "block";
+};
+
+$("btn-upload-file").onclick = async () => {
+  const file = $("file-input").files[0];
+  if (!file) { log("Elige un archivo primero", "err"); return; }
+  if (!state.selectedCameraId) { log("Primero elige cámara (panel 2)", "err"); return; }
+  if (!state.token) { log("Primero login", "err"); return; }
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+  try {
+    const res = await fetch(`${API}/api/camaras/${state.selectedCameraId}/imagen`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${state.token}` },
+      body: fd,
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) log(`upload error ${res.status}: ${j.message || ""}`, "err");
+    else log(`foto enviada a cam ${state.selectedCameraId} (${(file.size/1024).toFixed(0)} KB)`, "ok");
+  } catch (e) {
+    log(`upload fallo: ${e.message}`, "err");
+  }
+};
+
+// ============ WEBSOCKET ============
+$("btn-ws-connect").onclick = () => {
+  if (state.stomp && state.stomp.connected) {
+    state.stomp.deactivate();
+    return;
+  }
+  const client = new StompJs.Client({
+    webSocketFactory: () => new SockJS(WS),
+    debug: () => {},
+    onConnect: () => {
+      $("ws-status").textContent = `conectado · /topic/parqueadero/${state.parqueaderoId}`;
+      $("ws-status").className = "status ok";
+      $("btn-ws-connect").textContent = "Desconectar WS";
+      log("ws conectado", "ok");
+      client.subscribe(`/topic/parqueadero/${state.parqueaderoId}`, msg => {
+        try {
+          const evt = JSON.parse(msg.body);
+          handleEvent(evt);
+        } catch (e) { log("evt malformado", "err"); }
+      });
+    },
+    onDisconnect: () => {
+      $("ws-status").textContent = "desconectado";
+      $("ws-status").className = "status";
+      $("btn-ws-connect").textContent = "Conectar WS";
+      log("ws desconectado");
+    },
+    onStompError: f => log(`ws error: ${f.headers.message}`, "err"),
+  });
+  state.stomp = client;
+  client.activate();
+};
+
+function handleEvent(evt) {
+  log(`evt ${evt.tipo} cam=${evt.data?.cameraId || "-"}`);
+  if (evt.tipo === "PLACA_DETECTADA") renderPlaca(evt);
+}
+
+function renderPlaca(evt) {
+  const d = evt.data || {};
+  const div = document.createElement("div");
+  div.className = "event placa";
+  const tipoBadge = `<span class="badge ${(d.tipoCamara || "seguridad").toLowerCase()}">${d.tipoCamara}</span>`;
+
+  // Color del border segun la accion
+  const accionColor = {
+    ENTRADA_REGISTRADA:       "var(--green)",
+    SALIDA_REGISTRADA:        "var(--accent)",
+    SALIDA_CONFIRMADA_FISICA: "var(--accent)",
+    ENTRADA_DUPLICADA:        "var(--yellow)",
+    SALIDA_SIN_TICKET:        "var(--red)",
+    SOLO_DETECCION:           "var(--muted)",
+    ERROR:                    "var(--red)",
+  }[d.accion] || "var(--muted)";
+  div.style.borderLeftColor = accionColor;
+
+  let detalle = "";
+  if (d.accion === "ENTRADA_REGISTRADA") {
+    detalle = `🟢 Entrada · ticket #${d.ticketId} · punto #${d.puntoParqueoId}`;
+    if (d.vehiculoCreado) detalle += ` · <em>vehículo nuevo creado</em>`;
+  } else if (d.accion === "SALIDA_REGISTRADA") {
+    detalle = `🔵 Salida · ticket #${d.ticketId} cerrado · cobro: $${d.montoCalculado?.toFixed(2) || "?"}`;
+  } else if (d.accion === "SALIDA_CONFIRMADA_FISICA") {
+    detalle = `✓ Salida física confirmada · ticket #${d.ticketId} ya estaba cerrado por el operador`;
+  } else if (d.accion === "ENTRADA_DUPLICADA") {
+    detalle = `🟡 Entrada duplicada · ${d.mensaje}`;
+  } else if (d.accion === "SALIDA_SIN_TICKET") {
+    detalle = `🔴 Salida sin entrada previa · ${d.mensaje}`;
+  } else if (d.accion === "SOLO_DETECCION") {
+    detalle = `⚪ Solo seguridad · sin acción`;
+  } else if (d.accion === "ERROR") {
+    detalle = `❌ Error: ${d.mensaje}`;
+  }
+
+  div.innerHTML = `
+    <div class="ts">${new Date(d.detectedAt || Date.now()).toLocaleTimeString()} · cam ${d.cameraId}</div>
+    <div class="placa-text">${d.placa}</div>
+    <div class="small">${tipoBadge} · confianza: ${(d.confianza * 100).toFixed(0)}%</div>
+    <div class="small" style="margin-top:6px">${detalle}</div>
+  `;
+  const cont = $("placas");
+  if (cont.querySelector(".small")) cont.innerHTML = "";
+  cont.prepend(div);
+  while (cont.children.length > 10) cont.lastChild.remove();
+}
+</script>
+</body>
+</html>

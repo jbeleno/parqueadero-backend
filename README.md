@@ -337,6 +337,38 @@ java -jar target/parqueaderos-api-0.0.1-SNAPSHOT.jar
 
 ---
 
+## 🎥 Webcam Tester (para demo OCR + WebSocket)
+
+Página HTML standalone para probar el pipeline OCR + WebSocket en vivo durante presentaciones o desarrollo. Sin build, sin dependencias locales, 1 solo archivo.
+
+```bash
+# Opción 1: abrir directo
+open docs/tester/webcam-tester.html
+
+# Opción 2: servidor local (recomendado si la webcam no arranca)
+cd docs/tester
+python3 -m http.server 8000
+# → http://localhost:8000/webcam-tester.html
+```
+
+### Qué hace
+
+| Sección | Función |
+|---|---|
+| **Login** | JWT con `admin@test.com / admin123` |
+| **Parqueadero + cámaras** | Lista cámaras (ENTRADA/SALIDA) — default parq `8` (CENTRAL ECONOMIA, 2 cámaras) |
+| **Webcam** | Usa webcam laptop, sube un frame cada 3s |
+| **Subir foto manual** | Selector de archivo para fotos reales de placas |
+| **WebSocket /topic/parqueadero/{id}** | Eventos en vivo (placa-detectada, ticket-creado, ticket-cerrado) |
+| **Placas detectadas** | Render de cada lectura del OCR |
+| **Log** | Trace cronológico color-coded |
+
+Por defecto apunta a producción (`https://parqueadero-api-useune-c1a095-158-69-200-27.traefik.me`). Para apuntar a localhost, editar líneas 172-173 del HTML.
+
+Guía completa de uso, troubleshooting y guion de demo en [`docs/tester/README.md`](docs/tester/README.md).
+
+---
+
 ## 🧱 Refactor v49 (Mayo 2026)
 
 Refactor integral que cubre **11 de 13 fases del plan**, **sin breaking changes**:
