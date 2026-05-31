@@ -98,10 +98,19 @@
     <div class="panel" style="margin-top:12px">
       <h2>2 · Parqueadero y cámaras</h2>
       <div class="row">
-        <label>parqueaderoId:</label>
-        <input id="parq-id" type="number" value="8" style="width:80px">
-        <button id="btn-load-cams">Cargar cámaras</button>
+        <label>Parqueadero:</label>
+        <select id="parq-select" style="min-width:280px">
+          <option value="">— login primero —</option>
+        </select>
+        <span class="small">ID: <strong id="parq-id-display">8</strong></span>
+        <button id="btn-reload-parqs" title="Recargar lista">↻</button>
       </div>
+      <div class="row">
+        <button id="btn-load-cams">Cargar cámaras</button>
+        <span class="small" id="parq-info"></span>
+      </div>
+      <!-- Compat: input oculto que el resto del JS sigue leyendo -->
+      <input id="parq-id" type="hidden" value="8">
       <div id="cam-list" class="small" style="margin-top:8px">—</div>
     </div>
 
@@ -213,11 +222,66 @@ $("btn-login").onclick = async () => {
     $("auth-status").textContent = `OK · roles: ${r.data.roles.join(", ")}`;
     $("auth-status").className = "status ok";
     log("login OK", "ok");
+    // Auto-cargar lista de parqueaderos disponibles
+    cargarParqueaderos();
   } catch (e) {
     $("auth-status").textContent = `Error: ${e.message}`;
     $("auth-status").className = "status err";
     log(`login error: ${e.message}`, "err");
   }
+};
+
+// ============ SELECT DINAMICO DE PARQUEADEROS ============
+async function cargarParqueaderos() {
+  try {
+    const r = await api("/api/parqueaderos");
+    const parqs = (r.data || []).filter(p => p.archivadoEn == null);
+    const sel = $("parq-select");
+    sel.innerHTML = "";
+    if (!parqs.length) {
+      sel.innerHTML = '<option value="">(sin parqueaderos)</option>';
+      $("parq-info").textContent = "";
+      return;
+    }
+    // Ordenar: poner primero el seleccionado actual (state.parqueaderoId)
+    parqs.sort((a, b) => a.id - b.id);
+    for (const p of parqs) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${p.id} — ${p.nombre || "(sin nombre)"}${p.empresaNombre ? " · " + p.empresaNombre : ""}`;
+      if (p.id === state.parqueaderoId) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    // Si state.parqueaderoId no esta en la lista, tomar el primero
+    if (!parqs.find(p => p.id === state.parqueaderoId)) {
+      state.parqueaderoId = parqs[0].id;
+      sel.value = parqs[0].id;
+    }
+    $("parq-id").value = state.parqueaderoId;
+    $("parq-id-display").textContent = state.parqueaderoId;
+    log(`cargados ${parqs.length} parqueaderos en el select`, "ok");
+  } catch (e) {
+    log(`error cargando parqueaderos: ${e.message}`, "err");
+  }
+}
+
+$("parq-select").onchange = e => {
+  const nuevoId = Number(e.target.value);
+  state.parqueaderoId = nuevoId;
+  $("parq-id").value = nuevoId;
+  $("parq-id-display").textContent = nuevoId;
+  log(`Parqueadero seleccionado: ${nuevoId}`);
+  // Si hay WS conectado, reconectar al nuevo topic
+  if (state.stomp && state.stomp.connected) {
+    log(`Reconectando WS al topic del parq ${nuevoId}...`);
+    state.stomp.deactivate();
+    state.stomp = null;
+  }
+};
+
+$("btn-reload-parqs").onclick = () => {
+  if (!state.token) { log("login primero para cargar parqueaderos", "err"); return; }
+  cargarParqueaderos();
 };
 
 // ============ CAMARAS ============

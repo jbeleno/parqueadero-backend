@@ -72,6 +72,8 @@ docs/inline-images-base64.py
 docs/inject_*.py
 docs/migrate_*.py
 docs/normalize-*.py
+docs/fix_*.py
+docs/apply_*.py
 docs/db-schema/
 docs/snippets/
 
