@@ -43,7 +43,7 @@ public class AuditableAspect {
         if (ann.requiereMotivo()) {
             String motivo = AuditContextHolder.get() != null
                     ? AuditContextHolder.get().getMotivo() : null;
-            if (motivo == null || motivo.trim().length() < 10) {
+            if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
                 throw new BusinessException(
                         "Esta operacion requiere motivo (header X-Motivo-Operacion, min 10 chars)",
                         "ERR_MOTIVO_OBLIGATORIO");

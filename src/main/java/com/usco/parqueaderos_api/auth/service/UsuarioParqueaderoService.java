@@ -105,7 +105,7 @@ public class UsuarioParqueaderoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rol", rolId));
         validarPuedeGestionar(parqueaderoId, r.getNombre());
 
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException(
                     "motivo de desasignacion obligatorio (min 10 chars)",
                     "ERR_MISSING_FIELDS");

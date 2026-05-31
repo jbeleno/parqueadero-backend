@@ -83,7 +83,7 @@ public class SaldoService {
     @Transactional
     @com.usco.parqueaderos_api.audit.aspect.Auditable(tabla = "movimiento_saldo", accion = "AJUSTE", requiereMotivo = true)
     public MovimientoSaldo ajustar(Long suscripcionId, double monto, String motivo) {
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException(
                     "El motivo de ajuste es obligatorio (min 10 caracteres)",
                     "ERR_MISSING_FIELDS");

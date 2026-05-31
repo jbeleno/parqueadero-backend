@@ -340,7 +340,7 @@ public class TicketService {
         if (!puedeAnularTickets()) {
             throw new AccessDeniedException("Solo el operador puede anular tickets");
         }
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException(
                     "Motivo obligatorio (min 10 caracteres)",
                     "ERR_MISSING_FIELDS");

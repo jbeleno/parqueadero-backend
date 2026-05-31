@@ -241,7 +241,7 @@ public class PagoService {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede anular pagos");
         }
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException(
                     "Motivo obligatorio para anular (min 10 caracteres)",
                     "ERR_MISSING_FIELDS");

@@ -139,7 +139,7 @@ public class ResolucionDianService {
     @Transactional
     @Auditable(tabla = "resolucion_dian", accion = "ARCHIVAR", requiereMotivo = true)
     public ResolucionDianDTO archivar(Long id, String motivo) {
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException(
                     "Motivo obligatorio (min 10 chars)", "ERR_MISSING_FIELDS");
         }

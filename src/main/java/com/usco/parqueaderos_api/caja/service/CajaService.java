@@ -160,7 +160,7 @@ public class CajaService {
         if (monto == null || monto <= 0) {
             throw new BusinessException("monto > 0 obligatorio", "ERR_INVALID_AMOUNT");
         }
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException("motivo obligatorio (min 10 chars)", "ERR_MISSING_FIELDS");
         }
         Caja c = cajaRepository.findById(cajaId)
@@ -192,7 +192,7 @@ public class CajaService {
         if (!currentUser.isSuperAdmin()) {
             throw new AccessDeniedException("Solo SUPER_ADMIN puede ajustar caja");
         }
-        if (motivo == null || motivo.trim().length() < 10) {
+        if (motivo == null || motivo.trim().length() < com.usco.parqueaderos_api.common.validation.MotivoValidator.DEFAULT_MIN_CHARS) {
             throw new BusinessException("motivo de ajuste obligatorio (min 10)", "ERR_MISSING_FIELDS");
         }
         Caja c = cajaRepository.findById(cajaId)
