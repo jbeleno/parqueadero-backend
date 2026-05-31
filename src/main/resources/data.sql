@@ -6,6 +6,69 @@
 -- ================================================================
 
 -- ════════════════════════════════════════════════════════════════
+-- v49 PRE-FIX (CRITICO, NO TOCAR): Hibernate (ddl-auto=update) puede
+-- crear columnas Boolean nuevas con NOT NULL pero SIN DEFAULT al
+-- detectar `private Boolean campo = true;` en una entity. Los INSERTs
+-- del seed (que no incluyen esas columnas) fallan con "null value in
+-- column ... violates not-null constraint".
+--
+-- Este bloque va ANTES del primer INSERT. Cubre las columnas Boolean
+-- con default Java en entities legacy. Las v49 nuevas se cubren
+-- aparte mas abajo. Idempotente.
+-- ════════════════════════════════════════════════════════════════
+
+-- Catalogos legacy (Fase 6 agrego 'activo')
+ALTER TABLE estado              ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE estado              SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE rol                 ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE rol                 SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE tipo_vehiculo       ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_vehiculo       SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE tipo_parqueadero    ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_parqueadero    SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE tipo_punto_parqueo  ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_punto_parqueo  SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE tipo_dispositivo    ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE tipo_dispositivo    SET activo = TRUE WHERE activo IS NULL;
+
+-- Entities legacy con campos Boolean pre-existentes
+ALTER TABLE vehiculo            ALTER COLUMN activo       SET DEFAULT TRUE;
+UPDATE vehiculo            SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE vehiculo            ALTER COLUMN es_visitante SET DEFAULT FALSE;
+UPDATE vehiculo            SET es_visitante = FALSE WHERE es_visitante IS NULL;
+ALTER TABLE usuario_parqueadero ALTER COLUMN activo       SET DEFAULT TRUE;
+UPDATE usuario_parqueadero SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE refresh_token       ALTER COLUMN revocado     SET DEFAULT FALSE;
+UPDATE refresh_token       SET revocado = FALSE WHERE revocado IS NULL;
+ALTER TABLE tarifa              ALTER COLUMN activo                  SET DEFAULT TRUE;
+UPDATE tarifa              SET activo = TRUE WHERE activo IS NULL;
+ALTER TABLE tarifa              ALTER COLUMN valor_minimo_reemplaza  SET DEFAULT FALSE;
+UPDATE tarifa              SET valor_minimo_reemplaza = FALSE WHERE valor_minimo_reemplaza IS NULL;
+ALTER TABLE tarifa              ALTER COLUMN aplica_iva              SET DEFAULT FALSE;
+UPDATE tarifa              SET aplica_iva = FALSE WHERE aplica_iva IS NULL;
+ALTER TABLE tarifa_franja       ALTER COLUMN activa                  SET DEFAULT TRUE;
+UPDATE tarifa_franja       SET activa = TRUE WHERE activa IS NULL;
+ALTER TABLE tarifa_franja       ALTER COLUMN solo_fines_de_semana    SET DEFAULT FALSE;
+UPDATE tarifa_franja       SET solo_fines_de_semana = FALSE WHERE solo_fines_de_semana IS NULL;
+
+-- Columnas que Hibernate puede no crear porque la entity Java no las
+-- declara pero el INSERT del seed sí las usa (descripcion en catalogos
+-- globales). Las agregamos defensivamente con ADD COLUMN IF NOT EXISTS.
+ALTER TABLE tipo_documento         ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE genero                 ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE moneda                 ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE zona_horaria           ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE unidad_tarifa          ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE regimen_tributario     ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE estado_civil           ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE pais_codigo_placa      ADD COLUMN IF NOT EXISTS regex_placa VARCHAR(200);
+ALTER TABLE tipo_servicio_vehiculo ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE tipo_acceso_dispositivo ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE tipo_acceso_dispositivo ADD COLUMN IF NOT EXISTS icono       VARCHAR(50);
+ALTER TABLE canal_origen_reserva   ADD COLUMN IF NOT EXISTS descripcion TEXT;
+ALTER TABLE canal_origen_reserva   ADD COLUMN IF NOT EXISTS icono       VARCHAR(50);
+
+-- ════════════════════════════════════════════════════════════════
 -- 1. ESTADOS
 -- ════════════════════════════════════════════════════════════════
 INSERT INTO estado (id, nombre, descripcion) VALUES
@@ -1807,7 +1870,7 @@ CREATE INDEX IF NOT EXISTS idx_reporte_ejecutado_empresa      ON reporte_ejecuta
 -- porque PostgreSQL trata NULLs como distintos en la UNIQUE constraint.
 INSERT INTO reporte_definicion (empresa_id, clave, nombre, descripcion, sql_template, filtros_json, columnas_json, roles_permitidos)
 SELECT * FROM (VALUES
-(NULL, 'tickets_por_dia',
+(CAST(NULL AS BIGINT), 'tickets_por_dia',
     'Tickets por dia',
     'Conteo de tickets entrados/cerrados/anulados por dia para un parqueadero y rango.',
     'SELECT DATE(fecha_hora_entrada) AS dia, estado, COUNT(*) AS cant
@@ -1820,7 +1883,7 @@ SELECT * FROM (VALUES
     '[{"clave":"dia","tipo":"date"},{"clave":"estado","tipo":"string"},{"clave":"cant","tipo":"long"}]',
     'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
 
-(NULL, 'ingresos_por_metodo',
+(CAST(NULL AS BIGINT), 'ingresos_por_metodo',
     'Ingresos por metodo de pago',
     'Suma de pagos completados por metodo en un periodo.',
     'SELECT metodo, SUM(monto) AS total, COUNT(*) AS cant
@@ -1833,7 +1896,7 @@ SELECT * FROM (VALUES
     '[{"clave":"metodo","tipo":"string"},{"clave":"total","tipo":"decimal"},{"clave":"cant","tipo":"long"}]',
     'ADMIN,SUPER_ADMIN'),
 
-(NULL, 'top_vehiculos',
+(CAST(NULL AS BIGINT), 'top_vehiculos',
     'Top vehiculos por visitas',
     'Vehiculos con mas tickets en el periodo.',
     'SELECT v.placa, COUNT(*) AS visitas, SUM(t.monto_calculado) AS gasto_total
@@ -1846,7 +1909,7 @@ SELECT * FROM (VALUES
     '[{"clave":"placa","tipo":"string"},{"clave":"visitas","tipo":"long"},{"clave":"gasto_total","tipo":"decimal"}]',
     'ADMIN,SUPER_ADMIN'),
 
-(NULL, 'ocupacion_actual',
+(CAST(NULL AS BIGINT), 'ocupacion_actual',
     'Ocupacion actual de puntos',
     'Cuantos puntos ocupados vs libres por parqueadero.',
     'SELECT pa.id AS parqueadero_id, pa.nombre AS parqueadero,
@@ -1864,7 +1927,7 @@ SELECT * FROM (VALUES
     '[{"clave":"parqueadero_id","tipo":"long"},{"clave":"parqueadero","tipo":"string"},{"clave":"total_puntos","tipo":"long"},{"clave":"ocupados","tipo":"long"}]',
     'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO,OPERARIO_CAJA'),
 
-(NULL, 'facturas_pendientes',
+(CAST(NULL AS BIGINT), 'facturas_pendientes',
     'Facturas pendientes de pago',
     'Facturas en estado PENDIENTE con monto y antiguedad.',
     'SELECT f.id, f.valor_total, f.fecha_hora,
@@ -1879,7 +1942,7 @@ SELECT * FROM (VALUES
     '[{"clave":"id","tipo":"long"},{"clave":"valor_total","tipo":"decimal"},{"clave":"fecha_hora","tipo":"timestamp"},{"clave":"dias_atras","tipo":"integer"},{"clave":"placa","tipo":"string"}]',
     'ADMIN,SUPER_ADMIN,ADMIN_PARQUEADERO'),
 
-(NULL, 'operadores_actividad',
+(CAST(NULL AS BIGINT), 'operadores_actividad',
     'Actividad de operadores',
     'Tickets cerrados y pagos cobrados por operador.',
     'SELECT t.cerrado_por_usuario_id AS usuario_id,
