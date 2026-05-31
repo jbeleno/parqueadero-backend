@@ -2205,3 +2205,119 @@ SELECT * FROM (VALUES
 WHERE NOT EXISTS (
     SELECT 1 FROM reporte_definicion rd WHERE rd.empresa_id IS NULL AND rd.clave = r.clave
 );
+
+-- ════════════════════════════════════════════════════════════════
+-- v49 COMPLETAR — Bloque C: Fase 5 entities pobres restantes
+-- ════════════════════════════════════════════════════════════════
+
+-- Suscripcion (16 → 22 cols): contrato + auto-renovacion + descuento
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS numero_contrato                       VARCHAR(100);
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS archivo_contrato_url                  VARCHAR(500);
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS motivo_cancelacion                    TEXT;
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS auto_renovar                          BOOLEAN DEFAULT FALSE;
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS notificar_proximidad_vencimiento      BOOLEAN DEFAULT TRUE;
+ALTER TABLE suscripcion ADD COLUMN IF NOT EXISTS descuento_pronto_pago_porcentaje      NUMERIC(5,2);
+
+-- Tarifa (21 → 26 cols): franjas horarias + dias aplicables + unidad FK
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS descripcion             TEXT;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS dias_semana_aplica      INTEGER;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS hora_inicio_aplica      TIME;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS hora_fin_aplica         TIME;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS usar_franjas            BOOLEAN DEFAULT FALSE;
+ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS unidad_id               BIGINT REFERENCES unidad_tarifa(id);
+
+-- Ticket (21 → 23 cols): estado FK + observaciones
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS observaciones           TEXT;
+ALTER TABLE ticket ADD COLUMN IF NOT EXISTS estado_ticket_id        BIGINT REFERENCES estado_ticket(id);
+
+-- Persona (8 → 14+): completar cols faltantes del plan
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS digito_verificacion    VARCHAR(2);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS email_secundario       VARCHAR(200);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS telefono_secundario    VARCHAR(20);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS nacionalidad_pais_id   BIGINT REFERENCES pais(id);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS estado_civil_id        BIGINT REFERENCES estado_civil(id);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS foto_url               VARCHAR(500);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS ocupacion              VARCHAR(150);
+ALTER TABLE persona ADD COLUMN IF NOT EXISTS observaciones          TEXT;
+
+-- Empresa: cols faltantes del plan
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS digito_verificacion           VARCHAR(2);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS razon_social                  VARCHAR(300);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS nombre_comercial              VARCHAR(200);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS representante_legal_persona_id BIGINT REFERENCES persona(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS fecha_constitucion            DATE;
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS zona_horaria_id               BIGINT REFERENCES zona_horaria(id);
+ALTER TABLE empresa ADD COLUMN IF NOT EXISTS email_facturacion             VARCHAR(200);
+
+-- Vehiculo: cols faltantes del plan
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS linea                  VARCHAR(100);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS cilindraje             INTEGER;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS kilometraje_ultimo     INTEGER;
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS numero_chasis          VARCHAR(50);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS numero_motor           VARCHAR(50);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS placa_pais_id          BIGINT REFERENCES pais_codigo_placa(id);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS tipo_servicio_id       BIGINT REFERENCES tipo_servicio_vehiculo(id);
+ALTER TABLE vehiculo ADD COLUMN IF NOT EXISTS color_pintura          VARCHAR(50);
+
+-- Reserva: cols faltantes del plan
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS monto_estimado                NUMERIC(12,2);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS monto_anticipo_pagado         NUMERIC(12,2);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS pago_anticipo_id              BIGINT REFERENCES pago(id);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS codigo_confirmacion           VARCHAR(50);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS hora_real_llegada             TIMESTAMP;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS monto_penalizacion_no_show    NUMERIC(12,2);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS canal_origen_id               BIGINT REFERENCES canal_origen_reserva(id);
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS notificaciones_enabled        BOOLEAN DEFAULT TRUE;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS recordatorios_enviados        INTEGER DEFAULT 0;
+
+-- Camara: cols faltantes del plan
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS numero_serie           VARCHAR(100);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS fecha_instalacion      DATE;
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS fecha_ultima_revision  DATE;
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS tipo_lente             VARCHAR(50);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS proteccion_ip          VARCHAR(10);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS ubicacion_descripcion  TEXT;
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS url_stream_rtsp        VARCHAR(500);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS url_stream_http        VARCHAR(500);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS usuario_acceso         VARCHAR(100);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS password_acceso_cifrado VARCHAR(500);
+ALTER TABLE camara ADD COLUMN IF NOT EXISTS observaciones          TEXT;
+
+-- Dispositivo: cols faltantes
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS mac_address              VARCHAR(17);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS ip_local                 VARCHAR(45);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS puerto                   INTEGER;
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS fecha_instalacion        DATE;
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS fecha_ultima_revision    DATE;
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS protocolo_comunicacion   VARCHAR(50);
+ALTER TABLE dispositivo ADD COLUMN IF NOT EXISTS tipo_acceso_id           BIGINT REFERENCES tipo_acceso_dispositivo(id);
+
+-- Pago: cols faltantes del plan
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS entidad_emisora           VARCHAR(100);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS ultimos_4_digitos_tarjeta VARCHAR(4);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS codigo_autorizacion       VARCHAR(50);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS archivo_comprobante_url   VARCHAR(500);
+
+-- Factura: cols faltantes del plan
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS numero_factura         VARCHAR(50);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS prefijo                VARCHAR(20);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS consecutivo            BIGINT;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS cufe                   VARCHAR(200);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS subtotal               NUMERIC(14,2);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS descuento_aplicado     NUMERIC(14,2);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS valor_total_letras     TEXT;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS email_destinatario     VARCHAR(200);
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS fecha_envio_email      TIMESTAMP;
+ALTER TABLE factura ADD COLUMN IF NOT EXISTS archivo_pdf_url        VARCHAR(500);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_factura_numero ON factura(numero_factura) WHERE numero_factura IS NOT NULL;
+
+-- PuntoParqueo: cols faltantes
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS numero_visible          VARCHAR(20);
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS coordenadas_layout_x    NUMERIC(10,2);
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS coordenadas_layout_y    NUMERIC(10,2);
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS ancho_metros            NUMERIC(5,2);
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS largo_metros            NUMERIC(5,2);
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS con_techo               BOOLEAN DEFAULT FALSE;
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS con_carga_electrica     BOOLEAN DEFAULT FALSE;
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS cerca_de_acceso         BOOLEAN DEFAULT FALSE;
+ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS para_discapacitados     BOOLEAN DEFAULT FALSE;

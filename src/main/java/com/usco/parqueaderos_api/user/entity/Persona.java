@@ -57,4 +57,22 @@ public class Persona extends BaseEntity {
     private String direccion;
     @jakarta.persistence.Column(name = "ciudad_id")
     private Long ciudadId;
+
+    // v49 Fase 5 (completar): cols del plan original
+    @jakarta.persistence.Column(name = "digito_verificacion", length = 2)
+    private String digitoVerificacion;
+    @jakarta.persistence.Column(name = "email_secundario", length = 200)
+    private String emailSecundario;
+    @jakarta.persistence.Column(name = "telefono_secundario", length = 20)
+    private String telefonoSecundario;
+    @jakarta.persistence.Column(name = "nacionalidad_pais_id")
+    private Long nacionalidadPaisId;
+    @jakarta.persistence.Column(name = "estado_civil_id")
+    private Long estadoCivilId;
+    @jakarta.persistence.Column(name = "foto_url", length = 500)
+    private String fotoUrl;
+    @jakarta.persistence.Column(length = 150)
+    private String ocupacion;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

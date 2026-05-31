@@ -60,4 +60,14 @@ public class Pago extends BaseEntity {
     private String referenciaExterna;
     @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String observaciones;
+
+    // v49 Fase 5 (completar): cols faltantes del plan
+    @jakarta.persistence.Column(name = "entidad_emisora", length = 100)
+    private String entidadEmisora;
+    @jakarta.persistence.Column(name = "ultimos_4_digitos_tarjeta", length = 4)
+    private String ultimos4DigitosTarjeta;
+    @jakarta.persistence.Column(name = "codigo_autorizacion", length = 50)
+    private String codigoAutorizacion;
+    @jakarta.persistence.Column(name = "archivo_comprobante_url", length = 500)
+    private String archivoComprobanteUrl;
 }

@@ -67,4 +67,20 @@ public class Empresa extends BaseEntity {
     private String sitioWeb;
     @jakarta.persistence.Column(name = "logo_url", length = 300)
     private String logoUrl;
+
+    // v49 Fase 5 (completar): cols faltantes del plan
+    @jakarta.persistence.Column(name = "digito_verificacion", length = 2)
+    private String digitoVerificacion;
+    @jakarta.persistence.Column(name = "razon_social", length = 300)
+    private String razonSocial;
+    @jakarta.persistence.Column(name = "nombre_comercial", length = 200)
+    private String nombreComercial;
+    @jakarta.persistence.Column(name = "representante_legal_persona_id")
+    private Long representanteLegalPersonaId;
+    @jakarta.persistence.Column(name = "fecha_constitucion")
+    private java.time.LocalDate fechaConstitucion;
+    @jakarta.persistence.Column(name = "zona_horaria_id")
+    private Long zonaHorariaId;
+    @jakarta.persistence.Column(name = "email_facturacion", length = 200)
+    private String emailFacturacion;
 }

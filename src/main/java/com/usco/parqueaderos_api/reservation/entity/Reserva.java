@@ -62,4 +62,24 @@ public class Reserva extends BaseEntity {
     private Long canceladaPorUsuarioId;
     @jakarta.persistence.Column(name = "motivo_cancelacion", columnDefinition = "TEXT")
     private String motivoCancelacion;
+
+    // v49 Fase 5 (completar): cols faltantes del plan
+    @jakarta.persistence.Column(name = "monto_estimado", precision = 12, scale = 2)
+    private java.math.BigDecimal montoEstimado;
+    @jakarta.persistence.Column(name = "monto_anticipo_pagado", precision = 12, scale = 2)
+    private java.math.BigDecimal montoAnticipoPagado;
+    @jakarta.persistence.Column(name = "pago_anticipo_id")
+    private Long pagoAnticipoId;
+    @jakarta.persistence.Column(name = "codigo_confirmacion", length = 50)
+    private String codigoConfirmacion;
+    @jakarta.persistence.Column(name = "hora_real_llegada")
+    private java.time.LocalDateTime horaRealLlegada;
+    @jakarta.persistence.Column(name = "monto_penalizacion_no_show", precision = 12, scale = 2)
+    private java.math.BigDecimal montoPenalizacionNoShow;
+    @jakarta.persistence.Column(name = "canal_origen_id")
+    private Long canalOrigenId;
+    @jakarta.persistence.Column(name = "notificaciones_enabled")
+    private Boolean notificacionesEnabled;
+    @jakarta.persistence.Column(name = "recordatorios_enviados")
+    private Integer recordatoriosEnviados;
 }

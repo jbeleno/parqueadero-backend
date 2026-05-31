@@ -124,4 +124,10 @@ public class Ticket extends BaseEntity {
     private String operadorEntradaNombreSnapshot;
     @Column(name = "operador_salida_nombre_snapshot", length = 200)
     private String operadorSalidaNombreSnapshot;
+
+    // v49 Fase 5 (completar): observaciones + estado FK
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
+    @jakarta.persistence.Column(name = "estado_ticket_id")
+    private Long estadoTicketId;
 }

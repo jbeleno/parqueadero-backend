@@ -81,4 +81,28 @@ public class Camara extends BaseEntity {
     private String mac;
     @jakarta.persistence.Column(length = 20)
     private String resolucion;
+
+    // v49 Fase 5 (completar): cols faltantes del plan
+    @jakarta.persistence.Column(name = "numero_serie", length = 100)
+    private String numeroSerie;
+    @jakarta.persistence.Column(name = "fecha_instalacion")
+    private java.time.LocalDate fechaInstalacion;
+    @jakarta.persistence.Column(name = "fecha_ultima_revision")
+    private java.time.LocalDate fechaUltimaRevision;
+    @jakarta.persistence.Column(name = "tipo_lente", length = 50)
+    private String tipoLente;
+    @jakarta.persistence.Column(name = "proteccion_ip", length = 10)
+    private String proteccionIp;
+    @jakarta.persistence.Column(name = "ubicacion_descripcion", columnDefinition = "TEXT")
+    private String ubicacionDescripcion;
+    @jakarta.persistence.Column(name = "url_stream_rtsp", length = 500)
+    private String urlStreamRtsp;
+    @jakarta.persistence.Column(name = "url_stream_http", length = 500)
+    private String urlStreamHttp;
+    @jakarta.persistence.Column(name = "usuario_acceso", length = 100)
+    private String usuarioAcceso;
+    @jakarta.persistence.Column(name = "password_acceso_cifrado", length = 500)
+    private String passwordAccesoCifrado;
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String observaciones;
 }

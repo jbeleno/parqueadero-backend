@@ -91,4 +91,26 @@ public class Factura extends BaseEntity {
     private java.time.LocalDate fechaVencimiento;
     @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String observaciones;
+
+    // v49 Fase 5 (completar): cols faltantes del plan
+    @jakarta.persistence.Column(name = "numero_factura", length = 50)
+    private String numeroFactura;
+    @jakarta.persistence.Column(length = 20)
+    private String prefijo;
+    @jakarta.persistence.Column
+    private Long consecutivo;
+    @jakarta.persistence.Column(length = 200)
+    private String cufe;
+    @jakarta.persistence.Column(precision = 14, scale = 2)
+    private java.math.BigDecimal subtotal;
+    @jakarta.persistence.Column(name = "descuento_aplicado", precision = 14, scale = 2)
+    private java.math.BigDecimal descuentoAplicado;
+    @jakarta.persistence.Column(name = "valor_total_letras", columnDefinition = "TEXT")
+    private String valorTotalLetras;
+    @jakarta.persistence.Column(name = "email_destinatario", length = 200)
+    private String emailDestinatario;
+    @jakarta.persistence.Column(name = "fecha_envio_email")
+    private java.time.LocalDateTime fechaEnvioEmail;
+    @jakarta.persistence.Column(name = "archivo_pdf_url", length = 500)
+    private String archivoPdfUrl;
 }

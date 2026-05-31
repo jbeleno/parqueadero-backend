@@ -66,4 +66,20 @@ public class Dispositivo extends BaseEntity {
     private String firmwareVersion;
     @jakarta.persistence.Column(name = "ultima_lectura")
     private java.time.LocalDateTime ultimaLectura;
+
+    // v49 Fase 5 (completar): cols faltantes
+    @jakarta.persistence.Column(name = "mac_address", length = 17)
+    private String macAddress;
+    @jakarta.persistence.Column(name = "ip_local", length = 45)
+    private String ipLocal;
+    @jakarta.persistence.Column
+    private Integer puerto;
+    @jakarta.persistence.Column(name = "fecha_instalacion")
+    private java.time.LocalDate fechaInstalacion;
+    @jakarta.persistence.Column(name = "fecha_ultima_revision")
+    private java.time.LocalDate fechaUltimaRevision;
+    @jakarta.persistence.Column(name = "protocolo_comunicacion", length = 50)
+    private String protocoloComunicacion;
+    @jakarta.persistence.Column(name = "tipo_acceso_id")
+    private Long tipoAccesoId;
 }

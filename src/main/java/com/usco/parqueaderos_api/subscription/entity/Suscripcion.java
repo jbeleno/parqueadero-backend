@@ -91,4 +91,18 @@ public class Suscripcion {
 
     @Column(name = "cancelado_en")
     private LocalDateTime canceladoEn;
+
+    // v49 Fase 5 (completar): contrato + auto-renovacion + descuento
+    @jakarta.persistence.Column(name = "numero_contrato", length = 100)
+    private String numeroContrato;
+    @jakarta.persistence.Column(name = "archivo_contrato_url", length = 500)
+    private String archivoContratoUrl;
+    @jakarta.persistence.Column(name = "motivo_cancelacion", columnDefinition = "TEXT")
+    private String motivoCancelacion;
+    @jakarta.persistence.Column(name = "auto_renovar")
+    private Boolean autoRenovar;
+    @jakarta.persistence.Column(name = "notificar_proximidad_vencimiento")
+    private Boolean notificarProximidadVencimiento;
+    @jakarta.persistence.Column(name = "descuento_pronto_pago_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal descuentoProntoPagoPorcentaje;
 }

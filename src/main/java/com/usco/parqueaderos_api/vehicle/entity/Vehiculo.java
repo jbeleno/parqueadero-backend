@@ -69,4 +69,22 @@ public class Vehiculo extends BaseEntity {
     private String observaciones;
     @jakarta.persistence.Column(name = "imagen_url", length = 300)
     private String imagenUrl;
+
+    // v49 Fase 5 (completar): cols faltantes del plan
+    @jakarta.persistence.Column(length = 100)
+    private String linea;
+    @jakarta.persistence.Column
+    private Integer cilindraje;
+    @jakarta.persistence.Column(name = "kilometraje_ultimo")
+    private Integer kilometrajeUltimo;
+    @jakarta.persistence.Column(name = "numero_chasis", length = 50)
+    private String numeroChasis;
+    @jakarta.persistence.Column(name = "numero_motor", length = 50)
+    private String numeroMotor;
+    @jakarta.persistence.Column(name = "placa_pais_id")
+    private Long placaPaisId;
+    @jakarta.persistence.Column(name = "tipo_servicio_id")
+    private Long tipoServicioId;
+    @jakarta.persistence.Column(name = "color_pintura", length = 50)
+    private String colorPintura;
 }

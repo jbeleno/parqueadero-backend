@@ -107,4 +107,18 @@ public class Tarifa extends BaseEntity {
     /** Porcentaje de IVA (Colombia: 19.0 estandar). Solo se usa si aplicaIva=true. */
     @Column(name = "iva_porcentaje")
     private Double ivaPorcentaje = 0.0;
+
+    // v49 Fase 5 (completar): franjas horarias + unidad FK
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String descripcion;
+    @jakarta.persistence.Column(name = "dias_semana_aplica")
+    private Integer diasSemanaAplica;
+    @jakarta.persistence.Column(name = "hora_inicio_aplica")
+    private java.time.LocalTime horaInicioAplica;
+    @jakarta.persistence.Column(name = "hora_fin_aplica")
+    private java.time.LocalTime horaFinAplica;
+    @jakarta.persistence.Column(name = "usar_franjas")
+    private Boolean usarFranjas;
+    @jakarta.persistence.Column(name = "unidad_id")
+    private Long unidadId;
 }

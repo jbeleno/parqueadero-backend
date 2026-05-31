@@ -65,4 +65,24 @@ public class PuntoParqueo extends BaseEntity {
     private Boolean reservable;
     @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String observaciones;
+
+    // v49 Fase 5 (completar): cols faltantes
+    @jakarta.persistence.Column(name = "numero_visible", length = 20)
+    private String numeroVisible;
+    @jakarta.persistence.Column(name = "coordenadas_layout_x", precision = 10, scale = 2)
+    private java.math.BigDecimal coordenadasLayoutX;
+    @jakarta.persistence.Column(name = "coordenadas_layout_y", precision = 10, scale = 2)
+    private java.math.BigDecimal coordenadasLayoutY;
+    @jakarta.persistence.Column(name = "ancho_metros", precision = 5, scale = 2)
+    private java.math.BigDecimal anchoMetros;
+    @jakarta.persistence.Column(name = "largo_metros", precision = 5, scale = 2)
+    private java.math.BigDecimal largoMetros;
+    @jakarta.persistence.Column(name = "con_techo")
+    private Boolean conTecho;
+    @jakarta.persistence.Column(name = "con_carga_electrica")
+    private Boolean conCargaElectrica;
+    @jakarta.persistence.Column(name = "cerca_de_acceso")
+    private Boolean cercaDeAcceso;
+    @jakarta.persistence.Column(name = "para_discapacitados")
+    private Boolean paraDiscapacitados;
 }
