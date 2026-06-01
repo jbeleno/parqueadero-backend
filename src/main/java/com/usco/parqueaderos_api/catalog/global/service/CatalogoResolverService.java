@@ -188,22 +188,17 @@ public class CatalogoResolverService {
         // Globales activos
         List<T> globales = globalSupplier.get();
 
-        // Retrocompat: si empresa no tiene filas en empresa_catalogo_global_activo,
-        // acepta TODOS los globales.
-        boolean tieneConfig = activoRepo.existsByEmpresaIdAndCatalogo(empresaId, catalogo);
-
-        List<T> globalesFiltrados;
-        if (!tieneConfig) {
-            globalesFiltrados = globales;
-        } else {
-            Set<Long> activosIds = new HashSet<>();
-            activoRepo.findByEmpresaIdAndCatalogo(empresaId, catalogo).stream()
-                    .filter(a -> Boolean.TRUE.equals(a.getActivo()))
-                    .forEach(a -> activosIds.add(a.getItemId()));
-            globalesFiltrados = globales.stream()
-                    .filter(g -> activosIds.contains(idExtractor.apply(g)))
-                    .toList();
-        }
+        // Modelo OPT-OUT (lista negra): un global esta visible POR DEFAULT a
+        // menos que la empresa tenga una fila explicita con activo=false.
+        // Esto es mas intuitivo: "marco CE como false" → solo CE se quita,
+        // los demas siguen visibles. Sin necesidad de aceptar-todos primero.
+        Set<Long> rechazadosIds = new HashSet<>();
+        activoRepo.findByEmpresaIdAndCatalogo(empresaId, catalogo).stream()
+                .filter(a -> Boolean.FALSE.equals(a.getActivo()))
+                .forEach(a -> rechazadosIds.add(a.getItemId()));
+        List<T> globalesFiltrados = globales.stream()
+                .filter(g -> !rechazadosIds.contains(idExtractor.apply(g)))
+                .toList();
 
         // Customs de la empresa
         List<T> customs = customLoader.apply(empresaId);
