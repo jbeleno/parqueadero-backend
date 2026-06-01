@@ -133,6 +133,38 @@ public class CatalogoResolverService {
     }
 
     /**
+     * Devuelve solo los items GLOBALES (empresa_id IS NULL) del catalogo.
+     * Util para bulk operations donde hay que iterar los canonicos.
+     */
+    @Transactional(readOnly = true)
+    public List<?> resolverParaEmpresaConSoloGlobales(String catalogo, Long empresaId) {
+        return switch (catalogo) {
+            case "tipo_documento" -> tipoDocumentoRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "genero" -> generoRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "moneda" -> monedaRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "zona_horaria" -> zonaHorariaRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "unidad_tarifa" -> unidadTarifaRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "regimen_tributario" -> regimenTributarioRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "estado_civil" -> estadoCivilRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "pais_codigo_placa" -> paisCodigoPlacaRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "tipo_servicio_vehiculo" -> tipoServicioVehiculoRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "tipo_acceso_dispositivo" -> tipoAccesoDispositivoRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            case "canal_origen_reserva" -> canalOrigenReservaRepo.findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+            default -> List.of();
+        };
+    }
+
+    /** Helper reflection: extrae el id de un item de cualquier catalogo. */
+    public Long extraerId(Object item) {
+        try {
+            var m = item.getClass().getMethod("getId");
+            return (Long) m.invoke(item);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * Algoritmo generico.
      *
      * @param catalogo       nombre logico ("tipo_documento", etc.)
