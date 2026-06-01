@@ -9,4 +9,13 @@ import java.util.Optional;
 public interface RegimenTributarioRepository extends JpaRepository<RegimenTributario, Long> {
     Optional<RegimenTributario> findByCodigo(String codigo);
     List<RegimenTributario> findByActivoTrueOrderByOrdenDisplayAsc();
+
+    /** v50: items globales canonicos (empresa_id IS NULL). */
+    java.util.List<RegimenTributario> findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+
+    /** v50: items custom de una empresa. */
+    java.util.List<RegimenTributario> findByEmpresaIdAndActivoTrueOrderByOrdenDisplayAsc(Long empresaId);
+
+    /** v50: TODO (admin): globales + custom de la empresa, incluyendo inactivos. */
+    java.util.List<RegimenTributario> findByEmpresaIdIsNullOrEmpresaIdOrderByOrdenDisplayAsc(Long empresaId);
 }
