@@ -46,4 +46,7 @@ public class TipoDocumento extends BaseEntity {
      */
     @Column(name = "empresa_id")
     private Long empresaId;
+
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
+    private String descripcion;
 }
