@@ -39,4 +39,11 @@ public class PaisCodigoPlaca extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean activo = true;
+
+    /**
+     * v50: Si NULL → item canónico global (visible para todas las empresas).
+     * Si NOT NULL → item custom propio de esa empresa.
+     */
+    @Column(name = "empresa_id")
+    private Long empresaId;
 }

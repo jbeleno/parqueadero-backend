@@ -2384,3 +2384,58 @@ ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS con_techo               BOOLE
 ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS con_carga_electrica     BOOLEAN DEFAULT FALSE;
 ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS cerca_de_acceso         BOOLEAN DEFAULT FALSE;
 ALTER TABLE punto_parqueo ADD COLUMN IF NOT EXISTS para_discapacitados     BOOLEAN DEFAULT FALSE;
+
+-- ════════════════════════════════════════════════════════════════
+-- v50 Sprint 1: Catalogos globales parametrizables por empresa
+--
+-- Agrega empresa_id NULLABLE a los 11 catalogos globales:
+--   - empresa_id IS NULL  → item canonico global (visible para todas)
+--   - empresa_id IS NOT NULL → item custom de esa empresa
+--
+-- Y crea tabla puente empresa_catalogo_global_activo para que cada
+-- empresa decida cuales globales acepta. Si una empresa no tiene
+-- filas para un catalogo → acepta TODOS los globales (retrocompat).
+-- ════════════════════════════════════════════════════════════════
+
+ALTER TABLE tipo_documento          ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE genero                  ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE moneda                  ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE zona_horaria            ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE unidad_tarifa           ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE regimen_tributario      ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE estado_civil            ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE pais_codigo_placa       ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE tipo_servicio_vehiculo  ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE tipo_acceso_dispositivo ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+ALTER TABLE canal_origen_reserva    ADD COLUMN IF NOT EXISTS empresa_id BIGINT REFERENCES empresa(id) ON DELETE CASCADE;
+
+-- Indices por empresa_id (perf de queries del resolver)
+CREATE INDEX IF NOT EXISTS idx_tipo_documento_empresa          ON tipo_documento(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_genero_empresa                  ON genero(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_moneda_empresa                  ON moneda(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_zona_horaria_empresa            ON zona_horaria(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_unidad_tarifa_empresa           ON unidad_tarifa(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_regimen_tributario_empresa      ON regimen_tributario(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_estado_civil_empresa            ON estado_civil(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_pais_codigo_placa_empresa       ON pais_codigo_placa(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_tipo_servicio_vehiculo_empresa  ON tipo_servicio_vehiculo(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_tipo_acceso_dispositivo_empresa ON tipo_acceso_dispositivo(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_canal_origen_reserva_empresa    ON canal_origen_reserva(empresa_id);
+
+-- Tabla puente: cada empresa marca cuales globales acepta
+CREATE TABLE IF NOT EXISTS empresa_catalogo_global_activo (
+    id BIGSERIAL PRIMARY KEY,
+    empresa_id BIGINT NOT NULL REFERENCES empresa(id) ON DELETE CASCADE,
+    catalogo   VARCHAR(80)  NOT NULL,
+    item_id    BIGINT       NOT NULL,
+    activo     BOOLEAN      NOT NULL DEFAULT TRUE,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP,
+    actualizado_por_usuario_id BIGINT,
+    CONSTRAINT uq_emp_cat_global UNIQUE (empresa_id, catalogo, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_emp_cat_global_empresa ON empresa_catalogo_global_activo (empresa_id, catalogo);
+ALTER TABLE empresa_catalogo_global_activo ALTER COLUMN fecha_creacion SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE empresa_catalogo_global_activo ALTER COLUMN activo SET DEFAULT TRUE;
+UPDATE empresa_catalogo_global_activo SET fecha_creacion = CURRENT_TIMESTAMP WHERE fecha_creacion IS NULL;
+UPDATE empresa_catalogo_global_activo SET activo = TRUE WHERE activo IS NULL;

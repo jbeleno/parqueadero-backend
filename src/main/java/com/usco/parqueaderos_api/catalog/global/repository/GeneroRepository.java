@@ -9,4 +9,13 @@ import java.util.Optional;
 public interface GeneroRepository extends JpaRepository<Genero, Long> {
     Optional<Genero> findByCodigo(String codigo);
     List<Genero> findByActivoTrueOrderByOrdenDisplayAsc();
+
+    /** v50: items globales canonicos (empresa_id IS NULL). */
+    java.util.List<Genero> findByEmpresaIdIsNullAndActivoTrueOrderByOrdenDisplayAsc();
+
+    /** v50: items custom de una empresa. */
+    java.util.List<Genero> findByEmpresaIdAndActivoTrueOrderByOrdenDisplayAsc(Long empresaId);
+
+    /** v50: TODO (admin): globales + custom de la empresa, incluyendo inactivos. */
+    java.util.List<Genero> findByEmpresaIdIsNullOrEmpresaIdOrderByOrdenDisplayAsc(Long empresaId);
 }
